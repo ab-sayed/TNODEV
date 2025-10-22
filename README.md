@@ -8,13 +8,13 @@ This repository contains the matlab codes for our tool paper: "TNODEV: Toolbox f
 
 
 ## Folder structure
-TNODEV//
+TNODEV/
 ├── Verifier.m
-├── NODE_RA.m         
+├── NODE_RA.m
 ├── UP_Jacobian_Bounds.m
 ├── TIRA.m
 ├── OA_methods/
-│   ├── OA_3_CT_Mixed_Monotonicity.m
-│   └── OA_4_CT_Sampled_data_MM.m
+│ ├── OA_3_CT_Mixed_Monotonicity.m
+│ └── OA_4_CT_Sampled_data_MM.m
 ├── Utilities/
 └── Input_files/
