@@ -1,4 +1,4 @@
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  
@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 22 October 2025
-% Last update: 22 October 2025
+% Last update: 23 October 2025
 % Last revision: October 2025
 
 %------------- BEGIN CODE --------------
@@ -371,7 +371,7 @@ try
         
                 % Draw using plot (legend-safe)
                 h_safe = plot([x1 x2 x2 x1 x1], [y1 y1 y2 y2 y1], ...
-                              'Color', [0 0.8 0], 'LineWidth', 4, 'DisplayName', 'Safe Set');
+                              'Color', [0 0.8 0], 'LineWidth', 2.5, 'DisplayName', 'Safe Set');
                 
                 % Add to legend
                 proxy_handles = [proxy_handles, h_safe];
@@ -439,10 +439,10 @@ try
         
         %% Tightness
         fprintf('Tightness Metrics (Area Ratio) for x_%d vs x_%d plane:\n', idx1, idx2);
-        fprintf('Mixed-Monotonicity (Single-step): %.2f\n', tightness_metrics(3));
-        fprintf('Mixed-Monotonicity (Boundary): %.2f\n', tightness_metrics(1));
-        fprintf('Sampled-Data Mixed-Monotonicity (Single-step): %.2f\n', tightness_metrics(4));
-        fprintf('Sampled-Data Mixed-Monotonicity (Boundary): %.2f\n', tightness_metrics(2));
+        fprintf('(Single-step) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(3));
+        fprintf('(Boundary) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(1));
+        fprintf('(Single-step) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(4));
+        fprintf('(Boundary) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(2));
     end
 catch e
     fprintf('Error in plotting: %s\n', e.message);
@@ -690,3 +690,6 @@ else
 end
 
 end
+
+
+%------------- END OF CODE --------------

@@ -1,4 +1,4 @@
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  

@@ -1,5 +1,4 @@
-%% PART 1: CORA computation of Reachable Tube Bounds
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  
@@ -8,9 +7,10 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 21 October 2025
+% Last update: 23 October 2025
 % Last revision: October 2025
 
+%------------- BEGIN CODE --------------
 
 function reachable_tube_bounds = spiral_non_CORA_RT(params)
 % spiral_non_CORA_RT.m Performs CORA reachability analysis and returns overall reachable tube bounds
@@ -124,3 +124,6 @@ fprintf('Upper bounds: [%s]\n', num2str(reachable_tube_bounds.ub', '%.4f '));
 % fprintf('\nOverall reachable tube bounds computation completed.\n');
 
 end
+
+
+%------------- END OF CODE --------------

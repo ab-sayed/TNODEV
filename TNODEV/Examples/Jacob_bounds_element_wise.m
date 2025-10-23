@@ -1,5 +1,4 @@
-%% PART 2: Jacobian Bounds Computation
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  
@@ -8,9 +7,10 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 21 October 2025
+% Last update: 23 October 2025
 % Last revision: October 2025
 
+%------------- BEGIN CODE --------------
 
 function [J_lb, J_ub] = Jacob_bounds_element_wise(a, b)
 % Jacob_bounds_element_wise.m computes Jacobian bounds using element-wise interval arithmetic
@@ -152,3 +152,6 @@ function S = sech2_interval(a, b)
     
     S = [s_min, s_max];
 end
+
+
+%------------- END OF CODE --------------

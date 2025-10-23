@@ -1,4 +1,4 @@
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  
@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 21 October 2025
-% Last update: 21 October 2025
+% Last update: 23 October 2025
 % Last revision: October 2025
 
 
@@ -59,6 +59,8 @@
 % Date: 21th of October 2025
 % Last update: 21th of October 2025
 % Last revision: th of October 2025
+
+%------------- BEGIN CODE --------------
 
 function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
 n_x = length(x_low);
@@ -192,3 +194,4 @@ switch system_choice
 end
 
 
+%------------- END OF CODE --------------
