@@ -29,8 +29,8 @@ addpath('../Utilities')
 %%%  -------------------------------------------------------------------
 
 % === 1. SYSTEM SELECTION ===
-% system_choice = 14;   % FPA System
-system_choice = 15;   % Spiral_non System
+system_choice = 14;   % FPA System
+% system_choice = 15;   % Spiral_non System
 
 
 % === 2. INITIAL SET ===
@@ -111,9 +111,13 @@ cora_full_params = cora_params;
 cora_full_params.x0             = x0;             
 cora_full_params.Initial_radius = Initial_radius;  
 
-reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
-fprintf('PART 1 completed.\n\n');
+if system_choice == 15
+    reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
+elseif system_choice == 14
+    reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
+end
 
+fprintf('PART 1 completed.\n\n');
 
 %% ------------------------------------------------------------------------
 %   PART 2: Compute Jacobian Bounds based on CORA Reachable Tube
@@ -121,7 +125,9 @@ fprintf('PART 1 completed.\n\n');
 fprintf('PART 2: Computing Jacobian Bounds...\n');
 a = reachable_tube_bounds.lb;
 b = reachable_tube_bounds.ub;
-[J_lb, J_ub] = Jacob_bounds_element_wise(a, b);
+
+[J_lb, J_ub] = Jacob_bounds_element_wise(a, b, system_choice);  % ← Pass system_choice!
+% [J_lb, J_ub] = Jacob_bounds_element_wise(a, b);
 fprintf('PART 2 completed.\n\n');
 
 

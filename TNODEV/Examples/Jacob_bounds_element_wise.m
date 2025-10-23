@@ -11,45 +11,76 @@
 % Last revision: October 2025
 
 %------------- BEGIN CODE --------------
-
-function [J_lb, J_ub] = Jacob_bounds_element_wise(a, b)
-% Jacob_bounds_element_wise.m computes Jacobian bounds using element-wise interval arithmetic
-% Inputs:
-%   a - 2x1 vector of lower bounds for x
-%   b - 2x1 vector of upper bounds for x
-% Outputs:
-%   J_lb - 2x2 matrix of lower bounds for the Jacobian
-%   J_ub - 2x2 matrix of upper bounds for the Jacobian
+% function [J_lb, J_ub] = Jacob_bounds_element_wise(a, b)
+function [J_lb, J_ub] = Jacob_bounds_element_wise(a, b, system_choice)
+% Jacob_bounds_element_wise.m: computes Jacobian bounds using element-wise
+% interval arithmetic for these examples : FPA (14) or Spiral_non (15) 
+% FPA case:
+    % Inputs:
+    %   a - 5x1 vector of lower bounds for x
+    %   b - 5x1 vector of upper bounds for x
+    % Outputs:
+    %   J_lb - 5x5 matrix of lower bounds for the Jacobian
+    %   J_ub - 5x5 matrix of upper bounds for the Jacobian
+% FPA case:
+    % Inputs:
+    %   a - 2x1 vector of lower bounds for x
+    %   b - 2x1 vector of upper bounds for x
+    % Outputs:
+    %   J_lb - 2x2 matrix of lower bounds for the Jacobian
+    %   J_ub - 2x2 matrix of upper bounds for the Jacobian
 
 fprintf('Computing Jacobian bounds based on reachable tube bounds:\n');
-fprintf('a = [%s]\n', num2str(a', '%.4f '));
-fprintf('b = [%s]\n', num2str(b', '%.4f '));
+fprintf('a = [%s]\n', num2str(a', '%.6f '));
+fprintf('b = [%s]\n', num2str(b', '%.6f '));
+fprintf('System choice: %d\n', system_choice);
 
-[J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b);
+% Validate inputs
+if ~isequal(size(a), size(b)) || any(a > b)
+    error('a and b must be same size and a <= b element-wise');
+end
 
+n = length(a);
+
+if system_choice == 15
+    % === SPIRAL_NON (2D) ===
+    if n ~= 2
+        error('Spiral_non expects 2D state, but got %dD', n);
+    end
+    [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b);
+    
+elseif system_choice == 14
+    % === FPA (5D) ===
+    if n ~= 5
+        error('FPA expects 5D state, but got %dD', n);
+    end
+    [J_lb, J_ub] = compute_jacobian_bounds_fpa(a, b);
+    
+else
+    error('Invalid system_choice: %d. Use 14 (FPA) or 15 (Spiral_non)', system_choice);
+end
+
+% === Display Results ===
 fprintf('\nLower bounds of Jacobian (J_lb):\n');
 disp(J_lb);
 fprintf('\nUpper bounds of Jacobian (J_ub):\n');
 disp(J_ub);
 
-% Display Jacobian bounds in a formatted way
 fprintf('\nJacobian Matrix Bounds Summary:\n');
-fprintf('J(1,1): [%.4f, %.4f]\n', J_lb(1,1), J_ub(1,1));
-fprintf('J(1,2): [%.4f, %.4f]\n', J_lb(1,2), J_ub(1,2));
-fprintf('J(2,1): [%.4f, %.4f]\n', J_lb(2,1), J_ub(2,1));
-fprintf('J(2,2): [%.4f, %.4f]\n', J_lb(2,2), J_ub(2,2));
+for i = 1:n
+    for j = 1:n
+        fprintf('J(%d,%d): [%.6f, %.6f]\n', i, j, J_lb(i,j), J_ub(i,j));
+    end
+end
 
 end
 
-function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
-% COMPUTE_JACOBIAN_BOUNDS_SPIRAL Computes bounds on the Jacobian matrix of the spiral_non neural ODE
 
-    % Check input validity
-    if length(a) ~= 2 || length(b) ~= 2 || any(a > b)
-        error("Inputs a and b must be 2x1 vectors with a <= b element-wise");
-    end
-    
-    % Parameters of neural ode (from spiral_non.m)
+%% ========================================================================
+%  SPIRAL_NON: Neural ODE Jacobian Bounds (2D → 10 hidden → 2D)
+% =========================================================================
+function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
+    % Parameters from spiral_non.m
     w1 = [0.2911133 ,  0.12008807;
            -0.24582624,  0.23181419;
            -0.25797904,  0.21687193;
@@ -69,15 +100,14 @@ function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
              0.8984464 , -1.0766245 , -0.238209  , -0.5233613 ,  0.8886671];
     b2 = [-0.04129209, -0.01508532]';
 
-    % Compute the interval bounds for each element of z = w1*x + b1
-    num_neurons = size(w1, 1); % 10 neurons
+    num_neurons = size(w1, 1); % 10
+
+    % z = w1*x + b1
     z_lb = zeros(num_neurons, 1);
     z_ub = zeros(num_neurons, 1);
-    
     for i = 1:num_neurons
-        temp_lb = 0;
-        temp_ub = 0;
-        for j = 1:size(w1, 2) % Iterate over input dimensions (2 for x)
+        temp_lb = 0; temp_ub = 0;
+        for j = 1:2
             if w1(i,j) >= 0
                 temp_lb = temp_lb + w1(i,j) * a(j);
                 temp_ub = temp_ub + w1(i,j) * b(j);
@@ -86,44 +116,31 @@ function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
                 temp_ub = temp_ub + w1(i,j) * a(j);
             end
         end
-        % Add bias b1_i
         z_lb(i) = temp_lb + b1(i);
         z_ub(i) = temp_ub + b1(i);
     end
-    
-    % Compute sech^2 intervals for each element of z
-    sech2_z_intervals = zeros(num_neurons, 2); % Each row: [s_min, s_max]
+
+    % sech²(z) interval
+    sech2_int = zeros(num_neurons, 2);
     for j = 1:num_neurons
-        sech2_z_intervals(j, :) = sech2_interval(z_lb(j), z_ub(j));
+        sech2_int(j, :) = sech2_interval(z_lb(j), z_ub(j));
     end
-    
-    % Initialize Jacobian bounds
-    J_lb = zeros(2, 2);
-    J_ub = zeros(2, 2);
-    
-    % The Jacobian J = w2 * diag(sech^2(z)) * w1
-    for i = 1:2 % Output dimensions of dx (2 for spiral_non)
-        for j = 1:2 % Input dimensions of x (2 for spiral_non)
-            sum_lb = 0;
-            sum_ub = 0;
-            for k = 1:num_neurons % Iterate over hidden neurons (10)
-                % Term: w2_ik * sech^2(z_k) * w1_kj
-                sech2_min = sech2_z_intervals(k,1);
-                sech2_max = sech2_z_intervals(k,2);
-                
-                % Product of w2_ik and w1_kj
+
+    % J = w2 * diag(sech²(z)) * w1
+    J_lb = zeros(2,2); J_ub = zeros(2,2);
+    for i = 1:2
+        for j = 1:2
+            sum_lb = 0; sum_ub = 0;
+            for k = 1:num_neurons
                 prod_w = w2(i,k) * w1(k,j);
-                
+                s_min = sech2_int(k,1); s_max = sech2_int(k,2);
                 if prod_w >= 0
-                    term_k_lb = prod_w * sech2_min;
-                    term_k_ub = prod_w * sech2_max;
+                    sum_lb = sum_lb + prod_w * s_min;
+                    sum_ub = sum_ub + prod_w * s_max;
                 else
-                    term_k_lb = prod_w * sech2_max;
-                    term_k_ub = prod_w * sech2_min;
+                    sum_lb = sum_lb + prod_w * s_max;
+                    sum_ub = sum_ub + prod_w * s_min;
                 end
-                
-                sum_lb = sum_lb + term_k_lb;
-                sum_ub = sum_ub + term_k_ub;
             end
             J_lb(i,j) = sum_lb;
             J_ub(i,j) = sum_ub;
@@ -131,27 +148,219 @@ function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
     end
 end
 
-function S = sech2_interval(a, b)
-% SECH2_INTERVAL Computes the interval of sech^2(x) over [a, b]
+
+%% ========================================================================
+%  FPA: Structured Jacobian Bounds (5D, linear + sech²)
+% =========================================================================
+function [J_lb, J_ub] = compute_jacobian_bounds_fpa(a, b)
+    tau = -1e-6;
     
-    if a > b
-        error("Lower bound a must be less than or equal to upper bound b");
+    A = [-1.20327, -0.07202, -0.93635;
+          1.18810, -1.50015,  0.93519];
+    B = [ 1.21464, -0.10502;
+          0.12023,  0.19387;
+         -1.36695,  0.12201];
+    BA = B * A;
+    W = [zeros(2,2), A;
+         zeros(3,2), BA];
+
+    % sech² for each state
+    S = zeros(5, 2);
+    for j = 1:5
+        S(j, :) = sech2_interval(a(j), b(j));
     end
+
+    J_lb = zeros(5,5); J_ub = zeros(5,5);
+    for i = 1:5
+        for j = 1:5
+            if W(i,j) > 0
+                temp_lb = W(i,j) * S(j,1);
+                temp_ub = W(i,j) * S(j,2);
+            elseif W(i,j) < 0
+                temp_lb = W(i,j) * S(j,2);
+                temp_ub = W(i,j) * S(j,1);
+            else
+                temp_lb = 0; temp_ub = 0;
+            end
+            if i == j
+                J_lb(i,j) = tau + temp_lb;
+                J_ub(i,j) = tau + temp_ub;
+            else
+                J_lb(i,j) = temp_lb;
+                J_ub(i,j) = temp_ub;
+            end
+        end
+    end
+end
+
+
+%% ========================================================================
+%  HELPER: sech²(x) over [a,b]
+% =========================================================================
+function S = sech2_interval(a, b)
+    if a > b, error('a must <= b'); end
     
-    % sech^2(x) = 1 / cosh^2(x), max at 0, decreases as |x| increases
     val_a = 1 / cosh(a)^2;
     val_b = 1 / cosh(b)^2;
     
-    if (a <= 0 && b >= 0) % Interval crosses or includes 0
-        s_max = 1; % sech^2(0) = 1 is the global maximum
+    if a <= 0 && b >= 0
         s_min = min(val_a, val_b);
-    else % Interval does not include 0, monotonic over the interval
+        s_max = 1;
+    elseif b < 0
+        s_min = val_a;  % increasing
+        s_max = val_b;
+    elseif a > 0
+        s_min = val_b;  % decreasing
+        s_max = val_a;
+    else
         s_min = min(val_a, val_b);
         s_max = max(val_a, val_b);
     end
-    
     S = [s_min, s_max];
 end
+
+
+
+
+
+
+
+
+
+
+
+
+% fprintf('Computing Jacobian bounds based on reachable tube bounds:\n');
+% fprintf('a = [%s]\n', num2str(a', '%.4f '));
+% fprintf('b = [%s]\n', num2str(b', '%.4f '));
+% 
+% [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b);
+% 
+% fprintf('\nLower bounds of Jacobian (J_lb):\n');
+% disp(J_lb);
+% fprintf('\nUpper bounds of Jacobian (J_ub):\n');
+% disp(J_ub);
+% 
+% % Display Jacobian bounds in a formatted way
+% fprintf('\nJacobian Matrix Bounds Summary:\n');
+% fprintf('J(1,1): [%.4f, %.4f]\n', J_lb(1,1), J_ub(1,1));
+% fprintf('J(1,2): [%.4f, %.4f]\n', J_lb(1,2), J_ub(1,2));
+% fprintf('J(2,1): [%.4f, %.4f]\n', J_lb(2,1), J_ub(2,1));
+% fprintf('J(2,2): [%.4f, %.4f]\n', J_lb(2,2), J_ub(2,2));
+% 
+% end
+% 
+% function [J_lb, J_ub] = compute_jacobian_bounds_spiral(a, b)
+% % COMPUTE_JACOBIAN_BOUNDS_SPIRAL Computes bounds on the Jacobian matrix of the spiral_non neural ODE
+% 
+%     % Check input validity
+%     if length(a) ~= 2 || length(b) ~= 2 || any(a > b)
+%         error("Inputs a and b must be 2x1 vectors with a <= b element-wise");
+%     end
+% 
+%     % Parameters of neural ode (from spiral_non.m)
+%     w1 = [0.2911133 ,  0.12008807;
+%            -0.24582624,  0.23181419;
+%            -0.25797904,  0.21687193;
+%            -0.19282854, -0.2602416 ;
+%             0.26780415, -0.20697702;
+%             0.23462369,  0.2294843 ;
+%            -0.2583547 ,  0.21444395;
+%            -0.04514714,  0.29514763;
+%            -0.15318371, -0.275755  ;
+%            0.24873598,  0.21018365];
+%     b1 = [0.0038677 , -0.00026365, -0.007168970,  0.02469357,  0.01338706,...
+%             0.00856025, -0.00888401,  0.00516089, -0.00634514, -0.01914518]';
+% 
+%     w2 = [-0.58693904, -0.814841  , -0.8175157 ,  0.97060364,  0.6908913 ,...
+%             -0.92446184, -0.79249185, -1.1507587 ,  1.2072723 , -0.7983982 ;
+%            1.1564877 , -0.8991244 , -1.0774536 , -0.6731967 ,  1.0154784 ,...
+%              0.8984464 , -1.0766245 , -0.238209  , -0.5233613 ,  0.8886671];
+%     b2 = [-0.04129209, -0.01508532]';
+% 
+%     % Compute the interval bounds for each element of z = w1*x + b1
+%     num_neurons = size(w1, 1); % 10 neurons
+%     z_lb = zeros(num_neurons, 1);
+%     z_ub = zeros(num_neurons, 1);
+% 
+%     for i = 1:num_neurons
+%         temp_lb = 0;
+%         temp_ub = 0;
+%         for j = 1:size(w1, 2) % Iterate over input dimensions (2 for x)
+%             if w1(i,j) >= 0
+%                 temp_lb = temp_lb + w1(i,j) * a(j);
+%                 temp_ub = temp_ub + w1(i,j) * b(j);
+%             else
+%                 temp_lb = temp_lb + w1(i,j) * b(j);
+%                 temp_ub = temp_ub + w1(i,j) * a(j);
+%             end
+%         end
+%         % Add bias b1_i
+%         z_lb(i) = temp_lb + b1(i);
+%         z_ub(i) = temp_ub + b1(i);
+%     end
+% 
+%     % Compute sech^2 intervals for each element of z
+%     sech2_z_intervals = zeros(num_neurons, 2); % Each row: [s_min, s_max]
+%     for j = 1:num_neurons
+%         sech2_z_intervals(j, :) = sech2_interval(z_lb(j), z_ub(j));
+%     end
+% 
+%     % Initialize Jacobian bounds
+%     J_lb = zeros(2, 2);
+%     J_ub = zeros(2, 2);
+% 
+%     % The Jacobian J = w2 * diag(sech^2(z)) * w1
+%     for i = 1:2 % Output dimensions of dx (2 for spiral_non)
+%         for j = 1:2 % Input dimensions of x (2 for spiral_non)
+%             sum_lb = 0;
+%             sum_ub = 0;
+%             for k = 1:num_neurons % Iterate over hidden neurons (10)
+%                 % Term: w2_ik * sech^2(z_k) * w1_kj
+%                 sech2_min = sech2_z_intervals(k,1);
+%                 sech2_max = sech2_z_intervals(k,2);
+% 
+%                 % Product of w2_ik and w1_kj
+%                 prod_w = w2(i,k) * w1(k,j);
+% 
+%                 if prod_w >= 0
+%                     term_k_lb = prod_w * sech2_min;
+%                     term_k_ub = prod_w * sech2_max;
+%                 else
+%                     term_k_lb = prod_w * sech2_max;
+%                     term_k_ub = prod_w * sech2_min;
+%                 end
+% 
+%                 sum_lb = sum_lb + term_k_lb;
+%                 sum_ub = sum_ub + term_k_ub;
+%             end
+%             J_lb(i,j) = sum_lb;
+%             J_ub(i,j) = sum_ub;
+%         end
+%     end
+% end
+% 
+% function S = sech2_interval(a, b)
+% % SECH2_INTERVAL Computes the interval of sech^2(x) over [a, b]
+% 
+%     if a > b
+%         error("Lower bound a must be less than or equal to upper bound b");
+%     end
+% 
+%     % sech^2(x) = 1 / cosh^2(x), max at 0, decreases as |x| increases
+%     val_a = 1 / cosh(a)^2;
+%     val_b = 1 / cosh(b)^2;
+% 
+%     if (a <= 0 && b >= 0) % Interval crosses or includes 0
+%         s_max = 1; % sech^2(0) = 1 is the global maximum
+%         s_min = min(val_a, val_b);
+%     else % Interval does not include 0, monotonic over the interval
+%         s_min = min(val_a, val_b);
+%         s_max = max(val_a, val_b);
+%     end
+% 
+%     S = [s_min, s_max];
+% end
 
 
 %------------- END OF CODE --------------
