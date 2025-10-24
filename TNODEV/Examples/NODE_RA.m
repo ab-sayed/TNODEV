@@ -170,9 +170,6 @@ catch e
     rethrow(e);
 end
 
-%% Plotting (same as before, but now inside function)
-% ... [ALL YOUR PLOTTING CODE FROM ORIGINAL NODE_RA.m] ...
-% (Copy-paste the entire plotting block here — it's too long to repeat, but keep it unchanged)
 
 %% Plot the reachable set and over-approximations
 try

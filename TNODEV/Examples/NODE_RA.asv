@@ -1,4 +1,4 @@
-% Paper:
+% Tool Paper:
 %   "Add Title here"
 %
 % Authors:  
@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 22 October 2025
-% Last update: 22 October 2025
+% Last update: 24 October 2025
 % Last revision: October 2025
 
 %------------- BEGIN CODE --------------
@@ -170,11 +170,8 @@ catch e
     rethrow(e);
 end
 
-%% Plotting (same as before, but now inside function)
-% ... [ALL YOUR PLOTTING CODE FROM ORIGINAL NODE_RA.m] ...
-% (Copy-paste the entire plotting block here — it's too long to repeat, but keep it unchanged)
-
 %% Plot the reachable set and over-approximations
+if isfield(params, 'plot_config') && isfield(params.plot_config, 'show_reachability') && params.plot_config.show_reachability
 try
     % Create timestamped directory for all outputs
     timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
@@ -347,35 +344,13 @@ try
         y_max_all = max([y_max_actual, y_max_bound + height_bound, y_min_single + height_single]);
         x_range = x_max_all - x_min_all;
         y_range = y_max_all - y_min_all;
-        buffer = 0.2; % 10% padding
+        buffer = 0.3; % 10% padding
         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
     
         % Add labels
         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
         title(['$x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
-    
-        % % <<< SAFE-SET: Green Thick Rectangle (from Verifier.m) >>>
-        % if isfield(params,'safe_inf') && isfield(params,'safe_sup')
-        %     safe_inf = params.safe_inf;
-        %     safe_sup = params.safe_sup;
-        %     if numel(safe_inf) == 2 && numel(safe_sup) == 2
-        %         % Define corners of safe set rectangle
-        %         x1 = safe_inf(1); y1 = safe_inf(2);
-        %         x2 = safe_sup(1); y2 = safe_sup(2);
-        % 
-        %         % Draw rectangle using plot (supports legend)
-        %          h_safe = plot([x1 x2 x2 x1 x1], [y1 y1 y2 y2 y1], ...
-        %               'Color', [0 0.8 0], 'LineWidth', 5, 'DisplayName', 'Safe Set');
-        % 
-        %          % Add to proxy handles for legend
-        %          proxy_handles = [proxy_handles, h_safe];
-        % 
-        %         % Save for Verifier
-        %         reachability_results.safe_inf = safe_inf;
-        %         reachability_results.safe_sup = safe_sup;
-        %     end
-        % end
         
 
         % <<< SAFE-SET: Green Thick Rectangle (drawn with plot to support legend) >>>
@@ -393,7 +368,7 @@ try
         
                 % Draw using plot (legend-safe)
                 h_safe = plot([x1 x2 x2 x1 x1], [y1 y1 y2 y2 y1], ...
-                              'Color', [0 0.8 0], 'LineWidth', 5, 'DisplayName', 'Safe Set');
+                              'Color', [0 0.8 0], 'LineWidth', 2.5, 'DisplayName', 'Safe Set');
                 
                 % Add to legend
                 proxy_handles = [proxy_handles, h_safe];
@@ -402,34 +377,6 @@ try
             end
         end
     
-        % Add single legend with correct method assignments
-        % all_proxy_handles = [h_proxy_single1, h_proxy_single2, h_proxy_bound1, h_proxy_bound2];
-        % all_legend_labels = {'Mixed-Monotonicity (Single-step)', 'Sampled-Data Mixed-Monotonicity (Single-step)', ...
-        %                      'Mixed-Monotonicity (Boundary)', 'Sampled-Data Mixed-Monotonicity (Boundary)'};
-        % % If safe set was added, include it
-        % if exist('h_safe', 'var')
-        %     all_proxy_handles = [all_proxy_handles, h_safe];
-        %     all_legend_labels{end+1} = 'Safe Set';
-        % end
-        % lgd = legend([plot(NaN, NaN, 'k.', 'MarkerSize', 5), all_proxy_handles], ...
-        %              ['Sampled points', all_legend_labels], 'Location', 'southeast');
-        % set(lgd, 'FontSize', 5, 'FontWeight', 'bold');
-
-        % % Build legend: sampled points + all proxy handles (including safe set)
-        % legend_entries = [plot(NaN, NaN, 'k.', 'MarkerSize', 5), proxy_handles];
-        % legend_labels  = [{'Sampled points'}, repmat({''}, 1, numel(proxy_handles))];
-        % 
-        % % Assign correct labels based on order
-        % label_idx = 2;  % after "Sampled points"
-        % if exist('h_proxy_single1','var'), legend_labels{label_idx} = 'Mixed-Monotonicity (Single-step)'; label_idx = label_idx + 1; end
-        % if exist('h_proxy_single2','var'), legend_labels{label_idx} = 'Sampled-Data Mixed-Monotonicity (Single-step)'; label_idx = label_idx + 1; end
-        % if exist('h_proxy_bound1','var'),  legend_labels{label_idx} = 'Mixed-Monotonicity (Boundary)'; label_idx = label_idx + 1; end
-        % if exist('h_proxy_bound2','var'),  legend_labels{label_idx} = 'Sampled-Data Mixed-Monotonicity (Boundary)'; label_idx = label_idx + 1; end
-        % if exist('h_safe','var'),         legend_labels{label_idx} = 'Safe Set'; end
-        % 
-        % % Create legend
-        % lgd = legend(legend_entries, legend_labels, 'Location', 'southeast');
-        % set(lgd, 'FontSize', 5, 'FontWeight', 'bold');
 
         % Build legend: sampled points + all proxy handles in correct order
         legend_entries = [plot(NaN, NaN, 'k.', 'MarkerSize', 5)];
@@ -473,26 +420,40 @@ try
         set(lgd, 'FontSize', 5, 'FontWeight', 'bold');
     
         % Save the reachability plot
-        if exist(save_dir, 'dir')
-            try
-                filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
-                saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
-                fprintf('Reachability plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
-                saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
-                fprintf('Reachability plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
-            catch e
-                warning('Failed to save reachability plot: %s', e.message);
+        % if exist(save_dir, 'dir')
+        %     try
+        %         filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
+        %         saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+        %         fprintf('Reachability plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
+        %         saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+        %         fprintf('Reachability plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
+        %     catch e
+        %         warning('Failed to save reachability plot: %s', e.message);
+        %     end
+        % === SAVE ONLY IF ENABLED ===
+        if isfield(params.plot_config, 'save_figures') && params.plot_config.save_figures
+                try
+                    filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
+                    saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+                    saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+                catch e
+                    warning('Failed to save: %s', e.message);
+                end
             end
+        end
+    catch e
+        fprintf('Error in reachability plotting: %s\n', e.message);
+    end
         else
             warning('Directory %s does not exist. Skipping reachability plot save.', save_dir);
         end
         
         %% Tightness
         fprintf('Tightness Metrics (Area Ratio) for x_%d vs x_%d plane:\n', idx1, idx2);
-        fprintf('Mixed-Monotonicity (Single-step): %.2f\n', tightness_metrics(3));
-        fprintf('Mixed-Monotonicity (Boundary): %.2f\n', tightness_metrics(1));
-        fprintf('Sampled-Data Mixed-Monotonicity (Single-step): %.2f\n', tightness_metrics(4));
-        fprintf('Sampled-Data Mixed-Monotonicity (Boundary): %.2f\n', tightness_metrics(2));
+        fprintf('(Single-step) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(3));
+        fprintf('(Boundary) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(1));
+        fprintf('(Single-step) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(4));
+        fprintf('(Boundary) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(2));
     end
 catch e
     fprintf('Error in plotting: %s\n', e.message);
@@ -500,6 +461,7 @@ catch e
 end
 
 %% Plot the Boundary reachability splits (10~5D or 4~2D)
+if isfield(params, 'plot_config') && isfield(params.plot_config, 'show_boundary_points') && params.plot_config.show_boundary_points
 try
     % Define plot pairs based on system choice
     plot_pairs = [];
@@ -740,3 +702,6 @@ else
 end
 
 end
+
+
+%------------- END OF CODE --------------
