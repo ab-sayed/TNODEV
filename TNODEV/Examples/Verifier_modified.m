@@ -196,7 +196,7 @@ fprintf('PART 3 completed.\n\n');
 %   verify.m]
 %   3. Refinement: Splits the input interval along the dimension with the 
 %   largest radius, creating two new intervals with halved radius in that 
-%   dimension.
+%   dimension. --> simple heuristic
 % -------------------------------------------------------------------------
 iter = 0;
 while ~isempty(verification_queue) && iter < MAX_ITER && overall_safe
