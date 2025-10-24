@@ -279,11 +279,10 @@ fprintf('PART 5 completed.\n\n');
 % -------------------------------------------------------------------------
 fprintf('=== Verification Analysis Complete ===\n');
 fprintf('System: %s\n', upper(system_name));
-fprintf('PART 1: CORA tube bounds computed\n');
-fprintf('PART 2: Jacobian bounds derived\n');
-fprintf('PART 3: Jacobians passed to UP_Jacobian_Bounds.m\n');
-fprintf('PART 4: TIRA/NODE_RA reachability completed\n');
-fprintf('PART 5: Safety verified against user-defined safe set\n');
-
+fprintf('PART 1: Reachable Tube bounds computed from CORA\n');
+fprintf('PART 2: Jacobian bounds computed based on Reachable Tube\n');
+fprintf('PART 3: Jacobian bounds passed to UP_Jacobian_Bounds.m\n');
+fprintf('PART 4: Call the nODE reachability analysis function NODE_RA.m\n');
+fprintf('PART 5: Safety verification based on user-defined safe set\n');
 
 %------------- END OF CODE --------------
