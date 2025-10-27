@@ -1,0 +1,12 @@
+`naive`
+System: FPA
+Total Iterations: 50
+Verified Subsets: 0
+Falsified Subsets: 0
+Remaining Unknown Subsets: 102
+Total Time Taken: 62.30 minutes
+
+VERDICT: UNKNOWN (Max iterations reached). 51 subsets remain in queue.
+
+
+

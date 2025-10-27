@@ -1,0 +1,9 @@
+`most-sensitive-input-radius`
+System: SPIRAL_NON
+Total Iterations: 5
+Verified Subsets: 3
+Falsified Subsets: 0
+Remaining Unknown Subsets: 0
+Total Time Taken: 2.29 minutes
+
+VERDICT: FULLY VERIFIED (SAFE) for the initial set.
