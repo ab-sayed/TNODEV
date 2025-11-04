@@ -1,3 +1,18 @@
+% Tool Paper:
+%   "Add Title here"
+%
+% Authors:  
+%   Abdelrahman Sayed Sayed, <abdelrahman.ibrahim -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%
+% Date: XX October 2025
+% Last update: 3 Novemberber 2025
+% Last revision: October 2025
+
+%------------- BEGIN CODE --------------
+
+
 %% Choice of over-approximation methods, submethods and definition of their internal parameters
 % All variables defined here are stored in the structure 'parameter', which
 % is partially read in the relevant functions.
@@ -40,7 +55,9 @@ global g_sensitivity_bounds_method;
 %   WARNING = 3
 %   ERROR   = 4
 %   OFF     = 5
-parameters.log_level = logger.logger.ALL;
+% parameters.log_level = logger.logger.ALL;
+parameters.log_level = 5;
+
 
 % Log to command window or to file.
 %   NaN: to command window
