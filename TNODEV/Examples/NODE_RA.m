@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 22 October 2025
-% Last update: 23 October 2025
+% Last update: 4 November 2025
 % Last revision: October 2025
 
 % %------------- BEGIN CODE --------------
@@ -778,19 +778,29 @@ global g_sensitivity_bounds_method
 g_sensitivity_bounds_method = nan;
 
 %% Definition of the reachability problem
-global u
-switch system_choice
-    case 14
-        Initial_radius = 0.01;
-        x0 = [0, -0.58587, 0.8, 0.52323, 0.7]';
-        t_final = 2;
-        steps = 0.05;
-    case 15
-        Initial_radius = params.Initial_radius;
-        x0 = params.x0;
-        t_final = params.t_final;
-        steps = params.timeStep;
-end
+% global u
+% switch system_choice
+%     case 14
+%         Initial_radius = 0.01;
+%         x0 = [0, -0.58587, 0.8, 0.52323, 0.7]';
+%         t_final = 2;
+%         steps = 0.05;
+%     case 15
+%         Initial_radius = params.Initial_radius;
+%         x0 = params.x0;
+%         t_final = params.t_final;
+%         steps = params.timeStep;
+% end
+
+global u system_choice
+system_choice = get_from_params(params, 'system_choice');
+
+% === UNIFIED PARAMETER LOADING (both systems) ===
+
+Initial_radius = get_from_params(params, 'Initial_radius');
+x0             = get_from_params(params, 'x0');
+t_final        = get_from_params(params, 't_final');
+steps          = get_from_params(params, 'timeStep')
 
 x_low = x0 - Initial_radius;
 x_up  = x0 + Initial_radius;
@@ -1461,6 +1471,19 @@ else
     reachability_results.safe_sup = [];
 end
 
+end
+
+% =========================================================================
+% === Helper Functions==
+% =========================================================================
+function val = get_from_params(params, field)
+    % Safely extract field from params struct
+    % Throws clear error if missing
+    if isfield(params, field) && ~isempty(params.(field))
+        val = params.(field);
+    else
+        error('NODE_RA: Missing required parameter "%s". Must be set in Verifier_FINAL.m', field);
+    end
 end
 
 
