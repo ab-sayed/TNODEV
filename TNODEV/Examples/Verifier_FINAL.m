@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 4 November 2025 
+% Last update: 14 November 2025 
 % Last revision: October 2025
 
 % %------------- BEGIN CODE --------------
@@ -1031,17 +1031,21 @@ node_params.sample_succ_number = 1000;
 % node_params.safe_inf = [-1.8; 0.6];   % lower-left corner (x1, x2)
 % node_params.safe_sup = [0.7; 2.8];   % upper-right corner (x1, x2)
 
-% Example 2: Safety violated for some methods
-node_params.safe_inf = [-1.3; 0.95];   % [x1_low, x2_low]
-node_params.safe_sup = [0.25; 2.45]; % [x1_up,  x2_up]
+% % Example 2: Safety violated for some methods
+% node_params.safe_inf = [-1.3; 0.95];   % [x1_low, x2_low]
+% node_params.safe_sup = [0.25; 2.45]; % [x1_up,  x2_up]
 
 % Example 3: Safety violated for some methods
-% node_params.safe_inf = [-1; 1.2];   % [x1_low, x2_low]
-% node_params.safe_sup = [0.3; 2];    % [x1_up, x2_up]
+node_params.safe_inf = [-1; 1.2];   % [x1_low, x2_low]
+node_params.safe_sup = [0.3; 2];    % [x1_up, x2_up]
 
 % Example 4: Safety violated for some methods
 % node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
 % node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
+
+% Example 5: Safety violated --> counter example works here 
+% node_params.safe_inf = [-3; 1.5];   % [x1_low, x2_low]
+% node_params.safe_sup = [0; 3]; % [x1_up,  x2_up]
 
 %%%%%%%%%%%%% FPA System %%%%%%%%%%%%% 
 % Example 1: Safety verified for all OA methods across the 5 dimensions (3 Figs)

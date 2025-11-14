@@ -69,8 +69,16 @@ end
 n_x = length(x_low);
 n_p = length(p_low);
 
-% Extract method choices and parameters in the 'parameters' structure
+% % Extract method choices and parameters in the 'parameters' structure
 run('Solver_parameters.m');
+
+
+% Extract method choices and parameters from `get_solver_parameters.m`
+% global g_sensitivity_bounds_method
+% if isnan(g_sensitivity_bounds_method)
+%     g_sensitivity_bounds_method = NaN;
+% end
+% parameters = get_solver_parameters(n_x, n_p, g_sensitivity_bounds_method);
 
 % Use the over-approximation method choice from Solver_parameters.m
 %   if it was not provided as input argument of this function
