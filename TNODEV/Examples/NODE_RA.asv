@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 22 October 2025
-% Last update: 17 November 2025
+% Last update: 18 November 2025
 % Last revision: October 2025
 
 % %------------- BEGIN CODE --------------
@@ -1465,93 +1465,681 @@
 
 
 %**************************************************************************************************************************
+%% V1.1 --> Last Version shared with PJ
 
-%------------- BEGIN CODE  --------------
+% %------------- BEGIN CODE  --------------
+% 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODEs using TIRA
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice      : 14 or 15
+% %       .x0                 : initial center
+% %       .Initial_radius     : radius of initial set
+% %       .t_final            : final time
+% %       .timeStep           : discretization step
+% %       .plot_last_only     : true/false
+% %       .sample_succ_number : number of random samples
+% % Output:
+% %   reachability_results - struct containing all reachable sets, plots, etc.
+% 
+% %% Initialization
+% close all
+% bool_discrete_time = 0;
+% addpath('../OA_methods')
+% addpath('../Utilities')    
+% 
+% %% === PLOTTING CONTROL DEFAULTS (NEW) ===
+% default_plot_control.show_figures               = true;
+% default_plot_control.save_each_iteration        = false;
+% default_plot_control.save_final_only_if_verified = true;
+% default_plot_control.save_reachability          = true;
+% default_plot_control.save_boundary              = true;
+% default_plot_control.save_interval_hull         = true;
+% 
+% if isfield(params, 'plot_control')
+%     pc = params.plot_control;
+% 
+%     % ---- NEW SAFE ACCESS -------------------------------------------------
+%     plot_control.show_figures               = getOrDefault(pc,'show_figures', default_plot_control.show_figures);
+%     plot_control.save_each_iteration        = getOrDefault(pc,'save_each_iteration', default_plot_control.save_each_iteration);
+%     plot_control.save_final_only_if_verified = getOrDefault(pc,'save_final_only_if_verified', default_plot_control.save_final_only_if_verified);
+%     plot_control.save_reachability          = getOrDefault(pc,'save_reachability', default_plot_control.save_reachability);
+%     plot_control.save_boundary              = getOrDefault(pc,'save_boundary', default_plot_control.save_boundary);
+%     plot_control.save_interval_hull         = getOrDefault(pc,'save_interval_hull', default_plot_control.save_interval_hull);
+%     % --------------------------------------------------------------------
+% else
+%     plot_control = default_plot_control;
+% end
+% 
+% % -----------------------------------------------------------------------
+% % Helper that works even if the field does not exist
+% % -----------------------------------------------------------------------
+% 
+% function val = getOrDefault(s, field, default)
+%     if isfield(s, field)
+%         val = s.(field);
+%     else
+%         val = default;
+%     end
+% end
+% % -----------------------------------------------------------------------
+% 
+% %% User-defined parameters (override defaults with input)
+% plot_last_only = true;      % Default
+% if isfield(params, 'plot_last_only')
+%     plot_last_only = params.plot_last_only;
+% end
+% 
+% sample_succ_number = 1000;  % Default
+% if isfield(params, 'sample_succ_number')
+%     sample_succ_number = params.sample_succ_number;
+% end
+% 
+% %% Choice of the example system
+% global system_choice
+% system_choice = params.system_choice;
+% 
+% % Map system choice to system name
+% system_names = containers.Map({14, 15}, {'fpa', 'spiral_non'});
+% if ~isKey(system_names, system_choice)
+%     error('Unknown system_choice %d.', system_choice);
+% end
+% system_name = system_names(system_choice);
+% 
+% %% Optional submethod choice
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Definition of the reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% % Verify dimensions
+% if system_choice == 14 && (n_x ~= 5 || n_p ~= 5)
+%     error('FPA expects 5D state/parameter.');
+% elseif system_choice == 15 && (n_x ~= 2 || n_p ~= 2)
+%     error('Spiral_non expects 2D state/parameter.');
+% end
+% 
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% boundary_times = zeros(num_splits, n_methods_single_step);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main reachability computation
+% try
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % Single-step (initial approach)
+%     for m = 1:n_methods_single_step
+%         tStart = tic;
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         time_initial(m) = toc(tStart);
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % Boundary approach
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             tStart = tic;
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             time_boundary(i, m) = toc(tStart);
+%             succ_low_boundary{i}(:, 1, m) = succ_low;  % Only final time
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% 
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% Random successors
+% try
+%     % === CALL CONFIG FUNCTION ===
+%     global g_sensitivity_bounds_method
+%     parameters = get_solver_parameters(n_x, n_p, g_sensitivity_bounds_method);
+% 
+%     % Now use it
+%     ode_solver = parameters.ode_solver;
+%     ode_options = parameters.ode_options;
+% 
+%     rand_succ = NaN(n_x, sample_succ_number);
+%     for i = 1:sample_succ_number
+%         x0_rand = x_low + rand(n_x,1).*(x_up - x_low);
+%         p_rand  = p_low + rand(n_p,1).*(p_up - p_low);
+%         [~, x_traj] = ode_solver(@(t,x) System_description(t,x,p_rand), [t_init t_final], x0_rand, ode_options);
+%         rand_succ(:,i) = x_traj(end,:)';
+%     end
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% === UNIFIED SAVING: ONLY ONE FOLDER, ONLY ON FINAL CALL ===
+% % No folders during refinement → no clutter
+% % One beautiful folder on final verified call → contains plots + data
+% 
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     % Create ONE top-level folder with timestamp
+%     folder_name = sprintf('FINAL_VERIFIED_%s_%s', system_name, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+%     save_dir = fullfile(pwd, folder_name);
+% 
+%     if ~exist(save_dir, 'dir')
+%         mkdir(save_dir);
+%         fprintf('Created a single results folder:\n   %s\n', save_dir);
+%     end
+% 
+%     % Update reachability_results so Verifier.m knows the path
+%     reachability_results.save_dir = save_dir;
+% 
+% else
+%     % During bisection/refinement: NO saving, NO folder
+%     save_dir = '';
+%     reachability_results.save_dir = '';
+% end
+% 
+% %%
+% % =====================================================================
+% % FINAL PLOTTING — ONLY ON is_final_call = true
+% % =====================================================================
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     fig = figure('Color', 'w');
+%     hold on;
+%     grid on;
+%     box on;
+%     set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
+%     k = 1; % final time index
+% 
+%     % Black sampled points
+%     plot(rand_succ(1,:), rand_succ(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled trajectories');
+% 
+%     % -----------------------------------------------------------------
+%     % Choose plot mode
+%     % -----------------------------------------------------------------
+%     plot_mode = 'full';
+%     if isfield(params.plot_control, 'final_plot_mode')
+%         plot_mode = params.plot_control.final_plot_mode;
+%     end
+% 
+%     if strcmp(plot_mode, 'intersection_only')
+%         % ───── ONLY INTERSECTION + SAFE SET (CLEAN & PUBLICATION-GRADE) ─────
+%         % 1. Intersection of all 4 OAs (thick purple)
+%         intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%         intersect_up = min([succ_up_all_methods(1:2,k,1), succ_up_all_methods(1:2,k,2)], [], 2);
+%         for m = 1:2
+%             Ls = inf(2,num_splits); Us = -inf(2,num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
+%                 Us(:,i) = succ_up_boundary{i}(1:2,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up = min(intersect_up, max(Us,[],2));
+%         end
+%         rect_int = [intersect_low(1), intersect_low(2), ...
+%                     intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+%         rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+%         h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2,...
+%                      'DisplayName','Proved Reachable Set (Intersection of 4 OAs)');
+% 
+%         % 2. Safe set (thick green)
+%         h_safe = []; % initialize in case safe set is missing
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
+%             numel(params.safe_inf)==2 && numel(params.safe_sup)==2 && ...
+%             all(isfinite(params.safe_inf)) && all(isfinite(params.safe_sup))
+%             safe_x = [params.safe_inf(1), params.safe_sup(1), params.safe_sup(1), params.safe_inf(1), params.safe_inf(1)];
+%             safe_y = [params.safe_inf(2), params.safe_inf(2), params.safe_sup(2), params.safe_sup(2), params.safe_inf(2)];
+%             h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
+%         end
+% 
+%         % Collect bounds only from what actually exists in this mode
+%         x_min_all = min(rand_succ(1,:));
+%         x_max_all = max(rand_succ(1,:));
+%         y_min_all = min(rand_succ(2,:));
+%         y_max_all = max(rand_succ(2,:));
+%         % Add intersection rectangle
+%         x_min_all = min(x_min_all, rect_int(1));
+%         x_max_all = max(x_max_all, rect_int(1) + rect_int(3));
+%         y_min_all = min(y_min_all, rect_int(2));
+%         y_max_all = max(y_max_all, rect_int(2) + rect_int(4));
+%         % Add safe set (if exists)
+%         if ~isempty(h_safe)
+%             x_min_all = min(x_min_all, min(safe_x));
+%             x_max_all = max(x_max_all, max(safe_x));
+%             y_min_all = min(y_min_all, min(safe_y));
+%             y_max_all = max(y_max_all, max(safe_y));
+%         end
+%         x_range = max(x_max_all - x_min_all, 0.1);
+%         y_range = max(y_max_all - y_min_all, 0.1);
+%         buffer = 0.25;
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
+%               y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+%         axis equal;
+% 
+%         % Legend: only the two important ones
+%         xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%         ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%         title('Intersection of 4 OAs vs Safe set','Interpreter','latex','FontSize',20);
+%         % Build legend entries and labels in exact desired order
+%         legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Sampled points
+%         legend_labels = {'Sampled trajectories'};
+%         % Always add intersection
+%         legend_entries(end+1) = h_int;
+%         legend_labels{end+1} = 'Intersection of 4 OAs';
+%         % Add Safe Set only if it exists
+%         if ~isempty(h_safe)
+%             legend_entries(end+1) = h_safe;
+%             legend_labels{end+1} = 'Safe Set';
+%         end
+% 
+%         % Create compact legend
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
+%                      'Interpreter', 'latex');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
+% 
+%         % Save in multiple formats
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.png'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.pdf'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.fig'));
+%         print(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.eps'), '-depsc');
+%         print(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set_highres'), '-dpng', '-r600');
+%         fprintf('Final proved reachable set saved in:\n %s\n', save_dir);
+% 
+%     else
+%         % ───── FULL PLOTS (ALL OAs + Intersections + Safe set) ─────
+% 
+%         % -----------------------------------------------------------------
+%         % 1. Single-step CT Mixed-Monotonicity (solid blue)
+%         % -----------------------------------------------------------------
+%         rect1 = [succ_low_all_methods(1,k,1), succ_low_all_methods(2,k,1), ...
+%                  succ_up_all_methods(1,k,1)-succ_low_all_methods(1,k,1), ...
+%                  succ_up_all_methods(2,k,1)-succ_low_all_methods(2,k,1)];
+%         rectangle('Position', rect1, 'EdgeColor',[0 0.4470 0.7410], 'LineWidth',1.4);
+%         h1 = plot(NaN, NaN, '-', 'Color', [0 0.4470 0.7410], 'LineWidth', 1.4, ...
+%               'DisplayName','CT Mixed-Monotonicity (Single-step)');
+% 
+%         % -----------------------------------------------------------------
+%         % 2. Single-step Sampled-Data MM (solid orange)
+%         % -----------------------------------------------------------------
+%         rect2 = [succ_low_all_methods(1,k,2), succ_low_all_methods(2,k,2), ...
+%                  succ_up_all_methods(1,k,2)-succ_low_all_methods(1,k,2), ...
+%                  succ_up_all_methods(2,k,2)-succ_low_all_methods(2,k,2)];
+%         rectangle('Position', rect2, 'EdgeColor',[0.8500 0.3250 0.0980], 'LineWidth',1.4);
+%         h2 = plot(NaN, NaN, '-', 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 1.4, ...
+%             'DisplayName','SD Mixed-Monotonicity (Single-step)');
+% 
+% 
+%         % -----------------------------------------------------------------
+%         % 3. Boundary CT MM (dashed cyan)
+%         % -----------------------------------------------------------------
+%         L = Inf(2,1); U = -Inf(2,1);
+%         for i = 1:num_splits
+%             L = min(L, [succ_low_boundary{i}(1,k,1); succ_low_boundary{i}(2,k,1)]);
+%             U = max(U, [succ_up_boundary{i}(1,k,1);  succ_up_boundary{i}(2,k,1)]);
+%         end
+%         rect3 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
+%         rectangle('Position', rect3, 'EdgeColor',[0.3010 0.7450 0.9330], 'LineWidth',1.4);
+%         h3 = plot(NaN, NaN, '--', 'Color', [0.3010 0.7450 0.9330], 'LineWidth', 1.4, ...
+%             'DisplayName','CT Mixed-Monotonicity (Boundary)');
+% 
+%         % -----------------------------------------------------------------
+%         % 4. Boundary SD MM (dashed gold)
+%         % -----------------------------------------------------------------
+%         L = Inf(2,1); U = -Inf(2,1);
+%         for i = 1:num_splits
+%             L = min(L, [succ_low_boundary{i}(1,k,2); succ_low_boundary{i}(2,k,2)]);
+%             U = max(U, [succ_up_boundary{i}(1,k,2);  succ_up_boundary{i}(2,k,2)]);
+%         end
+%         rect4 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
+%         rectangle('Position', rect4, 'EdgeColor',[0.9290 0.6940 0.1250], 'LineWidth',1.4);
+%         h4 = plot(NaN, NaN, '--', 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 1.4, ...
+%             'DisplayName','SD Mixed-Monotonicity (Boundary)');
+% 
+%         % -----------------------------------------------------------------
+%         % 5. INTERSECTION OF ALL 4 (thick purple) 
+%         % -----------------------------------------------------------------
+%         intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%         intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
+%         for m = 1:2
+%             Ls = Inf(2,num_splits); Us = -Inf(2,num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = [succ_low_boundary{i}(1,k,m); succ_low_boundary{i}(2,k,m)];
+%                 Us(:,i) = [succ_up_boundary{i}(1,k,m);  succ_up_boundary{i}(2,k,m)];
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+%         rect_intersect = [intersect_low(1), intersect_low(2), ...
+%                           intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+%         rectangle('Position', rect_intersect, 'EdgeColor',[0.4940 0.1840 0.5560], 'LineWidth',2.5);
+%         h5 = plot(NaN, NaN, '-', 'Color', [0.4940 0.1840 0.5560], 'LineWidth', 2.5, ...
+%             'DisplayName','Intersection of 4 OAs');
+% 
+%         % -----------------------------------------------------------------
+%         % 6. SAFE SET (thick green)
+%         % -----------------------------------------------------------------
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
+%            numel(params.safe_inf)==2 && numel(params.safe_sup)==2
+%             safe_x = [params.safe_inf(1), params.safe_sup(1), params.safe_sup(1), params.safe_inf(1), params.safe_inf(1)];
+%             safe_y = [params.safe_inf(2), params.safe_inf(2), params.safe_sup(2), params.safe_sup(2), params.safe_inf(2)];
+%             h6 = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2.5, 'DisplayName','Safe set');
+%         end
+%         % =================================================================
+%         % AUTOMATIC AXIS LIMITS — smart, adaptive, beautiful padding
+%         % =================================================================
+%         % Collect all corners from rectangles and sampled points
+%         x_min_actual = min(rand_succ(1,:));
+%         x_max_actual = max(rand_succ(1,:));
+%         y_min_actual = min(rand_succ(2,:));
+%         y_max_actual = max(rand_succ(2,:));
+% 
+%         % Single-step bounds
+%         x_min_single = min([rect1(1), rect2(1)]);
+%         x_max_single = max([rect1(1)+rect1(3), rect2(1)+rect2(3)]);
+%         y_min_single = min([rect1(2), rect2(2)]);
+%         y_max_single = max([rect1(2)+rect1(4), rect2(2)+rect2(4)]);
+%         width_single  = x_max_single - x_min_single;
+%         height_single = y_max_single - y_min_single;
+% 
+%         % Boundary bounds
+%         x_min_bound = min([rect3(1), rect4(1)]);
+%         x_max_bound = max([rect3(1)+rect3(3), rect4(1)+rect4(3)]);
+%         y_min_bound = min([rect3(2), rect4(2)]);
+%         y_max_bound = max([rect3(2)+rect3(4), rect4(2)+rect4(4)]);
+%         width_bound  = x_max_bound - x_min_bound;
+%         height_bound = y_max_bound - y_min_bound;
+% 
+%         % Intersection bound
+%         x_min_inter = rect_intersect(1);
+%         x_max_inter = rect_intersect(1) + rect_intersect(3);
+%         y_min_inter = rect_intersect(2);
+%         y_max_inter = rect_intersect(2) + rect_intersect(4);
+% 
+%         % Safe set (if exists)
+%         if exist('safe_x','var')
+%             x_min_safe = min(safe_x);
+%             x_max_safe = max(safe_x);
+%             y_min_safe = min(safe_y);
+%             y_max_safe = max(safe_y);
+%         else
+%             x_min_safe = 0; x_max_safe = 0; y_min_safe = 0; y_max_safe = 0;
+%         end
+% 
+%         % Final min/max including everything
+%         x_min_all = min([x_min_actual, x_min_single, x_min_bound, x_min_inter, x_min_safe]);
+%         x_max_all = max([x_max_actual, x_max_single + width_single, x_max_bound + width_bound, x_max_inter, x_max_safe]);
+%         y_min_all = min([y_min_actual, y_min_single, y_min_bound, y_min_inter, y_min_safe]);
+%         y_max_all = max([y_max_actual, y_max_single + height_single, y_max_bound + height_bound, y_max_inter, y_max_safe]);
+% 
+%         x_range = x_max_all - x_min_all;
+%         y_range = y_max_all - y_min_all;
+% 
+%         if x_range == 0, x_range = 1; end
+%         if y_range == 0, y_range = 1; end
+% 
+%         buffer = 0.25;  % perfect padding
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
+%               y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+% 
+%         axis equal;  % Keep this — critical for rectangles
+% 
+%         % -----------------------------------------------------------------
+%         % Labels & Legend
+%         % -----------------------------------------------------------------
+%         xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%         ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%         title('Final Reachable Set Over-Approximations','Interpreter','latex','FontSize',20);
+% 
+%         % Build legend entries and labels in exact desired order
+%         legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5);   % Sampled points
+%         legend_labels  = {'Sampled trajectories'};
+% 
+%         % Proxy handles (already created above: h1, h2, h3, h4, h5, h6)
+%         proxy_handles = [h1, h2, h3, h4, h5];
+%         label_names   = {...
+%             'CT Mixed-Monotonicity (Single-step)', ...
+%             'SD Mixed-Monotonicity (Single-step)', ...
+%             'CT Mixed-Monotonicity (Boundary)', ...
+%             'SD Mixed-Monotonicity (Boundary)', ...
+%             'Intersection of 4 OAs'};
+% 
+%         for i = 1:length(proxy_handles)
+%             legend_entries(end+1) = proxy_handles(i);
+%             legend_labels{end+1}  = label_names{i};
+%         end
+% 
+%         % Add Safe Set only if it exists
+%         if exist('h6', 'var')
+%             legend_entries(end+1) = h6;
+%             legend_labels{end+1}  = 'Safe set';
+%         end
+% 
+%         % Create compact legend 
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
+%                      'Interpreter', 'latex');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
+% 
+% 
+%         % Make dashed lines visible in legend
+%         leg = findobj(lgd, 'type', 'line');
+%         set(leg, 'LineWidth', 1.5);
+% 
+%         % Final layout tweak
+%         set(gca, 'LooseInset', get(gca,'TightInset') + [0.01 0.01 0.05 0.01]);
+%         drawnow;
+% 
+% 
+%         % Save in multiple formats
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.png'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.pdf'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.fig'));
+%         print(gcf, fullfile(save_dir, 'Final_Reachability_Plot.eps'), '-depsc');          % Vector EPS for LaTeX
+%         print(gcf, fullfile(save_dir, 'Final_Reachability_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+%         fprintf('Final plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', save_dir);
+%     end 
+% end
+% 
+% % -------------------------------------------------------------------
+% % 4. TIGHTNESS METRICS & TIMING SUMMARY
+% % -------------------------------------------------------------------
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     k = 1;
+%     % === Compute areas of single-step methods ===
+%     area_CTMM_singlestep  = prod(succ_up_all_methods(1:2,k,1)  - succ_low_all_methods(1:2,k,1));
+%     area_SDMM_singlestep  = prod(succ_up_all_methods(1:2,k,2)  - succ_low_all_methods(1:2,k,2));
+% 
+%     % === Compute areas of boundary methods ===
+%     % Boundary CTMM
+%     L = Inf(2,1); 
+%     U = -Inf(2,1);
+%     for i = 1:num_splits, 
+%         L = min(L, succ_low_boundary{i}(1:2,k,1));
+%         U = max(U, succ_up_boundary{i}(1:2,k,1)); 
+%     end
+%     area_CTMM_boundary = prod(U - L);
+% 
+%     % Boundary SDMM
+%     L = Inf(2,1);
+%     U = -Inf(2,1);
+%     for i = 1:num_splits, 
+%         L = min(L, succ_low_boundary{i}(1:2,k,2)); 
+%         U = max(U, succ_up_boundary{i}(1:2,k,2)); 
+%     end
+%     area_SDMM_boundary = prod(U - L);
+% 
+%     % === Compute Intersection of all 4 OA methods ===
+%     tic_intersect = tic;
+% 
+%     intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%     intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
+%     for m = 1:2
+%         Ls = Inf(2,num_splits); 
+%         Us = -Inf(2,num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
+%             Us(:,i) = succ_up_boundary{i}(1:2,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+%     area_intersection_4OAs = prod(intersect_up - intersect_low);
+%     time_intersect = toc(tic_intersect);
+% 
+%     % === SAFE SET AREA ===
+%     safe_area = prod(params.safe_sup - params.safe_inf);
+% 
+%     % === PRINT TIGHTNESS METRICS (w.r.t. Safe set) ===
+%     fprintf('\n=== TIGHTNESS METRICS (Area Ratio w.r.t. Safe set) ===\n');
+%     fprintf(' Safe set area                           : %.6e\n', safe_area);
+%     fprintf(' CT Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_singlestep,  area_CTMM_singlestep  / safe_area);
+%     fprintf(' SD Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_singlestep,  area_SDMM_singlestep  / safe_area);
+%     fprintf(' CT Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_boundary, area_CTMM_boundary / safe_area);
+%     fprintf(' SD Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_boundary, area_SDMM_boundary / safe_area);
+%     fprintf(' Intersection of 4 OA methods            : %.3e → Ratio = %6.2f\n', area_intersection_4OAs, area_intersection_4OAs / safe_area);
+% 
+%     % === PRINT FINAL COMPUTATION TIMES ===
+%     fprintf('\n=== FINAL COMPUTATION TIMES ===\n');
+%     fprintf(' (Single-step) CT Mixed-Monotonicity               : %.6f s\n', time_initial(1));
+%     fprintf(' (Boundary)     CT Mixed-Monotonicity              : %.6f s\n', sum(time_boundary(:,1)));
+%     fprintf(' (Single-step) CT Sampled-Data Mixed-Monotonicity  : %.6f s\n', time_initial(2));
+%     fprintf(' (Boundary)     CT Sampled-Data Mixed-Monotonicity : %.6f s\n', sum(time_boundary(:,2)));
+%     fprintf(' Intersection of 4 OA methods                      : %.6f s\n', time_intersect);
+% end
+% 
+% %% === RETURN ALL reachability_results === --> ## check the only needed ones and remove the rest
+% 
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods   = succ_up_all_methods;
+% reachability_results.succ_low_boundary     = succ_low_boundary;
+% reachability_results.succ_up_boundary      = succ_up_boundary;
+% reachability_results.rand_succ             = rand_succ;
+% reachability_results.time_initial          = time_initial;
+% reachability_results.time_boundary         = time_boundary;
+% reachability_results.save_dir              = save_dir;
+% reachability_results.n_x                   = n_x;
+% reachability_results.system_choice         = system_choice;
+% reachability_results.num_splits            = num_splits;
+% 
+% % =========================================================================
+% % === ENSURE safe_inf and safe_sup are ALWAYS returned to Verifier.m ===
+% % =========================================================================
+% if isfield(params,'safe_inf') && isfield(params,'safe_sup')
+%     reachability_results.safe_inf = params.safe_inf;
+%     reachability_results.safe_sup = params.safe_sup;
+% else
+%     reachability_results.safe_inf = []; 
+%     reachability_results.safe_sup = [];
+% end
+% 
+% % Save full struct only on final verified call
+% if isfield(params,'is_final_call') && params.is_final_call && ~isempty(save_dir)
+%     save(fullfile(save_dir,'reachability_data.mat'), 'reachability_results', '-v7.3');
+% end
+% 
+% %% === SAVE DATA ONLY ON FINAL CALL (into the ONE folder) ===
+% if isfield(params, 'is_final_call') && params.is_final_call && ~isempty(save_dir)
+%     filename_base = sprintf('reachability_data_sys_TIRA%d_all_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
+%     save(fullfile(save_dir, [filename_base '.mat']), ...
+%         'succ_low_all_methods', 'succ_up_all_methods', ...
+%         'succ_low_boundary', 'succ_up_boundary', ...
+%         'rand_succ', 'methods', 'n_x', 'n_methods_total', ...
+%         'time_initial', 'time_boundary', '-v7.3');
+%     save(fullfile(save_dir, 'reachability_data.mat'), 'reachability_results', '-v7.3');
+% end
+% 
+% 
+% % =========================================================================
+% % === Helper Functions==
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract field from params struct
+%     % Throws clear error if missing
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s". Must be set in Verifier_FINAL.m', field);
+%     end
+% end
+% end
+% %------------- END OF CODE  --------------
 
+
+%% V1.2
+
+%------------- BEGIN CODE V1.2  --------------
 
 function reachability_results = NODE_RA(params)
-% NODE_RA - Reachability analysis for neural ODEs using TIRA
+% NODE_RA - Reachability analysis for neural ODE using TIRA.
+% This is a pure computational function that returns reachability bounds.
+%
 % Input:
 %   params - struct with fields:
-%       .system_choice      : 14 or 15
-%       .x0                 : initial center
-%       .Initial_radius     : radius of initial set
-%       .t_final            : final time
-%       .timeStep           : discretization step
-%       .plot_last_only     : true/false
-%       .sample_succ_number : number of random samples
+%       .system_choice  : 14 (FPA) or 15 (Spiral_non)
+%       .x0             : Initial center of the set
+%       .Initial_radius : Radius of the initial set
+%       .t_final        : Final time for analysis
+%       .timeStep       : Discretization step (not used by TIRA but good practice)
+%
 % Output:
-%   reachability_results - struct containing all reachable sets, plots, etc.
+%   reachability_results - struct containing the computed over-approximations.
 
 %% Initialization
-close all
-bool_discrete_time = 0;
 addpath('../OA_methods')
-addpath('../Utilities')    
+addpath('../Utilities')  
 
-%% === PLOTTING CONTROL DEFAULTS (NEW) ===
-default_plot_control.show_figures               = true;
-default_plot_control.save_each_iteration        = false;
-default_plot_control.save_final_only_if_verified = true;
-default_plot_control.save_reachability          = true;
-default_plot_control.save_boundary              = true;
-default_plot_control.save_interval_hull         = true;
-
-if isfield(params, 'plot_control')
-    pc = params.plot_control;
-    
-    % ---- NEW SAFE ACCESS -------------------------------------------------
-    plot_control.show_figures               = getOrDefault(pc,'show_figures', default_plot_control.show_figures);
-    plot_control.save_each_iteration        = getOrDefault(pc,'save_each_iteration', default_plot_control.save_each_iteration);
-    plot_control.save_final_only_if_verified = getOrDefault(pc,'save_final_only_if_verified', default_plot_control.save_final_only_if_verified);
-    plot_control.save_reachability          = getOrDefault(pc,'save_reachability', default_plot_control.save_reachability);
-    plot_control.save_boundary              = getOrDefault(pc,'save_boundary', default_plot_control.save_boundary);
-    plot_control.save_interval_hull         = getOrDefault(pc,'save_interval_hull', default_plot_control.save_interval_hull);
-    % --------------------------------------------------------------------
-else
-    plot_control = default_plot_control;
-end
-
-% -----------------------------------------------------------------------
-% Helper that works even if the field does not exist
-% -----------------------------------------------------------------------
-
-function val = getOrDefault(s, field, default)
-    if isfield(s, field)
-        val = s.(field);
-    else
-        val = default;
-    end
-end
-% -----------------------------------------------------------------------
-
-%% User-defined parameters (override defaults with input)
-plot_last_only = true;      % Default
-if isfield(params, 'plot_last_only')
-    plot_last_only = params.plot_last_only;
-end
-
-sample_succ_number = 1000;  % Default
-if isfield(params, 'sample_succ_number')
-    sample_succ_number = params.sample_succ_number;
-end
-
-%% Choice of the example system
-global system_choice
-system_choice = params.system_choice;
-
-% Map system choice to system name
-system_names = containers.Map({14, 15}, {'fpa', 'spiral_non'});
-if ~isKey(system_names, system_choice)
-    error('Unknown system_choice %d.', system_choice);
-end
-system_name = system_names(system_choice);
-
-%% Optional submethod choice
+% Initialize the global sensitivity method choice to a scalar NaN.
+% This ensures that when TIRA's sub-functions check this global variable,
+% they will always find a valid scalar value, preventing the '||' operator error.
+%
 global g_sensitivity_bounds_method
 g_sensitivity_bounds_method = nan;
 
-%% Definition of the reachability problem
+
+%% Definition of the systems and reachability problem
 
 global u system_choice
 system_choice = get_from_params(params, 'system_choice');
@@ -1572,15 +2160,7 @@ p_up  = zeros(length(x_low),1);
 
 % Dimensions
 n_x = length(x_low);
-n_p = length(p_low);
-
-% Verify dimensions
-if system_choice == 14 && (n_x ~= 5 || n_p ~= 5)
-    error('FPA expects 5D state/parameter.');
-elseif system_choice == 15 && (n_x ~= 2 || n_p ~= 2)
-    error('Spiral_non expects 2D state/parameter.');
-end
-
+% n_p = length(p_low);      % Delter it if there's no use for it
 
 % === DEFINE 4 METHODS (Single-step + Boundary) ===
 methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
@@ -1591,12 +2171,11 @@ n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
 succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
 succ_up_all_methods = NaN(n_x, 1, n_methods_total);
 
-%% Boundary splits
+%% Boundary Splits
 num_splits = 2*n_x;
 Initial_set_boundaries = cell(num_splits, 1);
 succ_low_boundary = cell(num_splits, 1);
 succ_up_boundary  = cell(num_splits, 1);
-boundary_times = zeros(num_splits, n_methods_single_step);
 
 for i = 1:n_x
     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
@@ -1605,513 +2184,59 @@ for i = 1:n_x
     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
 end
 
-%% Main reachability computation
+%% Main Reachability Computation
 try
+    % Initialize the timing variables before the loops.
     time_initial = zeros(1, n_methods_single_step);
     time_boundary = zeros(num_splits, n_methods_single_step);
 
-    % Single-step (initial approach)
+    % 1. Single-step methods
     for m = 1:n_methods_single_step
-        tStart = tic;
         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
-        time_initial(m) = toc(tStart);
         succ_low_all_methods(:, 1, m) = succ_low;
         succ_up_all_methods(:, 1, m)  = succ_up;
     end
 
-    % Boundary approach
+    % 2. Boundary methods
     for i = 1:num_splits
         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
         for m = 1:n_methods_single_step
-            tStart = tic;
             [succ_low, succ_up] = TIRA([t_init, t_final], ...
                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
-            time_boundary(i, m) = toc(tStart);
-            succ_low_boundary{i}(:, 1, m) = succ_low;  % Only final time
+            succ_low_boundary{i}(:, 1, m) = succ_low;
             succ_up_boundary{i}(:, 1, m)  = succ_up;
          end
      end
-
 catch e
+    fprintf('Error during TIRA computation in NODE_RA.m\n');
     rethrow(e);
 end
 
-%% Random successors
-try
-    % === CALL CONFIG FUNCTION ===
-    global g_sensitivity_bounds_method
-    parameters = get_solver_parameters(n_x, n_p, g_sensitivity_bounds_method);
-
-    % Now use it
-    ode_solver = parameters.ode_solver;
-    ode_options = parameters.ode_options;
-
-    rand_succ = NaN(n_x, sample_succ_number);
-    for i = 1:sample_succ_number
-        x0_rand = x_low + rand(n_x,1).*(x_up - x_low);
-        p_rand  = p_low + rand(n_p,1).*(p_up - p_low);
-        [~, x_traj] = ode_solver(@(t,x) System_description(t,x,p_rand), [t_init t_final], x0_rand, ode_options);
-        rand_succ(:,i) = x_traj(end,:)';
-    end
-catch e
-    rethrow(e);
-end
-
-%% === UNIFIED SAVING: ONLY ONE FOLDER, ONLY ON FINAL CALL ===
-% No folders during refinement → no clutter
-% One beautiful folder on final verified call → contains plots + data
-
-if isfield(params, 'is_final_call') && params.is_final_call
-    % Create ONE top-level folder with timestamp
-    folder_name = sprintf('FINAL_VERIFIED_%s_%s', system_name, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
-    save_dir = fullfile(pwd, folder_name);
-
-    if ~exist(save_dir, 'dir')
-        mkdir(save_dir);
-        fprintf('Created a single results folder:\n   %s\n', save_dir);
-    end
-
-    % Update reachability_results so Verifier.m knows the path
-    reachability_results.save_dir = save_dir;
-
-else
-    % During bisection/refinement: NO saving, NO folder
-    save_dir = '';
-    reachability_results.save_dir = '';
-end
-
-%%
-% =====================================================================
-% FINAL PLOTTING — ONLY ON is_final_call = true
-% =====================================================================
-if isfield(params, 'is_final_call') && params.is_final_call
-    fig = figure('Color', 'w');
-    hold on; 
-    grid on;
-    box on;
-    set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
-
-    k = 1;  % final time index
-    
-    % Black sampled points
-    plot(rand_succ(1,:), rand_succ(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled trajectories');
-    
-    % -----------------------------------------------------------------
-    % Choose plot mode
-    % -----------------------------------------------------------------
-    plot_mode = 'full';
-    if isfield(params.plot_control, 'final_plot_mode')
-        plot_mode = params.plot_control.final_plot_mode;
-    end
-
-    if strcmp(plot_mode, 'intersection_only')
-        % ───── ONLY INTERSECTION + SAFE SET (CLEAN & PUBLICATION-GRADE) ─────
-        % 1. Intersection of all 4 OAs (thick purple)
-        intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
-        intersect_up  = min([succ_up_all_methods(1:2,k,1),  succ_up_all_methods(1:2,k,2)], [], 2);
-        for m = 1:2
-            Ls = inf(2,num_splits); Us = -inf(2,num_splits);
-            for i = 1:num_splits
-                Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
-                Us(:,i)  = succ_up_boundary{i}(1:2,k,m);
-            end
-            intersect_low = max(intersect_low, min(Ls,[],2));
-            intersect_up  = min(intersect_up,  max(Us,[],2));
-        end
-        rect_int = [intersect_low(1), intersect_low(2), ...
-                    intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
-        rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
-        h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2,...
-                     'DisplayName','Proved Reachable Set (Intersection of 4 OAs)');
-    
-        % 2. Safe set (thick green)
-        h_safe = [];  % initialize in case safe set is missing
-        if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
-            numel(params.safe_inf)==2 && numel(params.safe_sup)==2 && ...
-            all(isfinite(params.safe_inf)) && all(isfinite(params.safe_sup))
-        end
-        
-        % Collect bounds only from what actually exists in this mode
-        x_min_all = min(rand_succ(1,:));
-        x_max_all = max(rand_succ(1,:));
-        y_min_all = min(rand_succ(2,:));
-        y_max_all = max(rand_succ(2,:));
-
-        % Add intersection rectangle
-        x_min_all = min(x_min_all, rect_int(1));
-        x_max_all = max(x_max_all, rect_int(1) + rect_int(3));
-        y_min_all = min(y_min_all, rect_int(2));
-        y_max_all = max(y_max_all, rect_int(2) + rect_int(4));
-
-        % Add safe set if plotted
-        if exist('h_safe','var')
-            x_min_all = min(x_min_all, min(safe_x));
-            x_max_all = max(x_max_all, max(safe_x));
-            y_min_all = min(y_min_all, min(safe_y));
-            y_max_all = max(y_max_all, max(safe_y));
-        end
-
-        x_range = x_max_all - x_min_all;
-        y_range = y_max_all - y_min_all;
-        if x_range == 0, x_range = 0.1; end
-        if y_range == 0, y_range = 0.1; end
-        buffer = 0.25;
-        axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
-              y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
-        axis equal;
-
-        
-        % Legend: only the two important ones
-        xlabel('$x_1$','Interpreter','latex','FontSize',20);
-        ylabel('$x_2$','Interpreter','latex','FontSize',20);
-        title('Proved Reachable Set (Verified)','Interpreter','latex','FontSize',20);  % ← better title
-
-        % Build legend entries and labels in exact desired order
-        legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Sampled points
-        legend_labels  = {'Sampled trajectories'};
-
-        % Always add intersection
-        legend_entries(end+1) = h_int;
-        legend_labels{end+1}  = 'Final 4 OAs Intersection vs. Safe set';
-
-        % Add Safe Set only if it exists
-        if exist('h_safe', 'var')
-            legend_entries(end+1) = h_safe;
-            legend_labels{end+1}  = 'Safe Set';
-        end
-        
-        % Create compact legend 
-        lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
-                     'Interpreter', 'latex');
-        set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
-
-        % legend([h_int, h_safe], 'Location','southeast', 'Interpreter','latex', 'FontSize',5, 'FontWeight','bold');
-        % title('Final Verified Result','Interpreter','latex','FontSize',5);
-        
-        % Save in multiple formats
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.png'));
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.pdf'));
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.fig'));
-        print(gcf, fullfile(save_dir, 'Final_Reachability_Plot.eps'), '-depsc');          % Vector EPS for LaTeX
-        print(gcf, fullfile(save_dir, 'Final_Reachability_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
-        fprintf('Final plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', save_dir);
-    
-    else
-        % ───── FULL PLOTS (ALL OAs + Intersections + Safe set) ─────
-        
-        % -----------------------------------------------------------------
-        % 1. Single-step CT Mixed-Monotonicity (solid blue)
-        % -----------------------------------------------------------------
-        rect1 = [succ_low_all_methods(1,k,1), succ_low_all_methods(2,k,1), ...
-                 succ_up_all_methods(1,k,1)-succ_low_all_methods(1,k,1), ...
-                 succ_up_all_methods(2,k,1)-succ_low_all_methods(2,k,1)];
-        rectangle('Position', rect1, 'EdgeColor',[0 0.4470 0.7410], 'LineWidth',1.4);
-        h1 = plot(NaN, NaN, '-', 'Color', [0 0.4470 0.7410], 'LineWidth', 1.4, ...
-              'DisplayName','CT Mixed-Monotonicity (Single-step)');
-    
-        % -----------------------------------------------------------------
-        % 2. Single-step Sampled-Data MM (solid orange)
-        % -----------------------------------------------------------------
-        rect2 = [succ_low_all_methods(1,k,2), succ_low_all_methods(2,k,2), ...
-                 succ_up_all_methods(1,k,2)-succ_low_all_methods(1,k,2), ...
-                 succ_up_all_methods(2,k,2)-succ_low_all_methods(2,k,2)];
-        rectangle('Position', rect2, 'EdgeColor',[0.8500 0.3250 0.0980], 'LineWidth',1.4);
-        h2 = plot(NaN, NaN, '-', 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 1.4, ...
-            'DisplayName','SD Mixed-Monotonicity (Single-step)');
-    
-    
-        % -----------------------------------------------------------------
-        % 3. Boundary CT MM (dashed cyan)
-        % -----------------------------------------------------------------
-        L = Inf(2,1); U = -Inf(2,1);
-        for i = 1:num_splits
-            L = min(L, [succ_low_boundary{i}(1,k,1); succ_low_boundary{i}(2,k,1)]);
-            U = max(U, [succ_up_boundary{i}(1,k,1);  succ_up_boundary{i}(2,k,1)]);
-        end
-        rect3 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
-        rectangle('Position', rect3, 'EdgeColor',[0.3010 0.7450 0.9330], 'LineWidth',1.4);
-        h3 = plot(NaN, NaN, '--', 'Color', [0.3010 0.7450 0.9330], 'LineWidth', 1.4, ...
-            'DisplayName','CT Mixed-Monotonicity (Boundary)');
-    
-        % -----------------------------------------------------------------
-        % 4. Boundary SD MM (dashed gold)
-        % -----------------------------------------------------------------
-        L = Inf(2,1); U = -Inf(2,1);
-        for i = 1:num_splits
-            L = min(L, [succ_low_boundary{i}(1,k,2); succ_low_boundary{i}(2,k,2)]);
-            U = max(U, [succ_up_boundary{i}(1,k,2);  succ_up_boundary{i}(2,k,2)]);
-        end
-        rect4 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
-        rectangle('Position', rect4, 'EdgeColor',[0.9290 0.6940 0.1250], 'LineWidth',1.4);
-        h4 = plot(NaN, NaN, '--', 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 1.4, ...
-            'DisplayName','SD Mixed-Monotonicity (Boundary)');
-    
-        % -----------------------------------------------------------------
-        % 5. INTERSECTION OF ALL 4 (thick purple) 
-        % -----------------------------------------------------------------
-        intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
-        intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
-        for m = 1:2
-            Ls = Inf(2,num_splits); Us = -Inf(2,num_splits);
-            for i = 1:num_splits
-                Ls(:,i) = [succ_low_boundary{i}(1,k,m); succ_low_boundary{i}(2,k,m)];
-                Us(:,i) = [succ_up_boundary{i}(1,k,m);  succ_up_boundary{i}(2,k,m)];
-            end
-            intersect_low = max(intersect_low, min(Ls,[],2));
-            intersect_up  = min(intersect_up,  max(Us,[],2));
-        end
-        rect_intersect = [intersect_low(1), intersect_low(2), ...
-                          intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
-        rectangle('Position', rect_intersect, 'EdgeColor',[0.4940 0.1840 0.5560], 'LineWidth',2.5);
-        h5 = plot(NaN, NaN, '-', 'Color', [0.4940 0.1840 0.5560], 'LineWidth', 2.5, ...
-            'DisplayName','Intersection of 4 OAs');
-    
-        % -----------------------------------------------------------------
-        % 6. SAFE SET (thick green)
-        % -----------------------------------------------------------------
-        if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
-           numel(params.safe_inf)==2 && numel(params.safe_sup)==2
-            safe_x = [params.safe_inf(1), params.safe_sup(1), params.safe_sup(1), params.safe_inf(1), params.safe_inf(1)];
-            safe_y = [params.safe_inf(2), params.safe_inf(2), params.safe_sup(2), params.safe_sup(2), params.safe_inf(2)];
-            h6 = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2.5, 'DisplayName','Safe set');
-        end
-    end
-        % =================================================================
-        % AUTOMATIC AXIS LIMITS — smart, adaptive, beautiful padding
-        % =================================================================
-        % Collect all corners from rectangles and sampled points
-        x_min_actual = min(rand_succ(1,:));
-        x_max_actual = max(rand_succ(1,:));
-        y_min_actual = min(rand_succ(2,:));
-        y_max_actual = max(rand_succ(2,:));
-    
-        % Single-step bounds
-        x_min_single = min([rect1(1), rect2(1)]);
-        x_max_single = max([rect1(1)+rect1(3), rect2(1)+rect2(3)]);
-        y_min_single = min([rect1(2), rect2(2)]);
-        y_max_single = max([rect1(2)+rect1(4), rect2(2)+rect2(4)]);
-        width_single  = x_max_single - x_min_single;
-        height_single = y_max_single - y_min_single;
-    
-        % Boundary bounds
-        x_min_bound = min([rect3(1), rect4(1)]);
-        x_max_bound = max([rect3(1)+rect3(3), rect4(1)+rect4(3)]);
-        y_min_bound = min([rect3(2), rect4(2)]);
-        y_max_bound = max([rect3(2)+rect3(4), rect4(2)+rect4(4)]);
-        width_bound  = x_max_bound - x_min_bound;
-        height_bound = y_max_bound - y_min_bound;
-    
-        % Intersection bound
-        x_min_inter = rect_intersect(1);
-        x_max_inter = rect_intersect(1) + rect_intersect(3);
-        y_min_inter = rect_intersect(2);
-        y_max_inter = rect_intersect(2) + rect_intersect(4);
-    
-        % Safe set (if exists)
-        if exist('safe_x','var')
-            x_min_safe = min(safe_x);
-            x_max_safe = max(safe_x);
-            y_min_safe = min(safe_y);
-            y_max_safe = max(safe_y);
-        else
-            x_min_safe = 0; x_max_safe = 0; y_min_safe = 0; y_max_safe = 0;
-        end
-    
-        % Final min/max including everything
-        x_min_all = min([x_min_actual, x_min_single, x_min_bound, x_min_inter, x_min_safe]);
-        x_max_all = max([x_max_actual, x_max_single + width_single, x_max_bound + width_bound, x_max_inter, x_max_safe]);
-        y_min_all = min([y_min_actual, y_min_single, y_min_bound, y_min_inter, y_min_safe]);
-        y_max_all = max([y_max_actual, y_max_single + height_single, y_max_bound + height_bound, y_max_inter, y_max_safe]);
-    
-        x_range = x_max_all - x_min_all;
-        y_range = y_max_all - y_min_all;
-    
-        if x_range == 0, x_range = 1; end
-        if y_range == 0, y_range = 1; end
-    
-        buffer = 0.25;  % perfect padding
-        axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
-              y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
-    
-        axis equal;  % Keep this — critical for rectangles
-    
-        % -----------------------------------------------------------------
-        % Labels & Legend
-        % -----------------------------------------------------------------
-        xlabel('$x_1$','Interpreter','latex','FontSize',20);
-        ylabel('$x_2$','Interpreter','latex','FontSize',20);
-        title('Final Reachable Set Over-Approximations','Interpreter','latex','FontSize',20);
-    
-        % Build legend entries and labels in exact desired order
-        legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5);   % Sampled points
-        legend_labels  = {'Sampled trajectories'};
-    
-        % Proxy handles (already created above: h1, h2, h3, h4, h5, h6)
-        proxy_handles = [h1, h2, h3, h4, h5];
-        label_names   = {...
-            'CT Mixed-Monotonicity (Single-step)', ...
-            'SD Mixed-Monotonicity (Single-step)', ...
-            'CT Mixed-Monotonicity (Boundary)', ...
-            'SD Mixed-Monotonicity (Boundary)', ...
-            'Intersection of 4 OAs'};
-    
-        for i = 1:length(proxy_handles)
-            legend_entries(end+1) = proxy_handles(i);
-            legend_labels{end+1}  = label_names{i};
-        end
-    
-        % Add Safe Set only if it exists
-        if exist('h6', 'var')
-            legend_entries(end+1) = h6;
-            legend_labels{end+1}  = 'Safe set';
-        end
-    
-        % Create compact legend 
-        lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
-                     'Interpreter', 'latex');
-        set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
-        
-    
-        % Make dashed lines visible in legend
-        leg = findobj(lgd, 'type', 'line');
-        set(leg, 'LineWidth', 1.5);
-    
-        % Final layout tweak
-        set(gca, 'LooseInset', get(gca,'TightInset') + [0.01 0.01 0.05 0.01]);
-        drawnow;
-    
-    
-        % Save in multiple formats
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.png'));
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.pdf'));
-        saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.fig'));
-        print(gcf, fullfile(save_dir, 'Final_Reachability_Plot.eps'), '-depsc');          % Vector EPS for LaTeX
-        print(gcf, fullfile(save_dir, 'Final_Reachability_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
-        fprintf('Final plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', save_dir);
-    end
-
-% -------------------------------------------------------------------
-% 4. TIGHTNESS METRICS & TIMING SUMMARY
-% -------------------------------------------------------------------
-if isfield(params, 'is_final_call') && params.is_final_call
-    k = 1;
-    % === Compute areas of single-step methods ===
-    area_CTMM_singlestep  = prod(succ_up_all_methods(1:2,k,1)  - succ_low_all_methods(1:2,k,1));
-    area_SDMM_singlestep  = prod(succ_up_all_methods(1:2,k,2)  - succ_low_all_methods(1:2,k,2));
-    
-    % === Compute areas of boundary methods ===
-    % Boundary CTMM
-    L = Inf(2,1); 
-    U = -Inf(2,1);
-    for i = 1:num_splits, 
-        L = min(L, succ_low_boundary{i}(1:2,k,1));
-        U = max(U, succ_up_boundary{i}(1:2,k,1)); 
-    end
-    area_CTMM_boundary = prod(U - L);
-    
-    % Boundary SDMM
-    L = Inf(2,1);
-    U = -Inf(2,1);
-    for i = 1:num_splits, 
-        L = min(L, succ_low_boundary{i}(1:2,k,2)); 
-        U = max(U, succ_up_boundary{i}(1:2,k,2)); 
-    end
-    area_SDMM_boundary = prod(U - L);
-    
-    % === Compute Intersection of all 4 OA methods ===
-    tic_intersect = tic;
-
-    intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
-    intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
-    for m = 1:2
-        Ls = Inf(2,num_splits); 
-        Us = -Inf(2,num_splits);
-        for i = 1:num_splits
-            Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
-            Us(:,i) = succ_up_boundary{i}(1:2,k,m);
-        end
-        intersect_low = max(intersect_low, min(Ls,[],2));
-        intersect_up  = min(intersect_up,  max(Us,[],2));
-    end
-    area_intersection_4OAs = prod(intersect_up - intersect_low);
-    time_intersect = toc(tic_intersect);
-    
-    % === SAFE SET AREA ===
-    safe_area = prod(params.safe_sup - params.safe_inf);
-    
-    % === PRINT TIGHTNESS METRICS (w.r.t. Safe set) ===
-    fprintf('\n=== TIGHTNESS METRICS (Area Ratio w.r.t. Safe set) ===\n');
-    fprintf(' Safe set area                           : %.6e\n', safe_area);
-    fprintf(' CT Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_singlestep,  area_CTMM_singlestep  / safe_area);
-    fprintf(' SD Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_singlestep,  area_SDMM_singlestep  / safe_area);
-    fprintf(' CT Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_boundary, area_CTMM_boundary / safe_area);
-    fprintf(' SD Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_boundary, area_SDMM_boundary / safe_area);
-    fprintf(' Intersection of 4 OA methods            : %.3e → Ratio = %6.2f\n', area_intersection_4OAs, area_intersection_4OAs / safe_area);
- 
-    % === PRINT FINAL COMPUTATION TIMES ===
-    fprintf('\n=== FINAL COMPUTATION TIMES ===\n');
-    fprintf(' (Single-step) CT Mixed-Monotonicity               : %.6f s\n', time_initial(1));
-    fprintf(' (Boundary)     CT Mixed-Monotonicity              : %.6f s\n', sum(time_boundary(:,1)));
-    fprintf(' (Single-step) CT Sampled-Data Mixed-Monotonicity  : %.6f s\n', time_initial(2));
-    fprintf(' (Boundary)     CT Sampled-Data Mixed-Monotonicity : %.6f s\n', sum(time_boundary(:,2)));
-    fprintf(' Intersection of 4 OA methods                      : %.6f s\n', time_intersect);
-end
-
-%% === RETURN ALL reachability_results === --> ## check the only needed ones and remove the rest
-
+%% Package Results
 reachability_results = struct();
 reachability_results.succ_low_all_methods = succ_low_all_methods;
-reachability_results.succ_up_all_methods   = succ_up_all_methods;
-reachability_results.succ_low_boundary     = succ_low_boundary;
-reachability_results.succ_up_boundary      = succ_up_boundary;
-reachability_results.rand_succ             = rand_succ;
-reachability_results.time_initial          = time_initial;
-reachability_results.time_boundary         = time_boundary;
-reachability_results.save_dir              = save_dir;
-reachability_results.n_x                   = n_x;
-reachability_results.system_choice         = system_choice;
-reachability_results.num_splits            = num_splits;
+reachability_results.succ_up_all_methods  = succ_up_all_methods;
+reachability_results.succ_low_boundary    = succ_low_boundary;
+reachability_results.succ_up_boundary     = succ_up_boundary;
+reachability_results.time_initial         = time_initial; % Added
+reachability_results.time_boundary        = time_boundary;% Added
+reachability_results.num_splits           = num_splits;
+reachability_results.system_choice        = system_choice;
+reachability_results.n_x                  = n_x;
 
-% =========================================================================
-% === ENSURE safe_inf and safe_sup are ALWAYS returned to Verifier.m ===
-% =========================================================================
-if isfield(params,'safe_inf') && isfield(params,'safe_sup')
-    reachability_results.safe_inf = params.safe_inf;
-    reachability_results.safe_sup = params.safe_sup;
-else
-    reachability_results.safe_inf = []; 
-    reachability_results.safe_sup = [];
 end
 
-% Save full struct only on final verified call
-if isfield(params,'is_final_call') && params.is_final_call && ~isempty(save_dir)
-    save(fullfile(save_dir,'reachability_data.mat'), 'reachability_results', '-v7.3');
-end
-
-%% === SAVE DATA ONLY ON FINAL CALL (into the ONE folder) ===
-if isfield(params, 'is_final_call') && params.is_final_call && ~isempty(save_dir)
-    filename_base = sprintf('reachability_data_sys_TIRA%d_all_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
-    save(fullfile(save_dir, [filename_base '.mat']), ...
-        'succ_low_all_methods', 'succ_up_all_methods', ...
-        'succ_low_boundary', 'succ_up_boundary', ...
-        'rand_succ', 'methods', 'n_x', 'n_methods_total', ...
-        'time_initial', 'time_boundary', '-v7.3');
-    save(fullfile(save_dir, 'reachability_data.mat'), 'reachability_results', '-v7.3');
-end
-
-
 % =========================================================================
-% === Helper Functions==
+% === Helper Function ===
 % =========================================================================
 function val = get_from_params(params, field)
-    % Safely extract field from params struct
-    % Throws clear error if missing
+    % Safely extract a field from the params struct.
     if isfield(params, field) && ~isempty(params.(field))
         val = params.(field);
     else
-        error('NODE_RA: Missing required parameter "%s". Must be set in Verifier_FINAL.m', field);
+        error('NODE_RA: Missing required parameter "%s".', field);
     end
 end
-end
-%------------- END OF CODE  --------------
+
+%------------- END OF CODE V1.2  --------------

@@ -1,3 +1,15 @@
+% Tool Paper:
+%   "Add Title here"
+%
+% Authors:
+%   Abdelrahman Sayed Sayed, <abdelrahman.ibrahim -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%
+% Date: 20 October 2025
+% Last update: 20 November 2025 
+% Last revision: October 2025
+
 %% Descripion of the time-varying system with input
 % either continuous-time dynamics: dx/dt = f(t,x,p)
 % or discrete-time successor: x^+ = f(t,x,p)
@@ -32,27 +44,6 @@ global u        % Some systems need an external control input
 switch system_choice
     case 14
         %% FPA System (continuous-time)
-        % A=[-1.20327 -0.07202 -0.93635; 1.18810 -1.50015 0.93519]; % `A` (2x3) 
-        % B=[1.21464 -0.10502; 0.12023 0.19387; -1.36695 0.12201]; % `B` (3x2)
-        % theta=[-7.5649*(10^-5); 1.34708*(10^-4); -6.24925*(10^-6)]; % Bias vector (3x1)
-        % tau=10^6;
-        % tau1=-(1/tau); %time constant for neurons
-        % W=[[zeros(2),A]; [zeros(3,2),B*A]]; % composite weight matrix combining `A` and `B*A`
-        % 
-        % %Initial conditions for fixed point attractor and CTRNN
-        % q0=[0.5;0.8]; % initial condition for the first two state (2x1)
-        % s01=(B*q0)+theta; % remaining states (3x1)
-        % s0=[q0; s01]; % Concatenates to form the full initial state vector (5x1)
-        % 
-        % % Initial set around this point
-        % epsilon = 0.1*abs(s0);
-        % x_low = s0-epsilon;
-        % x_up = s0+epsilon;
-        % 
-        % % Definition of the function 
-        % f = @(x,u) tau1*x+W*tanh(x); % $\dot{x} = f(x,u) = \tau x + W tanh(x)$
-        % fpa = nonlinearSys('fpa',f);
-
         % System matrices and parameters
         A = [-1.20327 -0.07202 -0.93635; 1.18810 -1.50015 0.93519]; % A (2x3)
         B = [1.21464 -0.10502; 0.12023 0.19387; -1.36695 0.12201]; % B (3x2)
@@ -64,31 +55,6 @@ switch system_choice
         dx = tau1*x + W*tanh(x);  % Autonomous system
 case 15
         %% Spiral_non System (continuous-time)
-       % % Original 
-       % % System matrices and parameters
-       % w1 = [0.2911133 ,  0.12008807;
-       %         -0.24582624,  0.23181419;
-       %         -0.25797904,  0.21687193;
-       %         -0.19282854, -0.2602416 ;
-       %          0.26780415, -0.20697702;
-       %          0.23462369,  0.2294843 ;
-       %         -0.2583547 ,  0.21444395;
-       %         -0.04514714,  0.29514763;
-       %         -0.15318371, -0.275755  ;
-       %         0.24873598,  0.21018365];
-       % b1 = [0.0038677; -0.00026365; -0.00716897;  0.02469357;  0.01338706;...
-       %          0.00856025; -0.00888401;  0.00516089; -0.00634514; -0.01914518];
-       % % Layer 2
-       % w2 = [-0.58693904, -0.814841  , -0.8175157 ,  0.97060364,  0.6908913 ,...
-       %          -0.92446184, -0.79249185, -1.1507587 ,  1.2072723 , -0.7983982 ;
-       %         1.1564877 , -0.8991244 , -1.0774536 , -0.6731967 ,  1.0154784 ,...
-       %           0.8984464 , -1.0766245 , -0.238209  , -0.5233613 ,  0.8886671];
-       % b2 = [-0.04129209; -0.01508532];
-       % 
-       % dx = w2*tanh(w1*x+b1)+b2; 
-       
-       % % Modified to work with the final figures of comparison with single-step -
-       % incremental - boundary approaches 
        % Neural network dynamics: dx = w2*tanh(w1*x + b1) + b2
         w1 = [0.2911133,  0.12008807;
               -0.24582624, 0.23181419;
