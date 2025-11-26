@@ -2777,12 +2777,17 @@ MIN_RADIUS = 1e-4; % Minimum radius for a set to be considered for splitting
 
 % === 7. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-node_params.input_split_heuristic = 'interval-norm-gradient';
-
+node_params.input_split_heuristic = 'naive';
 
 % === 8. PLOTTING CONTROL  ===  --> Re-check cause of big changes with V1.2 Origine
 plot_control.show_figures = true;    % Show figures during execution
 plot_control.save_final_plot = true; % Simplified: save if verified or falsified
+% New Selector:
+plot_control.verified_set_style = 'union'; 
+% Options: 
+%   'all'   -> Plot individual reachable sets for every verified subset (Detailed)
+%   'union' -> Plot the union covering all verified reachable sets (Clean)
+
 
 % === 9. FINAL PLOT STYLE CHOICE === --> Re-check if there is a need for this
 % or not, so I can remove it for clarity
@@ -3125,9 +3130,44 @@ if plot_control.save_final_plot
     % h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
 
     % 2. Plot the Reachable Sets of the VERIFIED subsets
+
+    % h_int = []; 
+    % if ~isempty(verified_initial_sets)
+    %     fprintf('  Computing and plotting reachable sets for %d verified subsets...\n', length(verified_initial_sets));
+    %     for i = 1:length(verified_initial_sets)
+    %         % Extract subset data
+    %         set_info = verified_initial_sets{i};
+    %         x_sub = set_info{1};
+    %         r_sub = set_info{2};
+    % 
+    %         % Compute NODE_RA for this specific verified subset
+    %         % We reuse the logic from the loop to get exact bounds
+    %         node_params_sub = node_params;
+    %         node_params_sub.x0 = x_sub;
+    %         node_params_sub.Initial_radius = r_sub;
+    %         res_sub = NODE_RA(node_params_sub);
+    % 
+    %         % Extract intersection bounds
+    %         int_low = res_sub.intersect_low;
+    %         int_up  = res_sub.intersect_up;
+    % 
+    %         % Plot rectangle for this subset's reachability
+    %         rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
+    %         rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
+    %     end
+    %     % Create a dummy handle for the legend
+    %     h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Verified Reachable Sets');
+    % end
+
     h_int = []; 
+
     if ~isempty(verified_initial_sets)
-        fprintf('  Computing and plotting reachable sets for %d verified subsets...\n', length(verified_initial_sets));
+        fprintf('  Computing reachable sets for %d verified subsets...\n', length(verified_initial_sets));
+        
+        % Initialize variables for 'union' mode calculation
+        union_low = Inf(length(x0), 1);
+        union_up  = -Inf(length(x0), 1);
+        
         for i = 1:length(verified_initial_sets)
             % Extract subset data
             set_info = verified_initial_sets{i};
@@ -3135,7 +3175,6 @@ if plot_control.save_final_plot
             r_sub = set_info{2};
             
             % Compute NODE_RA for this specific verified subset
-            % We reuse the logic from the loop to get exact bounds
             node_params_sub = node_params;
             node_params_sub.x0 = x_sub;
             node_params_sub.Initial_radius = r_sub;
@@ -3145,12 +3184,29 @@ if plot_control.save_final_plot
             int_low = res_sub.intersect_low;
             int_up  = res_sub.intersect_up;
             
-            % Plot rectangle for this subset's reachability
-            rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
-            rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
+            if strcmp(plot_control.verified_set_style, 'all')
+                % MODE: ALL - Plot each subset individually
+                rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
+                rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
+            else
+                % MODE: UNION - Accumulate global min/max bounds
+                union_low = min(union_low, int_low);
+                union_up  = max(union_up, int_up);
+            end
         end
+        
+        % Handle drawing for 'union' mode or just creating the legend handle
+        if strcmp(plot_control.verified_set_style, 'union')
+             rect_dims = [union_low(1), union_low(2), union_up(1)-union_low(1), union_up(2)-union_low(2)];
+             rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+        end
+        
         % Create a dummy handle for the legend
-        h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Verified Reachable Sets');
+        legend_name = 'Verified Reachable Sets';
+        if strcmp(plot_control.verified_set_style, 'union')
+            legend_name = 'Union of Verified Reachable Sets';
+        end
+        h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName', legend_name);
     end
 
     % 3. Safe set (thick green)
