@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 22 October 2025
-% Last update: 18 November 2025
+% Last update: 20 November 2025
 % Last revision: October 2025
 
 % %------------- BEGIN CODE --------------
@@ -1465,7 +1465,7 @@
 
 
 %**************************************************************************************************************************
-%% V1.1 --> Last Version shared with PJ
+%% V1.1 --> Last Version shared with PJ on 18/11/2025
 
 % %------------- BEGIN CODE  --------------
 % 
@@ -2108,9 +2108,143 @@
 % %------------- END OF CODE  --------------
 
 
-%% V1.2
+% %% V1.2
+% 
+% %------------- BEGIN CODE V1.2  --------------
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % This is a pure computational function that returns reachability bounds.
+% %
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice  : 14 (FPA) or 15 (Spiral_non)
+% %       .x0             : Initial center of the set
+% %       .Initial_radius : Radius of the initial set
+% %       .t_final        : Final time for analysis
+% %       .timeStep       : Discretization step (not used by TIRA but good practice)
+% %
+% % Output:
+% %   reachability_results - struct containing the computed over-approximations.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')  
+% 
+% % Initialize the global sensitivity method choice to a scalar NaN.
+% % This ensures that when TIRA's sub-functions check this global variable,
+% % they will always find a valid scalar value, preventing the '||' operator error.
+% %
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% 
+% %% Definition of the systems and reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% % n_p = length(p_low);      % Delter it if there's no use for it
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary Splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main Reachability Computation
+% try
+%     % Initialize the timing variables before the loops.
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % 1. Single-step methods
+%     for m = 1:n_methods_single_step
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2. Boundary methods
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             succ_low_boundary{i}(:, 1, m) = succ_low;
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package Results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.time_initial         = time_initial; % Added
+% reachability_results.time_boundary        = time_boundary;% Added
+% reachability_results.num_splits           = num_splits;
+% reachability_results.system_choice        = system_choice;
+% reachability_results.n_x                  = n_x;
+% 
+% end
+% 
+% % =========================================================================
+% % === Helper Function ===
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract a field from the params struct.
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END OF CODE V1.2  --------------
 
-%------------- BEGIN CODE V1.2  --------------
+
+%% V1.3
+
+%------------- BEGIN CODE V1.3  --------------
 
 function reachability_results = NODE_RA(params)
 % NODE_RA - Reachability analysis for neural ODE using TIRA.
@@ -2177,9 +2311,12 @@ Initial_set_boundaries = cell(num_splits, 1);
 succ_low_boundary = cell(num_splits, 1);
 succ_up_boundary  = cell(num_splits, 1);
 
+% Define the boundary sets for TIRA input
 for i = 1:n_x
+    % Low bounds
     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+    % Upper bounds
     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
 end
@@ -2225,6 +2362,61 @@ reachability_results.num_splits           = num_splits;
 reachability_results.system_choice        = system_choice;
 reachability_results.n_x                  = n_x;
 
+%% Compute Intersection of All 4 Over-Approximations (NEW) 
+
+k = size(reachability_results.succ_low_all_methods, 2);
+% k = 1; % Index for the final time step
+
+% check_dims = n_x; 
+check_dims = size(reachability_results.succ_low_all_methods, 1); % Or determined from n_x
+
+intersect_low = -Inf(check_dims,1);
+intersect_up  =  Inf(check_dims,1);
+
+% Single-step methods (m=1 and m=2)
+for m = 1:2 
+    intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
+    intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
+end
+
+% % 2. Intersection with Boundary methods (based on the union of all splits) (thick purple) 
+% % The boundary methods are also stored using indices m=1 and m=2 in the cell array
+% for m = 1:n_methods_base
+%     % Ls and Us store the bounds of the current method (m) across all splits
+%     Ls = Inf(check_dims, num_splits); 
+%     Us = -Inf(check_dims, num_splits);
+% 
+%     for i = 1:num_splits
+%         % Extract bounds for the final time step (k) and current method (m)
+%         Ls(:, i) = reachability_results.succ_low_boundary{i}(1:check_dims, k, m);
+%         Us(:, i) = reachability_results.succ_up_boundary{i}(1:check_dims, k, m);
+%     end
+% 
+%     % The tightest over-approximation for the boundary is the intersection
+%     % with the bounds of the *union* of the boundary boxes: min(Ls) and max(Us).
+%     intersect_low = max(intersect_low, min(Ls,[],2));
+%     intersect_up  = min(intersect_up,  max(Us,[],2));
+% end
+
+% Boundary methods (m=1 and m=2 of succ_low_boundary/succ_up_boundary)
+for m = 1:2 
+    % Ls and Us capture the lower/upper bounds across all splits for method m
+    Ls = Inf(check_dims, reachability_results.num_splits); 
+    Us = -Inf(check_dims, reachability_results.num_splits);
+    for i = 1:reachability_results.num_splits
+        Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
+        Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
+    end
+    % The bound of the union is min(Ls) and max(Us). 
+    % The intersection of the *union* bounds is taken with the overall intersection.
+    intersect_low = max(intersect_low, min(Ls,[],2));
+    intersect_up  = min(intersect_up,  max(Us,[],2));
+end
+
+% Store the intersection in the output structure 
+reachability_results.intersect_low = intersect_low;
+reachability_results.intersect_up = intersect_up;
+
 end
 
 % =========================================================================
@@ -2239,4 +2431,4 @@ function val = get_from_params(params, field)
     end
 end
 
-%------------- END OF CODE V1.2  --------------
+%------------- END OF CODE V1.3  --------------

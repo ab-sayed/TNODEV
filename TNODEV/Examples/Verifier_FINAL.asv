@@ -1927,7 +1927,729 @@
 
 %% V1.2
 
-%------------- BEGIN CODE V1.2 --------------
+% %------------- BEGIN CODE V1.2 --------------
+% 
+% clear all; close all; clc;
+% 
+% %%% ========================================================================
+% %   Verifier.m - Falsification, Iterative Verification, and Refinement with
+% %   Heuristics
+% %   Systems: Spiral_non (2D) | FPA (5D)
+% %   Tools:   CORA (Reachable tube bounds) | TIRA (NODE_RA over-approximations)
+% %   Methods: 
+% %           1. Mixed-Monotonicity (Single-step)
+% %           2. Sampled-Data Mixed-Monotonicity (Single-step)
+% %           3. Mixed-Monotonicity (Boundary)
+% %           4. Sampled-Data Mixed-Monotonicity (Boundary)
+% %%% =========================================================================
+% 
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% addpath('./') % Add current directory for utility functions
+% 
+% %%%  -------------------------------------------------------------------
+% %  USER CONFIGURATION - EDIT ONLY THIS BLOCK
+% %%%  -------------------------------------------------------------------
+% 
+% % === 1. SYSTEM SELECTION ===
+% % system_choice = 14;   % FPA System
+% system_choice = 15;   % Spiral_non System
+% 
+% % === 2. INITIAL SET ===
+% % Spiral_non (2D)
+% x0_spiral     = [2.0; 0.0];            % nODE input set center
+% radius_spiral = 0.2;                   % Initial radius
+% timeStep_spiral = 0.01;                % CORA and TIRA time step
+% tFinal_spiral   = 1.0;                 % CORA and TIRA final time
+% 
+% % FPA (5D)
+% x0_fpa     = [0, -0.58587, 0.8, 0.52323, 0.7]';
+% radius_fpa = 0.01;
+% timeStep_fpa = 0.05;                   % CORA and TIRA time step
+% tFinal_fpa   = 2.0;                    % CORA and TIRA final time
+% 
+% % Auto-select based on system_choice
+% if system_choice == 15
+%     x0             = x0_spiral;
+%     % Initial_radius = radius_spiral;
+%     Initial_radius = radius_spiral * ones(length(x0), 1);
+%     system_name    = 'spiral_non';
+%     cora_params.timeStep = timeStep_spiral;
+%     cora_params.tFinal   = tFinal_spiral;
+%     t_init_TIRA          = 0;
+%     t_final_TIRA         = tFinal_spiral;
+%     timeStep_TIRA        = timeStep_spiral;
+% elseif system_choice == 14
+%     x0             = x0_fpa;
+%     % Initial_radius = radius_fpa;
+%     Initial_radius = radius_fpa * ones(length(x0), 1);
+%     system_name    = 'fpa';
+%     cora_params.timeStep = timeStep_fpa;
+%     cora_params.tFinal   = tFinal_fpa;
+%     t_init_TIRA          = 0;
+%     t_final_TIRA         = tFinal_fpa;
+%     timeStep_TIRA        = timeStep_fpa;
+% else
+%     error('Invalid system_choice. Use 14 (FPA) or 15 (Spiral_non).');
+% end
+% 
+% % === 3. CORA PARAMETERS (for Reachable tube bounds) ===
+% cora_params.taylorTerms  = 2;      % Taylor terms for nonlinear approximation
+% cora_params.zonotopeOrder = 20;    % Zonotope order for set representation
+% cora_params.alg          = 'lin';  % Linear approximation
+% cora_params.tensorOrder  = 2;      % Tensor order for nonlinear dynamics --> "check what will happen if I increase this"
+% 
+% % === 4. TIRA PARAMETERS (for nODE reachability @NODE_RA.m) ===
+% node_params.system_choice = system_choice;
+% node_params.x0 = x0;
+% node_params.Initial_radius = Initial_radius;
+% node_params.t_final = t_final_TIRA;
+% node_params.timeStep = timeStep_TIRA;
+% node_params.plot_last_only = true;
+% node_params.sample_succ_number = 1000; %--> check PJ comment about using the falsification to determine this number
+% 
+% % === 5. SAFE SET (USER-ADJUSTABLE) ===  --> Remove these examples at the end
+% % and leave it for the User to define it or maybe but just one SAFT SET and
+% % mention next to it that it's adjustable
+% %%%%%%%%%%%%% Spiral_non System %%%%%%%%%%%%% 
+% % Example 1: Safety verified for all OA methods
+% % node_params.safe_inf = [-1.8; 0.6];   % lower-left corner (x1, x2)
+% % node_params.safe_sup = [0.7; 2.8];   % upper-right corner (x1, x2)
+% 
+% % % Example 2: Safety violated for some methods
+% % node_params.safe_inf = [-1.3; 0.95];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0.25; 2.45]; % [x1_up,  x2_up]
+% 
+% % Example 3: Safety violated for some methods
+% % node_params.safe_inf = [-1; 1.2];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0.3; 2];    % [x1_up, x2_up]
+% 
+% % Example 4: Safety violated for some methods
+% node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
+% node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
+% 
+% % Example 5: Safety violated --> counter example works here 
+% % node_params.safe_inf = [-3; 1.5];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0; 3]; % [x1_up,  x2_up]
+% 
+% %%%%%%%%%%%%% FPA System %%%%%%%%%%%%% 
+% % Example 1: Safety verified for all OA methods across the 5 dimensions (3 Figs)
+% % node_params.safe_inf = [-1.5; -1];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0.5; 3]; % [x1_up,  x2_up]
+% 
+% % Example 2: Safety verified for all OA methods across the 5 dimensions (3 Figs)
+% % node_params.safe_inf = [-1.4; -0.8];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0.38; 2.55]; % [x1_up,  x2_up]
+% 
+% % FPA Example 3: Safety violated for some methods
+% % node_params.safe_inf = [-1; 0.2];   % [x1_low, x2_low]
+% % node_params.safe_sup = [-0.5; 0.5]; % [x1_up,  x2_up]
+% 
+% % FPA Example 4: Safety violated for some methods
+% % node_params.safe_inf = [-1.6; 0.9];   % [x1_low, x2_low]
+% % node_params.safe_sup = [0.5; 2]; % [x1_up,  x2_up]
+% 
+% % === 6. VERIFICATION LOOP PARAMETERS ===
+% MAX_ITER = 50;     %--> "check this crtiteria either we conclude based on that or a time out with a defined time for example 45 mins."
+% MIN_RADIUS = 1e-4; % Minimum radius for a set to be considered for splitting
+% 
+% % === 7. REFINEMENT HEURISTIC CHOICE ===
+% % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
+% node_params.input_split_heuristic = 'naive';
+% 
+% 
+% % === 8. PLOTTING CONTROL  ===  --> Re-check cause of big changes with V1.2 Origine
+% plot_control.show_figures = true;    % Show figures during execution
+% plot_control.save_final_plot = true; % Simplified: save if verified or falsified
+% 
+% % === 9. FINAL PLOT STYLE CHOICE === --> Re-check if there is a need for this
+% % or not, so I can remove it for clarity
+% % Choose what to show in the final verified plot
+% plot_control.final_plot_mode = 'intersection_only';  
+% % Options:
+% %   'full'              → show all 6 over-approximations + samples (current style)
+% %   'intersection_only' → show ONLY Intersection of 4 OAs + Safe set (clean & beautiful)
+% 
+% % =========================================================================
+% fprintf('=== Starting Iterative Verification Analysis ===\n');
+% fprintf('System: %s (choice=%d)\n', system_name, system_choice);
+% fprintf('Initial set: center = [%s], radius = %.3f\n', ...
+%         strjoin(arrayfun(@(x) sprintf('%.3f', x), x0, 'UniformOutput', false), ', '), ...
+%         max(Initial_radius));
+% fprintf('TIRA: t = [%.2f, %.2f], step = %.3f\n', t_init_TIRA, t_final_TIRA, timeStep_TIRA);
+% fprintf('CORA: tFinal = %.2f\n\n', cora_params.tFinal);
+% 
+% %% ------------------------------------------------------------------------
+% %   INITIALIZATION
+% % -------------------------------------------------------------------------
+% 
+% tic; % Start timer for total VERDICT time
+% 
+% % Queue of input sets to verify: {x_center, radius}
+% verification_queue = {{x0, Initial_radius}};
+% 
+% % Results tracking
+% num_verified = 0;
+% num_falsified = 0;
+% num_unknown = 1;
+% 
+% % Global flag for safety
+% overall_safe = true;
+% falsified_example = [];
+% falsified_initial_point = [];
+% verified_initial_sets = {}; % <--Store OA boxes ([center, radius]) of the initial sets that were proven safe
+% 
+% % Pre-compute CORA bounds once
+% fprintf('PART 1: Computing Overall Reachable Tube Bounds (CORA)...\n');
+% cora_full_params                = cora_params;
+% cora_full_params.x0             = x0;
+% cora_full_params.Initial_radius = Initial_radius;
+% 
+% if system_choice == 14
+%     reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
+% elseif system_choice == 15
+%     reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
+% end
+% fprintf('PART 1 completed.\n\n');
+% 
+% % Pre-compute Jacobian Bounds once, as they depend on the full CORA reachable tube
+% fprintf('PART 2: Computing Jacobian Bounds...\n');
+% a = reachable_tube_bounds.lb;
+% b = reachable_tube_bounds.ub;
+% [J_lb, J_ub] = Jacob_bounds_element_wise(a, b, system_choice);
+% fprintf('PART 2 completed.\n\n');
+% 
+% % Pass Jacobians to UP_Jacobian_Bounds.m
+% fprintf('PART 3: Passing Jacobian bounds via globals...\n');
+% global Jacobian_x_low Jacobian_x_up system_choice
+% Jacobian_x_low = J_lb;
+% Jacobian_x_up  = J_ub;
+% system_choice = system_choice;
+% 
+% [~, ~, ~, ~] = UP_Jacobian_Bounds(t_init_TIRA, t_final_TIRA, J_lb, J_ub, [], []);
+% fprintf('PART 3 completed.\n\n');
+% 
+% %% -----------------------------------------------------------------------------
+% %   MAIN VERIFICATION LOOP (1. Falsification, 2. Verification , 3. Refinement)
+% % ----------------------------------------------------------------------------
+% 
+% % ----------------------------------------------------------------------------
+% %   INITIAL FALSIFICATION STEP
+% % ----------------------------------------------------------------------------
+% 
+% fprintf('PART 4: Initial Falsification Attempt...\n');
+% check_dims = size(node_params.safe_inf, 1);
+% 
+% % Generate random samples from the FULL initial set
+% num_falsification_samples = 1000;
+% initial_samples = node_params.x0 - node_params.Initial_radius + ...
+%                   2 * node_params.Initial_radius .* rand(length(node_params.x0), num_falsification_samples);
+% 
+% % Simulate trajectories for these samples
+% final_samples = zeros(check_dims, num_falsification_samples);
+% global g_sensitivity_bounds_method;
+% parameters = get_solver_parameters(length(node_params.x0), 0, g_sensitivity_bounds_method);
+% ode_solver = parameters.ode_solver;
+% ode_options = parameters.ode_options;
+% 
+% % Fix for anonymous functions and global scope
+% % We must declare 'system_choice' as global here so the handle can capture it.
+% global system_choice; 
+% % Create the function handle for the ODE solver. This handle now "closes over"
+% % or "captures" the value of system_choice from the workspace where it is defined.
+% ode_func = @(t,x) System_description(t,x,[]);
+% 
+% 
+% for i = 1:num_falsification_samples
+%     x0_rand = initial_samples(:, i);
+%     [~, x_traj] = ode_solver(@(t,x) System_description(t,x,[]), [t_init_TIRA, t_final_TIRA], x0_rand, ode_options);
+%     final_samples(:,i) = x_traj(end, 1:check_dims)';
+% end
+% 
+% % Check if any sample violates the safe set
+% violation_indices = find(any(final_samples < node_params.safe_inf | final_samples > node_params.safe_sup, 1));
+% 
+% if ~isempty(violation_indices)
+%     first_violation_idx = violation_indices(1);
+%     overall_safe = false;
+%     falsified_example = final_samples(:, first_violation_idx);
+%     falsified_initial_point = initial_samples(:, first_violation_idx);
+%     fprintf('  FALSIFIED! Counter-example found from initial sampling.\n');
+%     fprintf('  Initial point: [%.4f, %.4f]\n', falsified_initial_point');
+%     fprintf('  Final point:   [%.4f, %.4f]\n', falsified_example');
+% else
+%     fprintf('  No counter-example found in initial falsification.\n');
+% end
+% fprintf('PART 4 completed.\n\n');
+% 
+% % ----------------------------------------------------------------------------
+% %    MAIN VERIFICATION & REFINEMENT LOOP
+% % ----------------------------------------------------------------------------
+% fprintf('PART 5: Verification and Refinement based Heuristics Loop...\n');
+% 
+% iter = 0;
+% if overall_safe % Proceed only if not already falsified
+%     while ~isempty(verification_queue) && iter < MAX_ITER
+%         iter = iter + 1;
+%         fprintf('--- ITERATION %d: Queue size = %d ---\n', iter, length(verification_queue));
+% 
+%         % Pop the next set from the queue
+%         current_set = verification_queue{1};
+%         verification_queue(1) = [];
+%         x_i = current_set{1};
+%         r_i = current_set{2};
+% 
+%         if isscalar(r_i)
+%             r_i = r_i * ones(length(x_i), 1);
+%         else
+%             r_i = r_i(:);
+%         end
+% 
+%         if max(r_i) < MIN_RADIUS
+%             fprintf('  Set radius (%.4e) below minimum threshold (%.4e). Skipping.\n', max(r_i), MIN_RADIUS);
+%             num_unknown = num_unknown + 1;
+%             continue;
+%         end
+% 
+%         fprintf('  Calling NODE_RA for set with center [%.4f, %.4f] and radius %.4f\n', x_i(1), x_i(2), max(r_i));
+% 
+%         % Build NODE_RA input for the current subset
+%         node_params_subset                = node_params;
+%         node_params_subset.x0             = x_i;
+%         node_params_subset.Initial_radius = r_i;
+% 
+%         % Call NODE_RA (now a pure function)
+%         reachability_results = NODE_RA(node_params_subset);
+%         k = size(reachability_results.succ_low_all_methods, 2);
+% 
+%         % 1. Verification Check (check if all OA intervals are fully contained in the
+%         % safe set))
+% 
+%         % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS
+%         intersect_low = -Inf(check_dims,1);
+%         intersect_up  =  Inf(check_dims,1);
+% 
+%         % Single-step methods
+%         for m = 1:2 
+%             intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
+%             intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
+%         end
+% 
+%         % Boundary methods 
+%         for m = 1:2 
+%             Ls = Inf(check_dims, reachability_results.num_splits); 
+%             Us = -Inf(check_dims, reachability_results.num_splits);
+%             for i = 1:reachability_results.num_splits
+%                 Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
+%                 Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+% 
+%         low_ok = all(intersect_low >= node_params.safe_inf - 1e-10);
+%         up_ok = all(intersect_up  <= node_params.safe_sup  + 1e-10);
+% 
+%         if low_ok && up_ok
+%             fprintf('  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.\n');
+%             verified_initial_sets{end+1} = {x_i, r_i}; % <-- when a set is proven safe, add its definition to our new list. 
+%             num_verified = num_verified + 1;
+%             num_unknown = num_unknown - 1;
+%             continue;
+%         else
+%             fprintf('  NOT PROVEN: Intersection violates safe set. Refining...\n');
+% 
+%             % 2. Refinement of input sets (Refine/Split using selected heuristic)
+% 
+%             split_dim = [];     % initialized as empty
+% 
+%             % Compute heuristic for refinement/splitting
+%             switch node_params.input_split_heuristic
+%                 case 'naive'
+%                     % Refine/Split the dimension with the largest radius
+%                     [max_radius, split_dim] = max(r_i);
+%                     fprintf('  Refinement: Using naive heuristic, splitting dimension %d (radius %.4e).\n', split_dim, max_radius);
+% 
+%                 case 'most-sensitive-input-radius'
+%                     % Compute sensitivity using Jacobian bounds
+%                     % Use the maximum absolute Jacobian value as sensitivity
+%                     try
+%                         % Call `Jacob_bounds_element_wise.m` function
+%                         [J_lb, J_ub] = Jacob_bounds_element_wise(x_i - r_i, x_i + r_i, system_choice);
+% 
+%                         % --- Compute sensitivity safely ---
+%                         absJ = max(abs(J_lb), abs(J_ub));        % 2×2
+%                         sens = max(absJ, [], 1);                 % 2×1 
+%                         sens = max(sens, 1e-10);                 % Avoid zero
+% 
+%                         scores = r_i .* sens;
+%                         [~, split_dim] = max(scores);
+% 
+%                         fprintf(' Refinement: Using most-sensitive-input-radius heuristic, splitting dimension %d (score = %.4e)\n', ...
+%                                 split_dim, max(scores));
+% 
+%                     catch
+%                         [~, split_dim] = max(r_i);
+%                         fprintf(' Refinement: Fallback to naive heuristic (Jacob failed: %s), splitting dimension %d\n', split_dim);
+%                     end
+% 
+%                 case 'interval-norm-gradient'
+%                     % Approximate gradient of the output interval norm w.r.t. input dimensions
+%                     try
+%                         base_norm = sum(intersect_up - intersect_low);
+%                         if base_norm <= 0
+%                             throw(MException('','Base reachable set has zero or negative width'));
+%                         end
+% 
+%                         grad = zeros(size(x_i));
+%                         delta = 1e-6;
+% 
+%                         for j = 1:length(x_i)
+%                             x_pert = x_i;
+%                             x_pert(j) = x_i(j) + delta;
+% 
+%                             node_params.x0 = x_pert;
+%                             node_params.Initial_radius = r_i;
+%                             pert_results = NODE_RA(node_params);
+% 
+%                             % Recompute intersection of all 4 methods for perturbed set
+%                             k = size(pert_results.succ_low_all_methods, 2);
+%                             check_dims = length(node_params.safe_inf);
+% 
+%                             p_low = -Inf(check_dims,1);
+%                             p_up  =  Inf(check_dims,1);
+% 
+%                             % Single-step methods
+%                             for m = 1:2
+%                                 p_low = max(p_low, pert_results.succ_low_all_methods(1:check_dims,k,m));
+%                                 p_up  = min(p_up , pert_results.succ_up_all_methods (1:check_dims,k,m));
+%                             end
+%                             % Boundary methods
+%                             for m = 1:2
+%                                 Ls = Inf(check_dims, pert_results.num_splits);
+%                                 Us = -Inf(check_dims, pert_results.num_splits);
+%                                 for i = 1:pert_results.num_splits
+%                                     Ls(:,i) = pert_results.succ_low_boundary{i}(1:check_dims,k,m);
+%                                     Us(:,i) = pert_results.succ_up_boundary{i}(1:check_dims,k,m);
+%                                 end
+%                                 p_low = max(p_low, min(Ls,[],2));
+%                                 p_up  = min(p_up , max(Us,[],2));
+%                             end
+% 
+%                             pert_norm = sum(p_up - p_low);
+%                             grad(j) = (pert_norm - base_norm) / delta;
+%                         end
+% 
+%                         heuristic = abs(grad);
+%                         if any(isnan(heuristic) | isinf(heuristic) | heuristic <= 0)
+%                             throw(MException('','Invalid gradient'));
+%                         end
+% 
+%                         [~, split_dim] = max(heuristic);
+%                         fprintf(' Refinement: Using interval-norm-gradient heuristic, splitting dimension %d (grad = %.4e)\n', ...
+%                                 split_dim, max(heuristic));
+% 
+%                     catch
+%                         [~, split_dim] = max(r_i);
+%                         fprintf(' Refinement: Fallback to naive heuristic (gradient failed), splitting dimension %d\n', split_dim);
+%                     end
+% 
+%                 otherwise
+%                     error('Invalid input_split_heuristic: %s', node_params.input_split_heuristic);
+%             end
+% 
+%             % Perform the refinement/split
+%             r_new = r_i;
+%             r_new(split_dim) = r_i(split_dim) / 2;
+% 
+%             x_c1 = x_i;
+%             x_c1(split_dim) = x_i(split_dim) - r_i(split_dim) / 2;
+% 
+%             x_c2 = x_i;
+%             x_c2(split_dim) = x_i(split_dim) + r_i(split_dim) / 2;
+% 
+%             % Add new sets to the queue
+%             verification_queue{end+1} = {x_c1, r_new};
+%             verification_queue{end+1} = {x_c2, r_new};
+% 
+%             fprintf('  Set REFINED: Split dimension %d into two new sets.\n', split_dim);
+%             num_unknown = num_unknown - 1 + 2;
+%         end
+%     end
+% end
+% fprintf('PART 5 completed.\n\n');
+% 
+% % ------------------------------------------------------------------------
+% %   FINAL PLOTTING AND SAVING
+% % ------------------------------------------------------------------------
+% % --- Unconditionally run NODE_RA for the full initial set --- --> Probablly I
+% % can get rid of this If I don't need the Computation Times for the 4 OAs
+% % This guarantees we have correct bounds and timing data for the final report.
+% final_params = node_params;
+% final_params.x0 = x0;
+% final_params.Initial_radius = Initial_radius;
+% final_results = NODE_RA(final_params);
+% 
+% 
+% if plot_control.save_final_plot
+%     fprintf('PART 6: Generating Final_Entire_input_set_Verification_Plot and Saving Data...\n');
+% 
+%     % % Create a single results folder
+%     %=====================================================================
+%     % CREATE THE RESULTS FOLDER ONCE
+%     % =====================================================================
+%     folder_name = sprintf('FINAL_RESULTS_%s_%s', system_name, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+%     save_dir = fullfile(pwd, folder_name);
+%     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
+%     fprintf('  Created results folder:\n    %s\n', save_dir);
+% 
+%     % --- Final Reachability Analysis for Plotting ---
+%     % We need the over-approximations for the full initial set for the plot
+%     final_params = node_params;
+%     final_params.x0 = x0;
+%     final_params.Initial_radius = Initial_radius;
+%     final_results = NODE_RA(final_params);
+% 
+%     % --- Plotting ---
+%     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
+%     hold on; grid on; box on;
+%     set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
+%     k = 1; % final time index
+% 
+%     % 1. Black sampled points (from the full initial set)
+%     plot(final_samples(1,:), final_samples(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
+% 
+%     % 2. Intersection of all 4 OAs (thick purple)
+%     intersect_low = -Inf(check_dims,1);
+%     intersect_up  =  Inf(check_dims,1);
+%     for m = 1:2
+%         intersect_low = max(intersect_low, final_results.succ_low_all_methods(1:check_dims,k,m));
+%         intersect_up  = min(intersect_up,  final_results.succ_up_all_methods(1:check_dims,k,m));
+%     end
+%     for m = 1:2
+%         Ls = Inf(check_dims, final_results.num_splits); Us = -Inf(check_dims, final_results.num_splits);
+%         for i = 1:final_results.num_splits
+%             Ls(:,i) = final_results.succ_low_boundary{i}(1:check_dims,k,m);
+%             Us(:,i) = final_results.succ_up_boundary{i}(1:check_dims,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+%     rect_int = [intersect_low(1), intersect_low(2), intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+%     rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+%     h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
+% 
+%     % 3. Safe set (thick green)
+%     safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
+%     safe_y = [node_params.safe_inf(2), node_params.safe_inf(2), node_params.safe_sup(2), node_params.safe_sup(2), node_params.safe_inf(2)];
+%     h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
+% 
+%     % 4. Falsified point (if any)
+%     if ~overall_safe
+%         h_fals = plot(falsified_example(1), falsified_example(2), 'rX', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Counter-Example');
+%     end
+% 
+%     axis equal;
+%     xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%     ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%     title('Reachable set OA for the entire initial input set vs. Safe set','Interpreter','latex','FontSize',18);
+% 
+%     legend_entries = [h_int, h_safe];
+%     legend_labels = {'Intersection of 4 OAs', 'Safe Set'};
+%     if ~overall_safe
+%         legend_entries(end+1) = h_fals;
+%         legend_labels{end+1} = 'Counter-Example';
+%     end
+%     legend(legend_entries, legend_labels, 'Location', 'northeast', 'Interpreter', 'latex');
+%     set(legend, 'FontSize', 10, 'FontWeight', 'bold', 'Box', 'on')
+% 
+%     plot_filename_entire = fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot');
+% 
+%     % Save in multiple formats
+%     saveas(gcf, [plot_filename_entire, '.png']);
+%     saveas(gcf, [plot_filename_entire, '.pdf']);
+%     saveas(gcf, [plot_filename_entire, '.fig']);
+%     print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
+%     print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+%     % fprintf(' Final_Entire_input_set_Verification_Plot saved to %s.(png/fig)\n', plot_filename_entire);
+%     fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
+% 
+% 
+%     % --- Data Unpacking for Saving ---
+%     % Extract fields from final_results and final_samples into individual variables
+%     succ_low_all_methods = final_results.succ_low_all_methods;
+%     succ_up_all_methods = final_results.succ_up_all_methods;
+%     succ_low_boundary = final_results.succ_low_boundary;
+%     succ_up_boundary = final_results.succ_up_boundary;
+%     time_initial = final_results.time_initial;
+%     time_boundary = final_results.time_boundary;
+%     n_x = final_results.n_x;
+%     rand_succ = final_samples; % Use the samples generated during falsification
+% 
+%     % Save the detailed .mat file
+%     filename_base = sprintf('reachability_data_sys%d_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
+%     save(fullfile(save_dir, [filename_base '.mat']), ...
+%         'succ_low_all_methods', 'succ_up_all_methods', ...
+%         'succ_low_boundary', 'succ_up_boundary', ...
+%         'rand_succ', 'n_x', ...
+%         'time_initial', 'time_boundary', '-v7.3');
+%     fprintf('  Final .mat data saved to: %s.mat\n', filename_base);
+% 
+%     % % Also save a simpler summary file %--> ##Check how to save it as .txt file 
+%     % save(fullfile(save_dir, 'verification_summary.mat'), 'verified_initial_sets', 'falsified_example', 'falsified_initial_point', 'verdict_string', '-v7.3');
+%     % fprintf('  Saved summary to: verification_summary.mat\n');
+% end
+% 
+% %% ------------------------------------------------------------------------
+% %   FINAL SUMMARY
+% % -------------------------------------------------------------------------
+% 
+% % Stop VERDICT timer and get elapsed time
+% elapsed_time = toc;
+% % Clear global variables
+% clear global Jacobian_x_low Jacobian_x_up system_choice_global
+% 
+% 
+% % --- Final Verdict ---
+% is_fully_verified = false;
+% verdict_string = '';
+% 
+% if ~overall_safe
+%     verdict_string = 'FALSIFIED! Counter-example found.';
+% else
+%     total_verified_volume = 0;
+%     if ~isempty(verified_initial_sets)
+%         for i = 1:length(verified_initial_sets)
+%             set_info = verified_initial_sets{i};
+%             set_radius = set_info{2};
+%             total_verified_volume = total_verified_volume + prod(2 * set_radius);
+%         end
+%     end
+% 
+%     initial_volume = prod(2 * Initial_radius);
+% 
+%     if abs(total_verified_volume - initial_volume) < 1e-9 && isempty(verification_queue) && num_unknown == 0
+%         is_fully_verified = true;
+%         verdict_string = 'FULLY VERIFIED (SAFE) for the initial set.';
+%     elseif ~isempty(verification_queue) || num_unknown > 0
+%          verdict_string = sprintf('UNKNOWN (Verification incomplete: %d subsets remain).', num_unknown + length(verification_queue));
+%     else
+%         verdict_string = 'UNKNOWN (Verification incomplete: Gaps found between proven subsets).';
+%     end
+% end
+% 
+% % --- Final Refined Plotting ---
+% if plot_control.save_final_plot
+%     fprintf('PART 6: Generating Refined_Safe_Subsets Plot and Saving Data...\n');
+% 
+%     % Create a new figure with a larger size
+%     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
+%     hold on; grid on; box on;
+%     set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
+% 
+%     % 1. Plot the initial sets that were proven safe (in blue)
+%     if ~isempty(verified_initial_sets)
+%         for i = 1:length(verified_initial_sets)
+%             set_info = verified_initial_sets{i};
+%             center = set_info{1};
+%             radius = set_info{2};
+%             inf_bound = center - radius;
+%             dims = (center + radius) - inf_bound;
+%             rectangle('Position', [inf_bound(1), inf_bound(2), dims(1), dims(2)], 'EdgeColor', 'b', 'FaceColor', [0.8 0.8 1]);
+%         end
+%     end
+%     h_verified = patch(NaN, NaN, 'b', 'FaceAlpha', 0.3, 'DisplayName', 'Verified Initial Subsets');
+% 
+%     % 2. Plot the original full initial set boundary (dashed black)
+%     initial_inf = x0 - Initial_radius;
+%     initial_dims = (x0 + Initial_radius) - initial_inf;
+%     rectangle('Position', [initial_inf(1), initial_inf(2), initial_dims(1), initial_dims(2)], 'EdgeColor', 'k', 'LineWidth', 2, 'LineStyle', '--');
+%     h_initial = plot(NaN, NaN, 'k--', 'LineWidth', 2, 'DisplayName', 'Original Initial Set');
+% 
+%     % 3. Plot the safe set (green)
+%     safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
+%     safe_y = [node_params.safe_inf(2), node_params.safe_inf(2), node_params.safe_sup(2), node_params.safe_sup(2), node_params.safe_inf(2)];
+%     h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
+% 
+%     % 4. Plot falsified point (if any) with a red star
+%     h_falsified_fig2 = []; % Initialize handle for the Counter-Example
+%     if ~overall_safe
+%         h_falsified_fig2 = plot(falsified_initial_point(1), falsified_initial_point(2), 'rX', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Counter-example');
+%     end
+% 
+%     % % To control the axis limits
+%     % axis tight;
+%     % ax = gca;
+%     % x_lim = ax.XLim;
+%     % y_lim = ax.YLim;
+%     % x_range = max(x_lim(2) - x_lim(1), 0.1);
+%     % y_range = max(y_lim(2) - y_lim(1), 0.1);
+%     % padding = 0.1;
+%     % xlim([x_lim(1) - padding*x_range, x_lim(2) + padding*x_range]);
+%     % ylim([y_lim(1) - padding*y_range, y_lim(2) + padding*y_range]);
+%     axis equal;
+% 
+%     xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%     ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%     title('Refined Safe Subsets from Initial input set','Interpreter','latex','FontSize',18);
+% 
+%     % % Rules to include the a Counter-Example if it exists in the Legend
+%     legend_entries_fig2 = [h_initial, h_verified, h_safe]; 
+%     legend_labels_fig2 = {'Original Initial Set', 'Verified Initial Subsets', 'Safe Set'};
+% 
+%     if ~overall_safe && ~isempty(h_falsified_fig2)
+%         % Only add the falsifying point if it was plotted
+%         legend_entries_fig2(end+1) = h_falsified_fig2;
+%         legend_labels_fig2{end+1} = 'Initial Set Counter-Example'; % Changed label for clarity on this plot
+%     end
+% 
+%     legend(legend_entries_fig2, legend_labels_fig2, 'Location', 'northeast', 'Interpreter', 'latex');
+%     set(legend, 'FontSize', 10, 'FontWeight', 'bold', 'Box', 'on')
+% 
+%     plot_filename_refined = fullfile(save_dir, 'Refined_Safe_Subsets_Plot');
+% 
+%     % Save in multiple formats
+%     saveas(gcf, [plot_filename_refined, '.png']);
+%     saveas(gcf, [plot_filename_refined, '.pdf']);
+%     saveas(gcf, [plot_filename_refined, '.fig']);
+%     print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
+%     print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+%     fprintf('Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_refined);
+% 
+%     fprintf('PART 6 completed.\n\n');
+% end
+% 
+% % --- Final Summary ---
+% fprintf('\n\n=================================================================\n');
+% fprintf('               Verification Analysis Complete\n');
+% fprintf('=================================================================\n\n');
+% fprintf('--- Overall Summary ---\n');
+% fprintf('System: %s\n', upper(system_name));
+% fprintf('Total Iterations: %d\n', iter);
+% fprintf('Verified Subsets: %d\n', num_verified);
+% fprintf('Falsified Subsets: %d\n', num_falsified);
+% fprintf('Remaining Unknown Subsets: %d\n', num_unknown);
+% % Logic to print the elapsed time in seconds (if less than 60 seconds) or minutes 
+% % (if 60 seconds or more) for easier readability
+% if elapsed_time < 60
+%     fprintf('Total Time Taken: %.2f seconds\n', elapsed_time);
+% else
+%     fprintf('Total Time Taken: %.2f minutes\n', elapsed_time / 60);
+% end
+% 
+% 
+% % if elapsed_time < 60, fprintf('Total Time Taken: %.2f seconds\n', elapsed_time); else, fprintf('Total Time Taken: %.2f minutes\n', elapsed_time / 60); end
+% fprintf('\nVERDICT: %s\n', verdict_string);
+% if ~overall_safe, fprintf('  Initial point: [%s]\n  Final point:   [%s]\n', strjoin(arrayfun(@(x) sprintf('%.4f', x), falsified_initial_point, 'UniformOutput', false), ', '), strjoin(arrayfun(@(x) sprintf('%.4f', x), falsified_example, 'UniformOutput', false), ', ')); end
+% 
+% fprintf('\n=================================================================\n');
+% 
+% %------------- END OF CODE V1.2 --------------
+
+
+%% V1.3
+
+%------------- BEGIN CODE V1.3 --------------
 
 clear all; close all; clc;
 
@@ -1952,8 +2674,8 @@ addpath('./') % Add current directory for utility functions
 %%%  -------------------------------------------------------------------
 
 % === 1. SYSTEM SELECTION ===
-system_choice = 14;   % FPA System
-% system_choice = 15;   % Spiral_non System
+% system_choice = 14;   % FPA System
+system_choice = 15;   % Spiral_non System
 
 % === 2. INITIAL SET ===
 % Spiral_non (2D)
@@ -2025,8 +2747,8 @@ node_params.sample_succ_number = 1000; %--> check PJ comment about using the fal
 % node_params.safe_sup = [0.3; 2];    % [x1_up, x2_up]
 
 % Example 4: Safety violated for some methods
-% node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
-% node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
+node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
+node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
 
 % Example 5: Safety violated --> counter example works here 
 % node_params.safe_inf = [-3; 1.5];   % [x1_low, x2_low]
@@ -2220,35 +2942,41 @@ if overall_safe % Proceed only if not already falsified
 
         % Call NODE_RA (now a pure function)
         reachability_results = NODE_RA(node_params_subset);
-        k = size(reachability_results.succ_low_all_methods, 2);
+        % k = size(reachability_results.succ_low_all_methods, 2); % No longer needed here
 
         % 1. Verification Check (check if all OA intervals are fully contained in the
         % safe set))
 
-        % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS
-        intersect_low = -Inf(check_dims,1);
-        intersect_up  =  Inf(check_dims,1);
-        
-        % Single-step methods
-        for m = 1:2 
-            intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
-            intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
-        end
-        
-        % Boundary methods 
-        for m = 1:2 
-            Ls = Inf(check_dims, reachability_results.num_splits); 
-            Us = -Inf(check_dims, reachability_results.num_splits);
-            for i = 1:reachability_results.num_splits
-                Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
-                Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
-            end
-            intersect_low = max(intersect_low, min(Ls,[],2));
-            intersect_up  = min(intersect_up,  max(Us,[],2));
-        end
+        % % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS
+        % intersect_low = -Inf(check_dims,1);
+        % intersect_up  =  Inf(check_dims,1);
+        % 
+        % % Single-step methods
+        % for m = 1:2 
+        %     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
+        %     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
+        % end
+        % 
+        % % Boundary methods 
+        % for m = 1:2 
+        %     Ls = Inf(check_dims, reachability_results.num_splits); 
+        %     Us = -Inf(check_dims, reachability_results.num_splits);
+        %     for i = 1:reachability_results.num_splits
+        %         Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
+        %         Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
+        %     end
+        %     intersect_low = max(intersect_low, min(Ls,[],2));
+        %     intersect_up  = min(intersect_up,  max(Us,[],2));
+        % end
 
-        low_ok = all(intersect_low >= node_params.safe_inf - 1e-10);
-        up_ok = all(intersect_up  <= node_params.safe_sup  + 1e-10);
+        % =================================================================
+        % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS (NOW COMPUTED IN NODE_RA.m)
+        % =================================================================
+        intersect_low = reachability_results.intersect_low; % <-- Read from NODE_RA output
+        intersect_up  = reachability_results.intersect_up;  % <-- Read from NODE_RA output
+
+        low_ok = all(intersect_low >= node_params.safe_inf);
+        up_ok = all(intersect_up  <= node_params.safe_sup);
 
         if low_ok && up_ok
             fprintf('  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.\n');
@@ -2312,7 +3040,12 @@ if overall_safe % Proceed only if not already falsified
                             node_params.Initial_radius = r_i;
                             pert_results = NODE_RA(node_params);
                             
-                            % Recompute intersection of all 4 methods for perturbed set
+                            % NEW SIMPLIFIED CALCULATION:
+                            p_low = pert_results.intersect_low;
+                            p_up = pert_results.intersect_up;
+                            
+
+                            % Recompute intersection of all 4 methods for perturbed set --> % This section must now rely on NODE_RA's internal calculation
                             k = size(pert_results.succ_low_all_methods, 2);
                             check_dims = length(node_params.safe_inf);
                             
@@ -2339,6 +3072,7 @@ if overall_safe % Proceed only if not already falsified
                             pert_norm = sum(p_up - p_low);
                             grad(j) = (pert_norm - base_norm) / delta;
                         end
+
                         
                         heuristic = abs(grad);
                         if any(isnan(heuristic) | isinf(heuristic) | heuristic <= 0)
@@ -2644,4 +3378,4 @@ if ~overall_safe, fprintf('  Initial point: [%s]\n  Final point:   [%s]\n', strj
 
 fprintf('\n=================================================================\n');
 
-%------------- END OF CODE V1.2 --------------
+%------------- END OF CODE V1.3 --------------
