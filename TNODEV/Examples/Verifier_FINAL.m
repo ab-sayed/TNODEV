@@ -2942,32 +2942,9 @@ if overall_safe % Proceed only if not already falsified
 
         % Call NODE_RA (now a pure function)
         reachability_results = NODE_RA(node_params_subset);
-        % k = size(reachability_results.succ_low_all_methods, 2); % No longer needed here
 
         % 1. Verification Check (check if all OA intervals are fully contained in the
         % safe set))
-
-        % % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS
-        % intersect_low = -Inf(check_dims,1);
-        % intersect_up  =  Inf(check_dims,1);
-        % 
-        % % Single-step methods
-        % for m = 1:2 
-        %     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
-        %     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
-        % end
-        % 
-        % % Boundary methods 
-        % for m = 1:2 
-        %     Ls = Inf(check_dims, reachability_results.num_splits); 
-        %     Us = -Inf(check_dims, reachability_results.num_splits);
-        %     for i = 1:reachability_results.num_splits
-        %         Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
-        %         Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
-        %     end
-        %     intersect_low = max(intersect_low, min(Ls,[],2));
-        %     intersect_up  = min(intersect_up,  max(Us,[],2));
-        % end
 
         % =================================================================
         % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS (NOW COMPUTED IN NODE_RA.m)
@@ -3043,31 +3020,7 @@ if overall_safe % Proceed only if not already falsified
                             % NEW SIMPLIFIED CALCULATION:
                             p_low = pert_results.intersect_low;
                             p_up = pert_results.intersect_up;
-                            
-                            % % Recompute intersection of all 4 methods for perturbed set --> % This section must now rely on NODE_RA's internal calculation
-                            % k = size(pert_results.succ_low_all_methods, 2);
-                            % check_dims = length(node_params.safe_inf);
-                            % 
-                            % p_low = -Inf(check_dims,1);
-                            % p_up  =  Inf(check_dims,1);
-                            % 
-                            % % Single-step methods
-                            % for m = 1:2
-                            %     p_low = max(p_low, pert_results.succ_low_all_methods(1:check_dims,k,m));
-                            %     p_up  = min(p_up , pert_results.succ_up_all_methods (1:check_dims,k,m));
-                            % end
-                            % % Boundary methods
-                            % for m = 1:2
-                            %     Ls = Inf(check_dims, pert_results.num_splits);
-                            %     Us = -Inf(check_dims, pert_results.num_splits);
-                            %     for i = 1:pert_results.num_splits
-                            %         Ls(:,i) = pert_results.succ_low_boundary{i}(1:check_dims,k,m);
-                            %         Us(:,i) = pert_results.succ_up_boundary{i}(1:check_dims,k,m);
-                            %     end
-                            %     p_low = max(p_low, min(Ls,[],2));
-                            %     p_up  = min(p_up , max(Us,[],2));
-                            % end
-                            
+                                                    
                             pert_norm = sum(p_up - p_low);
                             grad(j) = (pert_norm - base_norm) / delta;
                         end
@@ -3112,16 +3065,24 @@ if overall_safe % Proceed only if not already falsified
 end
 fprintf('PART 5 completed.\n\n');
 
+% Stop VERDICT timer and get elapsed time --> This is the correct location to
+% have it since the time taken for plotting is not related to the algorithm
+% concludingCorrect placing 
+elapsed_time = toc;
+
 % ------------------------------------------------------------------------
 %   FINAL PLOTTING AND SAVING
 % ------------------------------------------------------------------------
+
+% --> Remove the below lines as they were plotting from the full inital input
+% set and not from the Refined OAs intersection
 % --- Unconditionally run NODE_RA for the full initial set --- --> Probablly I
 % can get rid of this If I don't need the Computation Times for the 4 OAs
 % This guarantees we have correct bounds and timing data for the final report.
-final_params = node_params;
-final_params.x0 = x0;
-final_params.Initial_radius = Initial_radius;
-final_results = NODE_RA(final_params);
+% final_params = node_params;
+% final_params.x0 = x0;
+% final_params.Initial_radius = Initial_radius;
+% final_results = NODE_RA(final_params); % Here is the problem for the plot as it consideres the initial inuput-set !!
 
 
 if plot_control.save_final_plot
@@ -3136,13 +3097,17 @@ if plot_control.save_final_plot
     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
     fprintf('  Created results folder:\n    %s\n', save_dir);
 
-    % --- Final Reachability Analysis for Plotting ---
-    % We need the over-approximations for the full initial set for the plot
-    final_params = node_params;
-    final_params.x0 = x0;
-    final_params.Initial_radius = Initial_radius;
-    final_results = NODE_RA(final_params);
+    % % --- Final Reachability Analysis for Plotting ---
+    % % We need the over-approximations for the full initial set for the plot
+    % final_params = node_params;
+    % final_params.x0 = x0;
+    % final_params.Initial_radius = Initial_radius;
+    % final_results = NODE_RA(final_params);  % Here is the problem for the plot as it consideres the initial inuput-set !!
     
+    % =====================================================================
+    % FIGURE 1: Verified Reachable Set (Union of Verified Subsets)
+    % =====================================================================
+
     % --- Plotting ---
     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
     hold on; grid on; box on;
@@ -3152,13 +3117,41 @@ if plot_control.save_final_plot
     % 1. Black sampled points (from the full initial set)
     plot(final_samples(1,:), final_samples(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
 
-    % 2. Intersection of all 4 OAs (thick purple)
-    intersect_low = final_results.intersect_low; % <-- Read from NODE_RA.m output
-    intersect_up  = final_results.intersect_up;  % <-- Read from NODE_RA.m output
+    % % 2. Intersection of all 4 OAs (thick purple)
+    % intersect_low = final_results.intersect_low; % <-- Read from NODE_RA.m output
+    % intersect_up  = final_results.intersect_up;  % <-- Read from NODE_RA.m output
+    % rect_int = [intersect_low(1), intersect_low(2), intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+    % rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+    % h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
 
-    rect_int = [intersect_low(1), intersect_low(2), intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
-    rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
-    h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
+    % 2. Plot the Reachable Sets of the VERIFIED subsets
+    h_int = []; 
+    if ~isempty(verified_initial_sets)
+        fprintf('  Computing and plotting reachable sets for %d verified subsets...\n', length(verified_initial_sets));
+        for i = 1:length(verified_initial_sets)
+            % Extract subset data
+            set_info = verified_initial_sets{i};
+            x_sub = set_info{1};
+            r_sub = set_info{2};
+            
+            % Compute NODE_RA for this specific verified subset
+            % We reuse the logic from the loop to get exact bounds
+            node_params_sub = node_params;
+            node_params_sub.x0 = x_sub;
+            node_params_sub.Initial_radius = r_sub;
+            res_sub = NODE_RA(node_params_sub);
+            
+            % Extract intersection bounds
+            int_low = res_sub.intersect_low;
+            int_up  = res_sub.intersect_up;
+            
+            % Plot rectangle for this subset's reachability
+            rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
+            rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
+        end
+        % Create a dummy handle for the legend
+        h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Verified Reachable Sets');
+    end
 
     % 3. Safe set (thick green)
     safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
@@ -3196,24 +3189,35 @@ if plot_control.save_final_plot
     fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
 
     
-    % --- Data Unpacking for Saving ---
-    % Extract fields from final_results and final_samples into individual variables
-    succ_low_all_methods = final_results.succ_low_all_methods;
-    succ_up_all_methods = final_results.succ_up_all_methods;
-    succ_low_boundary = final_results.succ_low_boundary;
-    succ_up_boundary = final_results.succ_up_boundary;
-    time_initial = final_results.time_initial;
-    time_boundary = final_results.time_boundary;
-    n_x = final_results.n_x;
-    rand_succ = final_samples; % Use the samples generated during falsification
+     % --- Data Saving (Optional: Saving the last computed batch or aggregation) ---
+    % Note: Since we have multiple subsets now, saving 'succ_low_all_methods' 
+    % of just the last one might be misleading. 
+    % So, we save the structure of verified sets instead.
+
+    % % Extract fields from final_results and final_samples into individual variables
+    % succ_low_all_methods = final_results.succ_low_all_methods;
+    % succ_up_all_methods = final_results.succ_up_all_methods;
+    % succ_low_boundary = final_results.succ_low_boundary;
+    % succ_up_boundary = final_results.succ_up_boundary;
+    % time_initial = final_results.time_initial;
+    % time_boundary = final_results.time_boundary;
+    % n_x = final_results.n_x;
+    % rand_succ = final_samples; % Use the samples generated during falsification
 
     % Save the detailed .mat file
     filename_base = sprintf('reachability_data_sys%d_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
+    
+    % save(fullfile(save_dir, [filename_base '.mat']), ...
+    %     'succ_low_all_methods', 'succ_up_all_methods', ...
+    %     'succ_low_boundary', 'succ_up_boundary', ...
+    %     'rand_succ', 'n_x', ...
+    %     'time_initial', 'time_boundary', '-v7.3');
+
     save(fullfile(save_dir, [filename_base '.mat']), ...
-        'succ_low_all_methods', 'succ_up_all_methods', ...
-        'succ_low_boundary', 'succ_up_boundary', ...
-        'rand_succ', 'n_x', ...
-        'time_initial', 'time_boundary', '-v7.3');
+        'verified_initial_sets', ...
+        'falsified_example', 'falsified_initial_point', ...
+        'final_samples', ...
+        'overall_safe', '-v7.3');
     fprintf('  Final .mat data saved to: %s.mat\n', filename_base);
 
     % % Also save a simpler summary file %--> ##Check how to save it as .txt file 
@@ -3225,8 +3229,8 @@ end
 %   FINAL SUMMARY
 % -------------------------------------------------------------------------
 
-% Stop VERDICT timer and get elapsed time
-elapsed_time = toc;
+% % Stop VERDICT timer and get elapsed time
+% elapsed_time = toc;
 % Clear global variables
 clear global Jacobian_x_low Jacobian_x_up system_choice_global
 
@@ -3259,7 +3263,11 @@ else
     end
 end
 
-% --- Final Refined Plotting ---
+
+% =====================================================================
+% FIGURE 2: Final Refined Plotting
+% =====================================================================
+
 if plot_control.save_final_plot
     fprintf('PART 6: Generating Refined_Safe_Subsets Plot and Saving Data...\n');
 
@@ -3308,6 +3316,7 @@ if plot_control.save_final_plot
     % padding = 0.1;
     % xlim([x_lim(1) - padding*x_range, x_lim(2) + padding*x_range]);
     % ylim([y_lim(1) - padding*y_range, y_lim(2) + padding*y_range]);
+
     axis equal;
 
     xlabel('$x_1$','Interpreter','latex','FontSize',20);

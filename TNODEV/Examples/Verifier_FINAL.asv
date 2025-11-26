@@ -2942,32 +2942,9 @@ if overall_safe % Proceed only if not already falsified
 
         % Call NODE_RA (now a pure function)
         reachability_results = NODE_RA(node_params_subset);
-        % k = size(reachability_results.succ_low_all_methods, 2); % No longer needed here
 
         % 1. Verification Check (check if all OA intervals are fully contained in the
         % safe set))
-
-        % % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS
-        % intersect_low = -Inf(check_dims,1);
-        % intersect_up  =  Inf(check_dims,1);
-        % 
-        % % Single-step methods
-        % for m = 1:2 
-        %     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
-        %     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
-        % end
-        % 
-        % % Boundary methods 
-        % for m = 1:2 
-        %     Ls = Inf(check_dims, reachability_results.num_splits); 
-        %     Us = -Inf(check_dims, reachability_results.num_splits);
-        %     for i = 1:reachability_results.num_splits
-        %         Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
-        %         Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
-        %     end
-        %     intersect_low = max(intersect_low, min(Ls,[],2));
-        %     intersect_up  = min(intersect_up,  max(Us,[],2));
-        % end
 
         % =================================================================
         % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS (NOW COMPUTED IN NODE_RA.m)
@@ -3043,32 +3020,7 @@ if overall_safe % Proceed only if not already falsified
                             % NEW SIMPLIFIED CALCULATION:
                             p_low = pert_results.intersect_low;
                             p_up = pert_results.intersect_up;
-                            
-
-                            % Recompute intersection of all 4 methods for perturbed set --> % This section must now rely on NODE_RA's internal calculation
-                            k = size(pert_results.succ_low_all_methods, 2);
-                            check_dims = length(node_params.safe_inf);
-                            
-                            p_low = -Inf(check_dims,1);
-                            p_up  =  Inf(check_dims,1);
-                            
-                            % Single-step methods
-                            for m = 1:2
-                                p_low = max(p_low, pert_results.succ_low_all_methods(1:check_dims,k,m));
-                                p_up  = min(p_up , pert_results.succ_up_all_methods (1:check_dims,k,m));
-                            end
-                            % Boundary methods
-                            for m = 1:2
-                                Ls = Inf(check_dims, pert_results.num_splits);
-                                Us = -Inf(check_dims, pert_results.num_splits);
-                                for i = 1:pert_results.num_splits
-                                    Ls(:,i) = pert_results.succ_low_boundary{i}(1:check_dims,k,m);
-                                    Us(:,i) = pert_results.succ_up_boundary{i}(1:check_dims,k,m);
-                                end
-                                p_low = max(p_low, min(Ls,[],2));
-                                p_up  = min(p_up , max(Us,[],2));
-                            end
-                            
+                                                    
                             pert_norm = sum(p_up - p_low);
                             grad(j) = (pert_norm - base_norm) / delta;
                         end
@@ -3116,13 +3068,16 @@ fprintf('PART 5 completed.\n\n');
 % ------------------------------------------------------------------------
 %   FINAL PLOTTING AND SAVING
 % ------------------------------------------------------------------------
+
+% --> Remove the below lines as they were plotting from the full inital input
+% set and not from the Refined OAs intersection
 % --- Unconditionally run NODE_RA for the full initial set --- --> Probablly I
 % can get rid of this If I don't need the Computation Times for the 4 OAs
 % This guarantees we have correct bounds and timing data for the final report.
-final_params = node_params;
-final_params.x0 = x0;
-final_params.Initial_radius = Initial_radius;
-final_results = NODE_RA(final_params);
+% final_params = node_params;
+% final_params.x0 = x0;
+% final_params.Initial_radius = Initial_radius;
+% final_results = NODE_RA(final_params); % Here is the problem for the plot as it consideres the initial inuput-set !!
 
 
 if plot_control.save_final_plot
@@ -3142,7 +3097,7 @@ if plot_control.save_final_plot
     final_params = node_params;
     final_params.x0 = x0;
     final_params.Initial_radius = Initial_radius;
-    final_results = NODE_RA(final_params);
+    final_results = NODE_RA(final_params);  % Here is the problem for the plot as it consideres the initial inuput-set !!
     
     % --- Plotting ---
     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
@@ -3154,21 +3109,9 @@ if plot_control.save_final_plot
     plot(final_samples(1,:), final_samples(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
 
     % 2. Intersection of all 4 OAs (thick purple)
-    intersect_low = -Inf(check_dims,1);
-    intersect_up  =  Inf(check_dims,1);
-    for m = 1:2
-        intersect_low = max(intersect_low, final_results.succ_low_all_methods(1:check_dims,k,m));
-        intersect_up  = min(intersect_up,  final_results.succ_up_all_methods(1:check_dims,k,m));
-    end
-    for m = 1:2
-        Ls = Inf(check_dims, final_results.num_splits); Us = -Inf(check_dims, final_results.num_splits);
-        for i = 1:final_results.num_splits
-            Ls(:,i) = final_results.succ_low_boundary{i}(1:check_dims,k,m);
-            Us(:,i) = final_results.succ_up_boundary{i}(1:check_dims,k,m);
-        end
-        intersect_low = max(intersect_low, min(Ls,[],2));
-        intersect_up  = min(intersect_up,  max(Us,[],2));
-    end
+    intersect_low = final_results.intersect_low; % <-- Read from NODE_RA.m output
+    intersect_up  = final_results.intersect_up;  % <-- Read from NODE_RA.m output
+
     rect_int = [intersect_low(1), intersect_low(2), intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
     rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
     h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
