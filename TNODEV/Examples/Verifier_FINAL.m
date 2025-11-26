@@ -2783,19 +2783,10 @@ node_params.input_split_heuristic = 'naive';
 plot_control.show_figures = true;    % Show figures during execution
 plot_control.save_final_plot = true; % Simplified: save if verified or falsified
 % New Selector:
-plot_control.verified_set_style = 'union'; 
+plot_control.verified_set_style = 'all'; 
 % Options: 
 %   'all'   -> Plot individual reachable sets for every verified subset (Detailed)
 %   'union' -> Plot the union covering all verified reachable sets (Clean)
-
-
-% === 9. FINAL PLOT STYLE CHOICE === --> Re-check if there is a need for this
-% or not, so I can remove it for clarity
-% Choose what to show in the final verified plot
-plot_control.final_plot_mode = 'intersection_only';  
-% Options:
-%   'full'              → show all 6 over-approximations + samples (current style)
-%   'intersection_only' → show ONLY Intersection of 4 OAs + Safe set (clean & beautiful)
 
 % =========================================================================
 fprintf('=== Starting Iterative Verification Analysis ===\n');
@@ -2951,9 +2942,9 @@ if overall_safe % Proceed only if not already falsified
         % 1. Verification Check (check if all OA intervals are fully contained in the
         % safe set))
 
-        % =================================================================
+        % ======================================================================
         % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS (NOW COMPUTED IN NODE_RA.m)
-        % =================================================================
+        % ======================================================================
         intersect_low = reachability_results.intersect_low; % <-- Read from NODE_RA output
         intersect_up  = reachability_results.intersect_up;  % <-- Read from NODE_RA output
 
@@ -3079,17 +3070,6 @@ elapsed_time = toc;
 %   FINAL PLOTTING AND SAVING
 % ------------------------------------------------------------------------
 
-% --> Remove the below lines as they were plotting from the full inital input
-% set and not from the Refined OAs intersection
-% --- Unconditionally run NODE_RA for the full initial set --- --> Probablly I
-% can get rid of this If I don't need the Computation Times for the 4 OAs
-% This guarantees we have correct bounds and timing data for the final report.
-% final_params = node_params;
-% final_params.x0 = x0;
-% final_params.Initial_radius = Initial_radius;
-% final_results = NODE_RA(final_params); % Here is the problem for the plot as it consideres the initial inuput-set !!
-
-
 if plot_control.save_final_plot
     fprintf('PART 6: Generating Final_Entire_input_set_Verification_Plot and Saving Data...\n');
 
@@ -3102,16 +3082,10 @@ if plot_control.save_final_plot
     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
     fprintf('  Created results folder:\n    %s\n', save_dir);
 
-    % % --- Final Reachability Analysis for Plotting ---
-    % % We need the over-approximations for the full initial set for the plot
-    % final_params = node_params;
-    % final_params.x0 = x0;
-    % final_params.Initial_radius = Initial_radius;
-    % final_results = NODE_RA(final_params);  % Here is the problem for the plot as it consideres the initial inuput-set !!
-    
-    % =====================================================================
-    % FIGURE 1: Verified Reachable Set (Union of Verified Subsets)
-    % =====================================================================
+
+    % =========================================================================================================
+    % FIGURE 1: Verified Reachable Set (Union of Verified Subsets or all of them) vs. Entire Initial input set
+    % =========================================================================================================
 
     % --- Plotting ---
     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
@@ -3122,42 +3096,27 @@ if plot_control.save_final_plot
     % 1. Black sampled points (from the full initial set)
     plot(final_samples(1,:), final_samples(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
 
-    % % 2. Intersection of all 4 OAs (thick purple)
-    % intersect_low = final_results.intersect_low; % <-- Read from NODE_RA.m output
-    % intersect_up  = final_results.intersect_up;  % <-- Read from NODE_RA.m output
-    % rect_int = [intersect_low(1), intersect_low(2), intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
-    % rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
-    % h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Proved Reachable Set');
+    % 2. Plot the Unsafe/Un-VERIFIED Reachable Set (i.e. Entire Initial input set) in Red
+    
+    % Calculate the R_s OA for the entire initial input set one last time --> Maybe
+    % check if I can read the one directly from above !!
+    node_params_full = node_params;
+    node_params_full.x0 = x0;
+    node_params_full.Initial_radius = Initial_radius;
+    res_full = NODE_RA(node_params_full);
+    
+    unrefined_low = res_full.intersect_low;
+    unrefined_up  = res_full.intersect_up;
+    
+    rect_unrefined = [unrefined_low(1), unrefined_low(2), ...
+                      unrefined_up(1)-unrefined_low(1), unrefined_up(2)-unrefined_low(2)];
+    
+    % Draw it in Red with a dashed line to indicate "Unsafe/Un-VERIFIED"
+    rectangle('Position', rect_unrefined, 'EdgeColor', [0.85 0.33 0.1], 'LineWidth', 2, 'LineStyle', '--');
+    h_unrefined = plot(NaN,NaN,'--','Color',[0.85 0.33 0.1],'LineWidth',2, 'DisplayName', 'Unrefined OA (Entire Set)');
 
-    % 2. Plot the Reachable Sets of the VERIFIED subsets
-
-    % h_int = []; 
-    % if ~isempty(verified_initial_sets)
-    %     fprintf('  Computing and plotting reachable sets for %d verified subsets...\n', length(verified_initial_sets));
-    %     for i = 1:length(verified_initial_sets)
-    %         % Extract subset data
-    %         set_info = verified_initial_sets{i};
-    %         x_sub = set_info{1};
-    %         r_sub = set_info{2};
-    % 
-    %         % Compute NODE_RA for this specific verified subset
-    %         % We reuse the logic from the loop to get exact bounds
-    %         node_params_sub = node_params;
-    %         node_params_sub.x0 = x_sub;
-    %         node_params_sub.Initial_radius = r_sub;
-    %         res_sub = NODE_RA(node_params_sub);
-    % 
-    %         % Extract intersection bounds
-    %         int_low = res_sub.intersect_low;
-    %         int_up  = res_sub.intersect_up;
-    % 
-    %         % Plot rectangle for this subset's reachability
-    %         rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
-    %         rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
-    %     end
-    %     % Create a dummy handle for the legend
-    %     h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName','Verified Reachable Sets');
-    % end
+    
+    % 3. Plot the Reachable Sets of the VERIFIED subsets
 
     h_int = []; 
 
@@ -3209,12 +3168,12 @@ if plot_control.save_final_plot
         h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName', legend_name);
     end
 
-    % 3. Safe set (thick green)
+    % 4. Safe set (thick green)
     safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
     safe_y = [node_params.safe_inf(2), node_params.safe_inf(2), node_params.safe_sup(2), node_params.safe_sup(2), node_params.safe_inf(2)];
     h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
 
-    % 4. Falsified point (if any)
+    % 5. Falsified point (if any)
     if ~overall_safe
         h_fals = plot(falsified_example(1), falsified_example(2), 'rX', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Counter-Example');
     end
@@ -3224,12 +3183,24 @@ if plot_control.save_final_plot
     ylabel('$x_2$','Interpreter','latex','FontSize',20);
     title('Reachable set OA for the entire initial input set vs. Safe set','Interpreter','latex','FontSize',18);
     
-    legend_entries = [h_int, h_safe];
-    legend_labels = {'Intersection of 4 OAs', 'Safe Set'};
-    if ~overall_safe
+    % 6. Legend Logic
+    % Order: Unrefined (Red) -> Verified (Purple) -> Safe (Green) -> CounterEx (Red rX)
+    legend_entries = [h_unrefined];
+    legend_labels = {'Entire Initial input set'};
+    
+    if ~isempty(h_int)
+        legend_entries = [legend_entries, h_int];
+        legend_labels = [legend_labels, {'Union of verified subsets OAs'}];
+    end
+
+    legend_entries = [legend_entries, h_safe];
+    legend_labels = [legend_labels, {'Safe Set'}];
+
+    if ~overall_safe && ~isempty(h_fals)
         legend_entries(end+1) = h_fals;
         legend_labels{end+1} = 'Counter-Example';
     end
+
     legend(legend_entries, legend_labels, 'Location', 'northeast', 'Interpreter', 'latex');
     set(legend, 'FontSize', 10, 'FontWeight', 'bold', 'Box', 'on')
 
@@ -3241,44 +3212,132 @@ if plot_control.save_final_plot
     saveas(gcf, [plot_filename_entire, '.fig']);
     print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
     print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
-    % fprintf(' Final_Entire_input_set_Verification_Plot saved to %s.(png/fig)\n', plot_filename_entire);
     fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
 
     
-     % --- Data Saving (Optional: Saving the last computed batch or aggregation) ---
-    % Note: Since we have multiple subsets now, saving 'succ_low_all_methods' 
-    % of just the last one might be misleading. 
-    % So, we save the structure of verified sets instead.
+    % =====================================================================
+    % FIGURE 2: Final Refined Plotting
+    % =====================================================================
+    
+    % Create a new figure with a larger size
+    fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
+    hold on; grid on; box on;
+    set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
+    
+    % 1. Black sampled points (from the full initial set)
+    plot(final_samples(1,:), final_samples(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
 
-    % % Extract fields from final_results and final_samples into individual variables
-    % succ_low_all_methods = final_results.succ_low_all_methods;
-    % succ_up_all_methods = final_results.succ_up_all_methods;
-    % succ_low_boundary = final_results.succ_low_boundary;
-    % succ_up_boundary = final_results.succ_up_boundary;
-    % time_initial = final_results.time_initial;
-    % time_boundary = final_results.time_boundary;
-    % n_x = final_results.n_x;
-    % rand_succ = final_samples; % Use the samples generated during falsification
+    % 1. [INPUT] Plot the initial sets that were proven safe (in blue)
+
+    if ~isempty(verified_initial_sets)
+        for i = 1:length(verified_initial_sets)
+            set_info = verified_initial_sets{i};
+            center = set_info{1}; radius = set_info{2};
+            rect_pos = [center(1)-radius(1), center(2)-radius(2), 2*radius(1), 2*radius(2)];
+            rectangle('Position', rect_pos, 'EdgeColor', 'b', 'FaceColor', [0.8 0.8 1]);
+        end
+    end
+    h_ver_init = patch(NaN, NaN, 'b', 'FaceAlpha', 0.3, 'DisplayName', 'Verified Initial Subsets');
+
+    
+    % 2. [INPUT] Plot the original full initial input set boundary (dashed black)
+    
+    initial_inf = x0 - Initial_radius;
+    initial_dims = (x0 + Initial_radius) - initial_inf;
+    rectangle('Position', [initial_inf(1), initial_inf(2), initial_dims(1), initial_dims(2)], 'EdgeColor', 'k', 'LineWidth', 2, 'LineStyle', '--');
+    h_init = plot(NaN, NaN, 'k--', 'LineWidth', 2, 'DisplayName', 'Original Initial Set');
+
+
+    % 3. [OUTPUT] Unrefined Reachable Set (Red Dashed)
+    
+    rectangle('Position', rect_unrefined, 'EdgeColor', [0.85 0.33 0.1], 'LineWidth', 2, 'LineStyle', '--');
+    h_unrefined_2 = plot(NaN,NaN,'--','Color',[0.85 0.33 0.1],'LineWidth',2, 'DisplayName', 'Entire Initial input set');
+
+
+    % 4. [OUTPUT] Verified Reachable Sets (Purple)
+    % We directly re-use the calculation from Fig 1 logic (computed implicitly above)
+    
+    if ~isempty(verified_initial_sets)
+        if strcmp(plot_control.verified_set_style, 'all')
+             % Re-loop to plot individual RS rectangles
+             for i = 1:length(verified_initial_sets)
+                set_info = verified_initial_sets{i};
+                node_params_sub = node_params; node_params_sub.x0 = set_info{1}; node_params_sub.Initial_radius = set_info{2};
+                res_sub = NODE_RA(node_params_sub);
+                int_low = res_sub.intersect_low; int_up = res_sub.intersect_up;
+                rect_dims = [int_low(1), int_low(2), int_up(1)-int_low(1), int_up(2)-int_low(2)];
+                rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
+             end
+        else
+             % Union mode (using bounds calculated in Fig 1 block)
+             rect_dims = [union_low(1), union_low(2), union_up(1)-union_low(1), union_up(2)-union_low(2)];
+             rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+        end
+    end
+    h_ver_rs_2 = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2, 'DisplayName', 'Verified Reachable Sets');
+
+
+    % 5. [OUTPUT] Safe Set (Green)
+    h_safe_2 = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
+
+    
+    % 6. Falsified Points (Input and Output if applicable)
+    h_fals_in = []; h_fals_out = [];
+    if ~overall_safe
+        % Input Point
+        h_fals_in = plot(falsified_initial_point(1), falsified_initial_point(2), 'bx', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Falsifying Input');
+        % Output Point
+        h_fals_out = plot(falsified_example(1), falsified_example(2), 'rX', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Falsifying Output');
+    end
+    
+
+    axis equal;
+    xlabel('$x_1$','Interpreter','latex','FontSize',20);
+    ylabel('$x_2$','Interpreter','latex','FontSize',20);
+    title('Global View: Refined Initial input set \& Resulting Reachable Sets OAs','Interpreter','latex','FontSize',18);
+    
+
+    % Legend 2
+    legend_entries_2 = [h_init, h_ver_init, h_unrefined_2, h_ver_rs_2, h_safe_2];
+    legend_labels_2 = {'Original Initial input Set', 'Verified Initial Subsets', 'Entire Initial input set OA', 'Union of verified subsets OAs', 'Safe Set'};
+
+    if ~overall_safe
+        if ~isempty(h_fals_in), legend_entries_2(end+1) = h_fals_in; legend_labels_2{end+1} = 'Falsifying Input'; end
+        if ~isempty(h_fals_out), legend_entries_2(end+1) = h_fals_out; legend_labels_2{end+1} = 'Falsifying Output'; end
+    end
+
+    legend(legend_entries_2, legend_labels_2, 'Location', 'northeast', 'Interpreter', 'latex');
+    set(legend, 'FontSize', 10, 'FontWeight', 'bold', 'Box', 'on')
+    
+    plot_filename_refined = fullfile(save_dir, 'Refined_Safe_Subsets_Plot');
+
+    
+    % Save in multiple formats
+    saveas(gcf, [plot_filename_refined, '.png']);
+    saveas(gcf, [plot_filename_refined, '.pdf']);
+    saveas(gcf, [plot_filename_refined, '.fig']);
+    print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
+    print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+    fprintf('Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_refined);
 
     % Save the detailed .mat file
     filename_base = sprintf('reachability_data_sys%d_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
-    
-    % save(fullfile(save_dir, [filename_base '.mat']), ...
-    %     'succ_low_all_methods', 'succ_up_all_methods', ...
-    %     'succ_low_boundary', 'succ_up_boundary', ...
-    %     'rand_succ', 'n_x', ...
-    %     'time_initial', 'time_boundary', '-v7.3');
-
+   
+ 
     save(fullfile(save_dir, [filename_base '.mat']), ...
         'verified_initial_sets', ...
         'falsified_example', 'falsified_initial_point', ...
         'final_samples', ...
+        'res_full', ... % Added the result of the Entire Initial input set to the saved data
         'overall_safe', '-v7.3');
+
     fprintf('  Final .mat data saved to: %s.mat\n', filename_base);
 
     % % Also save a simpler summary file %--> ##Check how to save it as .txt file 
     % save(fullfile(save_dir, 'verification_summary.mat'), 'verified_initial_sets', 'falsified_example', 'falsified_initial_point', 'verdict_string', '-v7.3');
     % fprintf('  Saved summary to: verification_summary.mat\n');
+
+    fprintf('PART 6 completed.\n\n');
 end
 
 %% ------------------------------------------------------------------------
@@ -3288,6 +3347,7 @@ end
 % % Stop VERDICT timer and get elapsed time
 % elapsed_time = toc;
 % Clear global variables
+
 clear global Jacobian_x_low Jacobian_x_up system_choice_global
 
 
@@ -3319,92 +3379,6 @@ else
     end
 end
 
-
-% =====================================================================
-% FIGURE 2: Final Refined Plotting
-% =====================================================================
-
-if plot_control.save_final_plot
-    fprintf('PART 6: Generating Refined_Safe_Subsets Plot and Saving Data...\n');
-
-    % Create a new figure with a larger size
-    fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
-    hold on; grid on; box on;
-    set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
-
-    % 1. Plot the initial sets that were proven safe (in blue)
-    if ~isempty(verified_initial_sets)
-        for i = 1:length(verified_initial_sets)
-            set_info = verified_initial_sets{i};
-            center = set_info{1};
-            radius = set_info{2};
-            inf_bound = center - radius;
-            dims = (center + radius) - inf_bound;
-            rectangle('Position', [inf_bound(1), inf_bound(2), dims(1), dims(2)], 'EdgeColor', 'b', 'FaceColor', [0.8 0.8 1]);
-        end
-    end
-    h_verified = patch(NaN, NaN, 'b', 'FaceAlpha', 0.3, 'DisplayName', 'Verified Initial Subsets');
-
-    % 2. Plot the original full initial set boundary (dashed black)
-    initial_inf = x0 - Initial_radius;
-    initial_dims = (x0 + Initial_radius) - initial_inf;
-    rectangle('Position', [initial_inf(1), initial_inf(2), initial_dims(1), initial_dims(2)], 'EdgeColor', 'k', 'LineWidth', 2, 'LineStyle', '--');
-    h_initial = plot(NaN, NaN, 'k--', 'LineWidth', 2, 'DisplayName', 'Original Initial Set');
-    
-    % 3. Plot the safe set (green)
-    safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
-    safe_y = [node_params.safe_inf(2), node_params.safe_inf(2), node_params.safe_sup(2), node_params.safe_sup(2), node_params.safe_inf(2)];
-    h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
-
-    % 4. Plot falsified point (if any) with a red star
-    h_falsified_fig2 = []; % Initialize handle for the Counter-Example
-    if ~overall_safe
-        h_falsified_fig2 = plot(falsified_initial_point(1), falsified_initial_point(2), 'rX', 'MarkerSize', 12, 'LineWidth', 2, 'DisplayName', 'Counter-example');
-    end
-    
-    % % To control the axis limits
-    % axis tight;
-    % ax = gca;
-    % x_lim = ax.XLim;
-    % y_lim = ax.YLim;
-    % x_range = max(x_lim(2) - x_lim(1), 0.1);
-    % y_range = max(y_lim(2) - y_lim(1), 0.1);
-    % padding = 0.1;
-    % xlim([x_lim(1) - padding*x_range, x_lim(2) + padding*x_range]);
-    % ylim([y_lim(1) - padding*y_range, y_lim(2) + padding*y_range]);
-
-    axis equal;
-
-    xlabel('$x_1$','Interpreter','latex','FontSize',20);
-    ylabel('$x_2$','Interpreter','latex','FontSize',20);
-    title('Refined Safe Subsets from Initial input set','Interpreter','latex','FontSize',18);
-    
-    % % Rules to include the a Counter-Example if it exists in the Legend
-    legend_entries_fig2 = [h_initial, h_verified, h_safe]; 
-    legend_labels_fig2 = {'Original Initial Set', 'Verified Initial Subsets', 'Safe Set'};
-    
-    if ~overall_safe && ~isempty(h_falsified_fig2)
-        % Only add the falsifying point if it was plotted
-        legend_entries_fig2(end+1) = h_falsified_fig2;
-        legend_labels_fig2{end+1} = 'Initial Set Counter-Example'; % Changed label for clarity on this plot
-    end
-
-    legend(legend_entries_fig2, legend_labels_fig2, 'Location', 'northeast', 'Interpreter', 'latex');
-    set(legend, 'FontSize', 10, 'FontWeight', 'bold', 'Box', 'on')
-
-    plot_filename_refined = fullfile(save_dir, 'Refined_Safe_Subsets_Plot');
-
-    % Save in multiple formats
-    saveas(gcf, [plot_filename_refined, '.png']);
-    saveas(gcf, [plot_filename_refined, '.pdf']);
-    saveas(gcf, [plot_filename_refined, '.fig']);
-    print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
-    print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
-    fprintf('Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_refined);
-
-    fprintf('PART 6 completed.\n\n');
-end
-
 % --- Final Summary ---
 fprintf('\n\n=================================================================\n');
 fprintf('               Verification Analysis Complete\n');
@@ -3415,6 +3389,7 @@ fprintf('Total Iterations: %d\n', iter);
 fprintf('Verified Subsets: %d\n', num_verified);
 fprintf('Falsified Subsets: %d\n', num_falsified);
 fprintf('Remaining Unknown Subsets: %d\n', num_unknown);
+
 % Logic to print the elapsed time in seconds (if less than 60 seconds) or minutes 
 % (if 60 seconds or more) for easier readability
 if elapsed_time < 60
