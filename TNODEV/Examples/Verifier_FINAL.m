@@ -2773,7 +2773,6 @@ node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
 
 % === 6. VERIFICATION LOOP PARAMETERS ===
 MAX_ITER = 50;     %--> "check this crtiteria either we conclude based on that or a time out with a defined time for example 45 mins."
-MIN_RADIUS = 1e-4; % Minimum radius for a set to be considered for splitting
 
 % === 7. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
@@ -2858,7 +2857,7 @@ fprintf('PART 3 completed.\n\n');
 fprintf('PART 4: Initial Falsification Attempt...\n');
 check_dims = size(node_params.safe_inf, 1);
 
-% Generate random samples from the FULL initial set
+% Generate random samples from the FULL initial input set
 num_falsification_samples = 1000;
 initial_samples = node_params.x0 - node_params.Initial_radius + ...
                   2 * node_params.Initial_radius .* rand(length(node_params.x0), num_falsification_samples);
@@ -2923,28 +2922,24 @@ if overall_safe % Proceed only if not already falsified
             r_i = r_i(:);
         end
 
-        if max(r_i) < MIN_RADIUS
-            fprintf('  Set radius (%.4e) below minimum threshold (%.4e). Skipping.\n', max(r_i), MIN_RADIUS);
-            num_unknown = num_unknown + 1;
-            continue;
-        end
 
         fprintf('  Calling NODE_RA for set with center [%.4f, %.4f] and radius %.4f\n', x_i(1), x_i(2), max(r_i));
 
-        % Build NODE_RA input for the current subset
+        % Build NODE_RA.m input for the current subset
         node_params_subset                = node_params;
         node_params_subset.x0             = x_i;
         node_params_subset.Initial_radius = r_i;
 
-        % Call NODE_RA (now a pure function)
+        % Call NODE_RA.m
         reachability_results = NODE_RA(node_params_subset);
 
-        % 1. Verification Check (check if all OA intervals are fully contained in the
-        % safe set))
+        % 1. Verification Check (check if all OAs/their union are fully contained in the
+        % safe set)
 
         % ======================================================================
         % INTERSECTION OF ALL 4 OVER-APPROXIMATIONS (NOW COMPUTED IN NODE_RA.m)
         % ======================================================================
+
         intersect_low = reachability_results.intersect_low; % <-- Read from NODE_RA output
         intersect_up  = reachability_results.intersect_up;  % <-- Read from NODE_RA output
 
@@ -2952,13 +2947,13 @@ if overall_safe % Proceed only if not already falsified
         up_ok = all(intersect_up  <= node_params.safe_sup);
 
         if low_ok && up_ok
-            fprintf('  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.\n');
+            fprintf('  PROVEN SAFE: Union of all 4 OAs is within the safe set.\n');
             verified_initial_sets{end+1} = {x_i, r_i}; % <-- when a set is proven safe, add its definition to our new list. 
             num_verified = num_verified + 1;
             num_unknown = num_unknown - 1;
             continue;
         else
-            fprintf('  NOT PROVEN: Intersection violates safe set. Refining...\n');
+            fprintf('  NOT PROVEN: Union of all 4 OAs violates safe set. Refining...\n');
    
             % 2. Refinement of input sets (Refine/Split using selected heuristic)
         
@@ -2987,7 +2982,7 @@ if overall_safe % Proceed only if not already falsified
                         [~, split_dim] = max(scores);
                         
                         fprintf(' Refinement: Using most-sensitive-input-radius heuristic, splitting dimension %d (score = %.4e)\n', ...
-                                split_dim, max(scores));
+                                split_dim, max(scores)); % Check if I can remove max(scores)
                                 
                     catch
                         [~, split_dim] = max(r_i);
@@ -2999,7 +2994,7 @@ if overall_safe % Proceed only if not already falsified
                     try
                         base_norm = sum(intersect_up - intersect_low);
                         if base_norm <= 0
-                            throw(MException('','Base reachable set has zero or negative width'));
+                            throw(MException('','Base reachable set has zero or negative width')); % Re-check this exception again
                         end
                         
                         grad = zeros(size(x_i));
@@ -3021,7 +3016,7 @@ if overall_safe % Proceed only if not already falsified
                             grad(j) = (pert_norm - base_norm) / delta;
                         end
 
-                        
+                      
                         heuristic = abs(grad);
                         if any(isnan(heuristic) | isinf(heuristic) | heuristic <= 0)
                             throw(MException('','Invalid gradient'));
@@ -3029,7 +3024,7 @@ if overall_safe % Proceed only if not already falsified
                         
                         [~, split_dim] = max(heuristic);
                         fprintf(' Refinement: Using interval-norm-gradient heuristic, splitting dimension %d (grad = %.4e)\n', ...
-                                split_dim, max(heuristic));
+                                split_dim, max(heuristic));  % Check if I can remove max(heuristic)
                                 
                     catch
                         [~, split_dim] = max(r_i);
@@ -3040,7 +3035,7 @@ if overall_safe % Proceed only if not already falsified
                     error('Invalid input_split_heuristic: %s', node_params.input_split_heuristic);
             end
     
-            % Perform the refinement/split
+            % Perform the refinement --> ## Maybe change the full naminjg of split_dim to refine_dim
             r_new = r_i;
             r_new(split_dim) = r_i(split_dim) / 2;
         
@@ -3063,8 +3058,9 @@ fprintf('PART 5 completed.\n\n');
 
 % Stop VERDICT timer and get elapsed time --> This is the correct location to
 % have it since the time taken for plotting is not related to the algorithm
-% concludingCorrect placing 
+% concluding a Verdict 
 elapsed_time = toc;
+
 
 % ------------------------------------------------------------------------
 %   FINAL PLOTTING AND SAVING
@@ -3082,12 +3078,10 @@ if plot_control.save_final_plot
     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
     fprintf('  Created results folder:\n    %s\n', save_dir);
 
+    % ===========================================================================================================
+    % FIGURE 1: Verified Reachable Set (Union of Verified Subsets or all of them) vs. Entire Initial input set OA 
+    % ===========================================================================================================
 
-    % =========================================================================================================
-    % FIGURE 1: Verified Reachable Set (Union of Verified Subsets or all of them) vs. Entire Initial input set
-    % =========================================================================================================
-
-    % --- Plotting ---
     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
     hold on; grid on; box on;
     set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
@@ -3098,8 +3092,7 @@ if plot_control.save_final_plot
 
     % 2. Plot the Unsafe/Un-VERIFIED Reachable Set (i.e. Entire Initial input set) in Red
     
-    % Calculate the R_s OA for the entire initial input set one last time --> Maybe
-    % check if I can read the one directly from above !!
+    % Calculate the R_s OA for the initial input set one last time --> Maybe check if I can pass the one directly from above !!
     node_params_full = node_params;
     node_params_full.x0 = x0;
     node_params_full.Initial_radius = Initial_radius;
@@ -3181,7 +3174,7 @@ if plot_control.save_final_plot
     axis equal;
     xlabel('$x_1$','Interpreter','latex','FontSize',20);
     ylabel('$x_2$','Interpreter','latex','FontSize',20);
-    title('Reachable set OA for the entire initial input set vs. Safe set','Interpreter','latex','FontSize',18);
+    title('Reachable set OA for the entire initial input set vs. Verified Safe subsets','Interpreter','latex','FontSize',18);
     
     % 6. Legend Logic
     % Order: Unrefined (Red) -> Verified (Purple) -> Safe (Green) -> CounterEx (Red rX)
@@ -3215,9 +3208,9 @@ if plot_control.save_final_plot
     fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
 
     
-    % =====================================================================
-    % FIGURE 2: Final Refined Plotting
-    % =====================================================================
+    % ================================================================================
+    % FIGURE 2: Final Refined Plotting: Initial input set vs. Outpur reachable set OA
+    % ================================================================================
     
     % Create a new figure with a larger size
     fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
@@ -3255,7 +3248,7 @@ if plot_control.save_final_plot
 
 
     % 4. [OUTPUT] Verified Reachable Sets (Purple)
-    % We directly re-use the calculation from Fig 1 logic (computed implicitly above)
+    % We directly re-use the calculation from Fig 1 logic (computed above)
     
     if ~isempty(verified_initial_sets)
         if strcmp(plot_control.verified_set_style, 'all')
@@ -3294,7 +3287,7 @@ if plot_control.save_final_plot
     axis equal;
     xlabel('$x_1$','Interpreter','latex','FontSize',20);
     ylabel('$x_2$','Interpreter','latex','FontSize',20);
-    title('Global View: Refined Initial input set \& Resulting Reachable Sets OAs','Interpreter','latex','FontSize',18);
+    title('Global View: Refined Initial input set \& Resulting Refined Safe subsets OAs','Interpreter','latex','FontSize',18);
     
 
     % Legend 2
@@ -3331,7 +3324,7 @@ if plot_control.save_final_plot
         'res_full', ... % Added the result of the Entire Initial input set to the saved data
         'overall_safe', '-v7.3');
 
-    fprintf('  Final .mat data saved to: %s.mat\n', filename_base);
+    fprintf('Final .mat data saved to: %s.mat\n', filename_base);
 
     % % Also save a simpler summary file %--> ##Check how to save it as .txt file 
     % save(fullfile(save_dir, 'verification_summary.mat'), 'verified_initial_sets', 'falsified_example', 'falsified_initial_point', 'verdict_string', '-v7.3');
@@ -3341,43 +3334,31 @@ if plot_control.save_final_plot
 end
 
 %% ------------------------------------------------------------------------
-%   FINAL SUMMARY
+%   FINAL VERDICT & SUMMARY
 % -------------------------------------------------------------------------
-
-% % Stop VERDICT timer and get elapsed time
-% elapsed_time = toc;
-% Clear global variables
 
 clear global Jacobian_x_low Jacobian_x_up system_choice_global
 
-
 % --- Final Verdict ---
+
 is_fully_verified = false;
 verdict_string = '';
 
 if ~overall_safe
     verdict_string = 'FALSIFIED! Counter-example found.';
 else
-    total_verified_volume = 0;
-    if ~isempty(verified_initial_sets)
-        for i = 1:length(verified_initial_sets)
-            set_info = verified_initial_sets{i};
-            set_radius = set_info{2};
-            total_verified_volume = total_verified_volume + prod(2 * set_radius);
-        end
-    end
-    
-    initial_volume = prod(2 * Initial_radius);
-    
-    if abs(total_verified_volume - initial_volume) < 1e-9 && isempty(verification_queue) && num_unknown == 0
+    % Simplified clear Logic:
+    % If queue is empty, we verified everything, i.e. it means we didn't time out,
+    % and we didn't throw anything away. Therefore, the entire volume is safe.
+    if isempty(verification_queue)
         is_fully_verified = true;
-        verdict_string = 'FULLY VERIFIED (SAFE) for the initial set.';
-    elseif ~isempty(verification_queue) || num_unknown > 0
-         verdict_string = sprintf('UNKNOWN (Verification incomplete: %d subsets remain).', num_unknown + length(verification_queue));
+        verdict_string = 'FULLY VERIFIED (SAFE) for the initial input set.';
     else
-        verdict_string = 'UNKNOWN (Verification incomplete: Gaps found between proven subsets).';
+        % If queue is not empty, it means we reached MAX_ITER, i.e. Timeout
+        verdict_string = sprintf('UNKNOWN (Timeout: %d subsets remain unverified).', length(verification_queue));
     end
 end
+
 
 % --- Final Summary ---
 fprintf('\n\n=================================================================\n');
@@ -3388,7 +3369,7 @@ fprintf('System: %s\n', upper(system_name));
 fprintf('Total Iterations: %d\n', iter);
 fprintf('Verified Subsets: %d\n', num_verified);
 fprintf('Falsified Subsets: %d\n', num_falsified);
-fprintf('Remaining Unknown Subsets: %d\n', num_unknown);
+fprintf('Remaining Unknown Subsets: %d\n', length(verification_queue)); % Re-check if this is reading the correct number
 
 % Logic to print the elapsed time in seconds (if less than 60 seconds) or minutes 
 % (if 60 seconds or more) for easier readability
@@ -3398,8 +3379,6 @@ else
     fprintf('Total Time Taken: %.2f minutes\n', elapsed_time / 60);
 end
 
-
-% if elapsed_time < 60, fprintf('Total Time Taken: %.2f seconds\n', elapsed_time); else, fprintf('Total Time Taken: %.2f minutes\n', elapsed_time / 60); end
 fprintf('\nVERDICT: %s\n', verdict_string);
 if ~overall_safe, fprintf('  Initial point: [%s]\n  Final point:   [%s]\n', strjoin(arrayfun(@(x) sprintf('%.4f', x), falsified_initial_point, 'UniformOutput', false), ', '), strjoin(arrayfun(@(x) sprintf('%.4f', x), falsified_example, 'UniformOutput', false), ', ')); end
 
