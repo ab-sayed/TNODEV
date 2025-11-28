@@ -2305,7 +2305,7 @@ n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
 succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
 succ_up_all_methods = NaN(n_x, 1, n_methods_total);
 
-%% Boundary Splits
+%% Boundary Decompositions
 num_splits = 2*n_x;
 Initial_set_boundaries = cell(num_splits, 1);
 succ_low_boundary = cell(num_splits, 1);
@@ -2350,17 +2350,17 @@ catch e
     rethrow(e);
 end
 
-%% Package Results
+%% Package Results --> # Commented for now the ones that aren't used but left incase we will need some of these O/Ps later
 reachability_results = struct();
 reachability_results.succ_low_all_methods = succ_low_all_methods;
 reachability_results.succ_up_all_methods  = succ_up_all_methods;
 reachability_results.succ_low_boundary    = succ_low_boundary;
 reachability_results.succ_up_boundary     = succ_up_boundary;
-reachability_results.time_initial         = time_initial; 
-reachability_results.time_boundary        = time_boundary;
+% reachability_results.time_initial         = time_initial; 
+% reachability_results.time_boundary        = time_boundary;
 reachability_results.num_splits           = num_splits;
-reachability_results.system_choice        = system_choice;
-reachability_results.n_x                  = n_x;
+% reachability_results.system_choice        = system_choice;
+% reachability_results.n_x                  = n_x;
 
 
 %% Compute Intersection of All 4 Over-Approximations (NEW) 
@@ -2395,14 +2395,9 @@ for m = 1:2
     intersect_up  = min(intersect_up,  max(Us,[],2));
 end
 
-% Store the intersection in the output structure 
+% Store the intersection in the output structure --> The main Package Results
 reachability_results.intersect_low = intersect_low;
 reachability_results.intersect_up = intersect_up;
-
-%% Package Results (Cont.)
-reachability_results.intersect_low        = intersect_low;  % Added
-reachability_results.intersect_up         = intersect_up; % Added
-
 
 end
 
