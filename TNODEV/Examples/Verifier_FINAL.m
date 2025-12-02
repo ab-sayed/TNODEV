@@ -2789,10 +2789,15 @@ elseif system_choice == 14 % FPA (5D)
     % node_params.safe_inf = [-1.3; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     % node_params.safe_sup = [-1.2;-0.55;-0.72;0.38;2.48];  % [x1_up,  x2_up, ...]
     
-    % 17 iterations
+    % 17 iterations --> WORKING for Verification Refinement "can be executed
+    % locally"
     node_params.safe_inf = [-1.29; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     node_params.safe_sup = [-1.23;-0.59;-0.72;0.38;2.46];  % [x1_up,  x2_up, ...]
-
+    
+    % 343 iterations --> WORKING for Verification Refinement "Execuite only @CLUSTER"
+    % @ 35 minutes for naive / 
+    % node_params.safe_inf = [-1.29; -0.68;-0.74;0.35;2.38]; % [x1_low, x2_low, ...]
+    % node_params.safe_sup = [-1.23;-0.59;-0.72;0.37;2.45];  % [x1_up,  x2_up, ...]
 
 end
 
