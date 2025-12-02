@@ -2785,12 +2785,13 @@ elseif system_choice == 14 % FPA (5D)
     % node_params.safe_sup = [-1.2;-0.5;-0.7;0.4;2.5];
     
     % FPA Example that goes into Refinement
-    %
+    % 1 Refinement only 
     % node_params.safe_inf = [-1.3; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     % node_params.safe_sup = [-1.2;-0.55;-0.72;0.38;2.48];  % [x1_up,  x2_up, ...]
-
-    node_params.safe_inf = [-1.28; -0.68;-0.75;0.35;2.4]; % [x1_low, x2_low, ...]
-    node_params.safe_sup = [-1.22;-0.58;-0.72;0.38;2.46];  % [x1_up,  x2_up, ...]
+    
+    % 17 iterations
+    node_params.safe_inf = [-1.29; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
+    node_params.safe_sup = [-1.23;-0.59;-0.72;0.38;2.46];  % [x1_up,  x2_up, ...]
 
 
 end
@@ -3294,8 +3295,8 @@ if plot_control.save_final_plot
         saveas(gcf, [plot_filename_entire, '.png']);
         saveas(gcf, [plot_filename_entire, '.pdf']);
         saveas(gcf, [plot_filename_entire, '.fig']);
-        print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
-        print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+        print(gcf, fullfile(save_dir, [plot_filename_entire, '.eps'], '-depsc'); % Vector EPS for LaTeX
+        print(gcf, fullfile(save_dir, [plot_filename_entire, '_highres'], '-dpng', '-r600'); % 600 DPI PNG
         fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
         % fprintf('Final_Entire_input_set_Verification_Plots saved for x%d vs x%d.\n', px, py);
     

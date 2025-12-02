@@ -3295,8 +3295,8 @@ if plot_control.save_final_plot
         saveas(gcf, [plot_filename_entire, '.png']);
         saveas(gcf, [plot_filename_entire, '.pdf']);
         saveas(gcf, [plot_filename_entire, '.fig']);
-        print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
-        print(gcf, fullfile(save_dir, 'Final_Entire_input_set_Verification_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+        print(gcf, [plot_filename_entire, '.eps'], '-depsc'); % Vector EPS for LaTeX
+        print(gcf, [plot_filename_entire, '_highres'], '-dpng', '-r600'); % 600 DPI PNG
         fprintf('Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_entire);
         % fprintf('Final_Entire_input_set_Verification_Plots saved for x%d vs x%d.\n', px, py);
     
@@ -3409,8 +3409,8 @@ if plot_control.save_final_plot
         saveas(gcf, [plot_filename_refined, '.png']);
         saveas(gcf, [plot_filename_refined, '.pdf']);
         saveas(gcf, [plot_filename_refined, '.fig']);
-        print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot.eps'), '-depsc'); % Vector EPS for LaTeX
-        print(gcf, fullfile(save_dir, 'Refined_Safe_Subsets_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+        print(gcf, [plot_filename_refined, '.eps'], '-depsc'); % Vector EPS for LaTeX
+        print(gcf, [plot_filename_refined, '_highres'], '-dpng', '-r600'); % 600 DPI PNG
         fprintf('Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', plot_filename_refined);
     end
 
