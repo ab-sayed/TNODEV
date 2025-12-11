@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 1 December 2025 
+% Last update: 11 December 2025 
 % Last revision: October 2025
 
 % %------------- BEGIN CODE --------------
@@ -2789,13 +2789,19 @@ elseif system_choice == 14 % FPA (5D)
     % node_params.safe_inf = [-1.3; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     % node_params.safe_sup = [-1.2;-0.55;-0.72;0.38;2.48];  % [x1_up,  x2_up, ...]
     
-    % 17 iterations --> WORKING for Verification Refinement "can be executed
-    % locally"
+    % Refinement iteration ex.1 ~17 iterations --> WORKING for Verification Refinement 
+    % "can be executed locally"
+    % @ 2.07 minutes for naive / @ 2.23 minutes for most-sensitive-input-radius /
+    % @ 59.75 seconds for interval-norm-gradient
     node_params.safe_inf = [-1.29; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     node_params.safe_sup = [-1.23;-0.59;-0.72;0.38;2.46];  % [x1_up,  x2_up, ...]
     
-    % 343 iterations --> WORKING for Verification Refinement "Execuite only @CLUSTER"
-    % @ 35 minutes for naive / 
+    % Refinement iteration ex.2 ~343 iterations --> WORKING for Verification Refinement 
+    % "Execuite only @CLUSTER"
+    % @ 35 minutes for naive with 343 iterations / 
+    % @39.92 minutes for most-sensitive-input-radius with 343 iterations /
+    % Tried with interval-norm-gradient and it has been running for more than 12 hrs. and 
+    % reached 1850 without any signs of concluding 
     % node_params.safe_inf = [-1.29; -0.68;-0.74;0.35;2.38]; % [x1_low, x2_low, ...]
     % node_params.safe_sup = [-1.23;-0.59;-0.72;0.37;2.45];  % [x1_up,  x2_up, ...]
 
