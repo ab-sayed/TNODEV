@@ -1,0 +1,2212 @@
+=== Starting Iterative Verification Analysis ===
+System: fpa (choice=14)
+Initial set: center = [0.000, -0.586, 0.800, 0.523, 0.700], radius = 0.010
+TIRA: t = [0.00, 2.00], step = 0.050
+CORA: tFinal = 2.00
+
+PART 1: Computing Overall Reachable Tube Bounds (CORA)...
+Performing CORA reachability analysis for FPA (5D)...
+  Initial center x0 = [0.000000 -0.585870  0.800000  0.523230  0.700000]
+  Initial radius = 0.0100
+  Initial radius = 0.0100
+  Initial radius = 0.0100
+  Initial radius = 0.0100
+  Initial radius = 0.0100
+  Time interval = [0, 2.00], step = 0.05000
+Reachability analysis completed in 4.2845 seconds
+  Processing 41 time steps for tube bounds...
+
+=== Overall Reachable Tube Bounds (FPA) ===
+Lower bounds: [-1.289161 -0.680442 -0.733430  0.353836  0.690000]
+Upper bounds: [0.010000 -0.301404  0.810000  0.533230  2.451907]
+PART 1 completed.
+
+PART 2: Computing Jacobian Bounds...
+PART 2 completed.
+
+PART 3: Passing Jacobian bounds via globals...
+PART 3 completed.
+
+PART 4: Initial Falsification Attempt...
+  No counter-example found in initial falsification.
+PART 4 completed.
+
+PART 5: Verification and Refinement based Heuristics Loop...
+--- ITERATION 1: Queue size = 1 ---
+  Calling NODE_RA for set with center [0.0000 -0.5859  0.8000  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 1.0000e-02).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 2: Queue size = 2 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5859  0.8000  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 1.0000e-02).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 3: Queue size = 3 ---
+  Calling NODE_RA for set with center [0.0050 -0.5859  0.8000  0.5232  0.7000] and radius 0.0100
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 4: Queue size = 2 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8000  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 1.0000e-02).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 5: Queue size = 3 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8000  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 1.0000e-02).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 6: Queue size = 4 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.7950  0.5232  0.7000] and radius 0.0100
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 7: Queue size = 3 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 1.0000e-02).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 8: Queue size = 4 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.7950  0.5232  0.7000] and radius 0.0100
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 9: Queue size = 3 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5232  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 1.0000e-02).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 10: Queue size = 4 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5182  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 1.0000e-02).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 11: Queue size = 5 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5282  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 1.0000e-02).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 12: Queue size = 6 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5182  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 1.0000e-02).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 13: Queue size = 7 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5282  0.7000] and radius 0.0100
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 1.0000e-02).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 14: Queue size = 8 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 15: Queue size = 9 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 16: Queue size = 10 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 17: Queue size = 11 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5909  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 18: Queue size = 12 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 19: Queue size = 13 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 20: Queue size = 14 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 21: Queue size = 15 ---
+  Calling NODE_RA for set with center [-0.0050 -0.5809  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 5.0000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 22: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5909  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 23: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5909  0.8050  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 24: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5909  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 25: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5909  0.8050  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 26: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5909  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 27: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5909  0.8050  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 28: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5909  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 29: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5909  0.8050  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 30: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5809  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 31: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5809  0.8050  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 32: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5809  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 33: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5809  0.8050  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 34: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5809  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 35: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5809  0.8050  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 36: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5809  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 5.0000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 37: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0025 -0.5809  0.8050  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 38: Queue size = 16 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 39: Queue size = 17 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 40: Queue size = 18 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 41: Queue size = 19 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 42: Queue size = 20 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 43: Queue size = 21 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 44: Queue size = 22 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 45: Queue size = 23 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 46: Queue size = 24 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 47: Queue size = 25 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8050  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 48: Queue size = 26 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 49: Queue size = 27 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8050  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 50: Queue size = 28 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 51: Queue size = 29 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8050  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 52: Queue size = 30 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 53: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8050  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 5.0000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 54: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8025  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 55: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 56: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8025  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 57: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 58: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8025  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 59: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 60: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8025  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 61: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 62: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8025  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 63: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 64: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8025  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 65: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 66: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8025  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 67: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 68: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8025  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 69: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 70: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8025  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 71: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 72: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8025  0.5182  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 73: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5182  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 74: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8025  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 75: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 76: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8025  0.5182  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 77: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5182  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 78: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8025  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 79: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 80: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8025  0.5282  0.6950] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 81: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5282  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 82: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8025  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 83: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 84: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8025  0.5282  0.7050] and radius 0.0050
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 85: Queue size = 31 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5282  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 5.0000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 86: Queue size = 32 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 87: Queue size = 33 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 88: Queue size = 34 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 89: Queue size = 35 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 90: Queue size = 36 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 91: Queue size = 37 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 92: Queue size = 38 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 93: Queue size = 39 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 94: Queue size = 40 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 95: Queue size = 41 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 96: Queue size = 42 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 97: Queue size = 43 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 98: Queue size = 44 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 99: Queue size = 45 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 100: Queue size = 46 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 101: Queue size = 47 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 102: Queue size = 48 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 103: Queue size = 49 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 104: Queue size = 50 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 105: Queue size = 51 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 106: Queue size = 52 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 107: Queue size = 53 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 108: Queue size = 54 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 109: Queue size = 55 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 110: Queue size = 56 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 111: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 112: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 113: Queue size = 59 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.6950] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 114: Queue size = 60 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 115: Queue size = 61 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 116: Queue size = 62 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 117: Queue size = 63 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.7050] and radius 0.0050
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 5.0000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 118: Queue size = 64 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 119: Queue size = 63 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 120: Queue size = 62 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 121: Queue size = 61 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 122: Queue size = 60 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 123: Queue size = 59 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 124: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 125: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 126: Queue size = 56 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 127: Queue size = 55 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5157  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 128: Queue size = 54 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 129: Queue size = 53 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 130: Queue size = 54 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 131: Queue size = 53 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5157  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 132: Queue size = 52 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 133: Queue size = 51 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 134: Queue size = 52 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 135: Queue size = 53 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 136: Queue size = 54 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 137: Queue size = 55 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 138: Queue size = 56 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 139: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 140: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 141: Queue size = 59 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 142: Queue size = 60 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 143: Queue size = 61 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 144: Queue size = 62 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 145: Queue size = 63 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5934  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 146: Queue size = 64 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 147: Queue size = 65 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 148: Queue size = 66 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 149: Queue size = 67 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5884  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 150: Queue size = 68 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 151: Queue size = 67 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 152: Queue size = 66 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 153: Queue size = 65 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 154: Queue size = 64 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 155: Queue size = 63 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 156: Queue size = 62 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 157: Queue size = 61 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 158: Queue size = 60 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 159: Queue size = 59 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5157  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 160: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 161: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 162: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 163: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5157  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 164: Queue size = 56 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 165: Queue size = 55 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 166: Queue size = 56 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 167: Queue size = 57 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 168: Queue size = 58 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 169: Queue size = 59 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 170: Queue size = 60 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 171: Queue size = 61 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 172: Queue size = 62 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 173: Queue size = 63 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 174: Queue size = 64 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 175: Queue size = 65 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 176: Queue size = 66 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 177: Queue size = 67 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5834  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 178: Queue size = 68 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 179: Queue size = 69 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 180: Queue size = 70 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 181: Queue size = 71 ---
+  Calling NODE_RA for set with center [-0.0075 -0.5784  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 1 (radius 2.5000e-03).
+  Set REFINED: Split dimension 1 into two new sets.
+--- ITERATION 182: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 183: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 184: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 185: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 186: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 187: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 188: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 189: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 190: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 191: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 192: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 193: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 194: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 195: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 196: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 197: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 198: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 199: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 200: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 201: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 202: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 203: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 204: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 205: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 206: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 207: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 208: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5934  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 209: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5934  0.8075  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 210: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 211: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 212: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 213: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 214: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 215: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 216: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5884  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 217: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5884  0.8075  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 218: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 219: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 220: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 221: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 222: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 223: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 224: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 225: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 226: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 227: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 228: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 229: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 230: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 231: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 232: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 233: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 234: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 235: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 236: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 237: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 238: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 239: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 240: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 241: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 242: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 243: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 244: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5834  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 245: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5834  0.8075  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 246: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 247: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 248: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 249: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 250: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 251: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 252: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5784  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 2 (radius 2.5000e-03).
+  Set REFINED: Split dimension 2 into two new sets.
+--- ITERATION 253: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0062 -0.5784  0.8075  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 254: Queue size = 72 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 255: Queue size = 73 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 256: Queue size = 74 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 257: Queue size = 75 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 258: Queue size = 76 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 259: Queue size = 77 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 260: Queue size = 78 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 261: Queue size = 79 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 262: Queue size = 80 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 263: Queue size = 81 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 264: Queue size = 82 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 265: Queue size = 83 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 266: Queue size = 84 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 267: Queue size = 85 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 268: Queue size = 86 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 269: Queue size = 87 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 270: Queue size = 88 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 271: Queue size = 89 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 272: Queue size = 90 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 273: Queue size = 91 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 274: Queue size = 92 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 275: Queue size = 93 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 276: Queue size = 94 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 277: Queue size = 95 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 278: Queue size = 96 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 279: Queue size = 97 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 280: Queue size = 98 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 281: Queue size = 99 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 282: Queue size = 100 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 283: Queue size = 101 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 284: Queue size = 102 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 285: Queue size = 103 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 286: Queue size = 104 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 287: Queue size = 105 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 288: Queue size = 106 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 289: Queue size = 107 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 290: Queue size = 108 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 291: Queue size = 109 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 292: Queue size = 110 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 293: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5207  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 294: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 295: Queue size = 113 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 296: Queue size = 114 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 297: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 298: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 299: Queue size = 117 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 300: Queue size = 118 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 301: Queue size = 119 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 302: Queue size = 120 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 303: Queue size = 121 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5257  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 304: Queue size = 122 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 305: Queue size = 123 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 306: Queue size = 124 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 307: Queue size = 125 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 308: Queue size = 126 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 309: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 310: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 311: Queue size = 129 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 312: Queue size = 130 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 313: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 314: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 315: Queue size = 133 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 316: Queue size = 134 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 317: Queue size = 135 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 318: Queue size = 136 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 319: Queue size = 137 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 320: Queue size = 138 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 321: Queue size = 139 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 322: Queue size = 140 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 323: Queue size = 141 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 324: Queue size = 142 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 325: Queue size = 143 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8075  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 3 (radius 2.5000e-03).
+  Set REFINED: Split dimension 3 into two new sets.
+--- ITERATION 326: Queue size = 144 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 327: Queue size = 143 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 328: Queue size = 142 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 329: Queue size = 141 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 330: Queue size = 140 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 331: Queue size = 139 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 332: Queue size = 138 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 333: Queue size = 137 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 334: Queue size = 136 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 335: Queue size = 135 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 336: Queue size = 134 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 337: Queue size = 133 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 338: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 339: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 340: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 341: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 342: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 343: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 344: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 345: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 346: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 347: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 348: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 349: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 350: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 351: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 352: Queue size = 130 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 353: Queue size = 129 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 354: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 355: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 356: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 357: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 358: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 359: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 360: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 361: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 362: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 363: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 364: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 365: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 366: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 367: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 368: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 369: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 370: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 371: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 372: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 373: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 374: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 375: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 376: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 377: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 378: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 379: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 380: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 381: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 382: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 383: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 384: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 385: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 386: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 387: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 388: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 389: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 390: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 391: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 392: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 393: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 394: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 395: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 396: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 397: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 398: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 399: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 400: Queue size = 126 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 401: Queue size = 125 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 402: Queue size = 124 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 403: Queue size = 123 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 404: Queue size = 122 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 405: Queue size = 121 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5207  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 406: Queue size = 120 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 407: Queue size = 119 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 408: Queue size = 118 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 409: Queue size = 117 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 410: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 411: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 412: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 413: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 414: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 415: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 416: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 417: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 418: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 419: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 420: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 421: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 422: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 423: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 424: Queue size = 114 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 425: Queue size = 113 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5257  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 426: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 427: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 428: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5257  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 429: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5257  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 430: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 431: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 432: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5307  0.6925] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 433: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5307  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 434: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 435: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 436: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5307  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 437: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5307  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 438: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 439: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 440: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 441: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 442: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 443: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 444: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 445: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 446: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 447: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 448: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 449: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 450: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 451: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5846  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 452: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 453: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5821  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 454: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 455: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 456: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5257  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 457: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5257  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 458: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 459: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 460: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5257  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 461: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5257  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 462: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 463: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 464: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5307  0.7025] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 465: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5307  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 466: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 467: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5796  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 468: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8063  0.5307  0.7075] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 469: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5771  0.8087  0.5307  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 4 (radius 2.5000e-03).
+  Set REFINED: Split dimension 4 into two new sets.
+--- ITERATION 470: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5245  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 471: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5270  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 472: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5245  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 473: Queue size = 111 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5270  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 474: Queue size = 112 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5295  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 475: Queue size = 113 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5320  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 476: Queue size = 114 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5295  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 477: Queue size = 115 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5320  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 478: Queue size = 116 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5295  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 479: Queue size = 117 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5320  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 480: Queue size = 118 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5295  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 481: Queue size = 119 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5320  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 482: Queue size = 120 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5245  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 483: Queue size = 119 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5270  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 484: Queue size = 120 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5245  0.6975] and radius 0.0025
+  PROVEN SAFE: Intersection of all 4 OAs is within the safe set.
+--- ITERATION 485: Queue size = 119 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5270  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 486: Queue size = 120 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5295  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 487: Queue size = 121 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5320  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 488: Queue size = 122 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5295  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 489: Queue size = 123 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5320  0.6925] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 490: Queue size = 124 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5295  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 491: Queue size = 125 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5896  0.8087  0.5320  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 492: Queue size = 126 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5295  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 493: Queue size = 127 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5871  0.8087  0.5320  0.6975] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 494: Queue size = 128 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5245  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 495: Queue size = 129 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5270  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 496: Queue size = 130 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5245  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 497: Queue size = 131 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5270  0.7025] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 498: Queue size = 132 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5245  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 499: Queue size = 133 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5946  0.8087  0.5270  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+--- ITERATION 500: Queue size = 134 ---
+  Calling NODE_RA for set with center [-0.0087 -0.5921  0.8087  0.5245  0.7075] and radius 0.0025
+  NOT PROVEN: Intersection of all 4 OAs violates safe set. Refining...
+  Refinement: Using naive heuristic, splitting dimension 5 (radius 2.5000e-03).
+  Set REFINED: Split dimension 5 into two new sets.
+PART 5 completed.
+
+PART 6: Generating Final_Entire_input_set_Verification_Plot and Saving Data...
+  Created results folder:
+    /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26
+  Generating Figure Set 1 for x1 vs x2...
+  Computing reachable sets for 183 verified subsets...
+Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Final_Entire_input_set_Verification_Plot_x1_x2
+Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Refined_Safe_Subsets_Plot_x1_x2
+  Generating Figure Set 2 for x3 vs x4...
+  Computing reachable sets for 183 verified subsets...
+Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Final_Entire_input_set_Verification_Plot_x3_x4
+Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Refined_Safe_Subsets_Plot_x3_x4
+  Generating Figure Set 3 for x4 vs x5...
+  Computing reachable sets for 183 verified subsets...
+Final_Entire_input_set_Verification_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Final_Entire_input_set_Verification_Plot_x4_x5
+Refined_Safe_Subsets_Plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:
+ /home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV/Examples/FINAL_RESULTS_fpa_2025-12-02_11-51-26/Refined_Safe_Subsets_Plot_x4_x5
+Final .mat data saved to: reachability_data_sys14_2025-12-02.mat
+PART 6 completed.
+
+
+
+=================================================================
+               Verification Analysis Complete
+=================================================================
+
+--- Overall Summary ---
+System: FPA
+Total Iterations: 500
+Verified Subsets: 183
+Falsified Subsets: 0
+Remaining Unknown Subsets: 135
+Total Time Taken: 134.26 minutes
+
+VERDICT: UNKNOWN (Timeout: 135 subsets remain unverified).
+
+=================================================================
+>> 
