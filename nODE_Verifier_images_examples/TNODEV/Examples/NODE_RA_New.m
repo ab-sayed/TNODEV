@@ -1,3 +1,15 @@
+% Tool Paper:
+%   "Add Title here"
+%
+% Authors:  
+%   Abdelrahman Sayed Sayed, <abdelrahman.ibrahim -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%
+% Date: 22 October 2025
+% Last update: 13 February 2026
+% Last revision: October 2025
+
 %------------- BEGIN CODE V1.3 For MNIST  -------------- |--> % Modified for MNIST Example: Uses CTMM only and accepts A/B matrices.
 
 
@@ -116,23 +128,12 @@ if run_boundary_analysis
     end
 end
 
-% num_splits = 2*n_x;
-% Initial_set_boundaries = cell(num_splits, 1);
-% succ_low_boundary = cell(num_splits, 1);
-% succ_up_boundary  = cell(num_splits, 1);
-% 
-% % Define the boundary sets for TIRA input
-% for i = 1:n_x
-%     % Low bounds
-%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
-%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
-%     % Upper bounds
-%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
-%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
-% end
-
 %% Main Reachability Computation
 try
+    % Initialize the timing variables before the loops.
+    % time_initial = zeros(1, n_methods_single_step);
+    % time_boundary = zeros(num_splits, n_methods_single_step);
+
     % 1. Single-step methods (Always run)
     for m = 1:n_methods_single_step
         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
@@ -157,34 +158,6 @@ catch e
     fprintf('Error during TIRA computation in NODE_RA.m\n');
     rethrow(e);
 end
-
-% try
-%     % Initialize the timing variables before the loops.
-%     time_initial = zeros(1, n_methods_single_step);
-%     time_boundary = zeros(num_splits, n_methods_single_step);
-% 
-%     % 1. Single-step methods
-%     for m = 1:n_methods_single_step
-%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
-%         succ_low_all_methods(:, 1, m) = succ_low;
-%         succ_up_all_methods(:, 1, m)  = succ_up;
-%     end
-% 
-%     % 2. Boundary methods
-%     for i = 1:num_splits
-%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
-%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
-%         for m = 1:n_methods_single_step
-%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
-%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
-%             succ_low_boundary{i}(:, 1, m) = succ_low;
-%             succ_up_boundary{i}(:, 1, m)  = succ_up;
-%          end
-%      end
-% catch e
-%     fprintf('Error during TIRA computation in NODE_RA_New.m\n');
-%     rethrow(e);
-% end
 
 %% Package Results --> # Commented for now the ones that aren't used but left incase we will need some of these O/Ps later
 reachability_results = struct();
