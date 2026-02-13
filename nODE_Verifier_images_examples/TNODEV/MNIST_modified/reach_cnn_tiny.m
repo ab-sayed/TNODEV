@@ -1,25 +1,297 @@
+% % %------------- BEGIN OF CODE V1.0  --------------
+% % Conv/BatchNorm Channels : 4
+% % ODE Layer States        : 676
+% 
+% function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
+%     % Reachability analysis of an image classification ODE_CNN (MNIST)
+% 
+%     %  % Architecture:
+%     % Layer 1: Conv
+%     % Layer 2: BatchNorm
+%     % Layer 3: RELU
+%     % Layer 4: Conv
+%     % Layer 5: BatchNorm
+%     % Layer 6: RELU
+%     % Layer 7: Flatten
+% 
+%     %% 1) Load and construct the NeuralODE
+% 
+%     % Load network parameters
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path); 
+% 
+%     % Contruct NN
+%     % layer 1
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+%     % layer 2
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+%     % layer 3
+%     layer3 = ReluLayer;
+%     % layer 4
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+%     % layer 5
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+%     % layer 6 and 7
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+%     % odelayer
+%     states = 676;
+%     outputs = 676;
+%     w1 = Wb{9};
+%     b1 = Wb{10}';
+%     w2 = Wb{11};
+%     b2 = Wb{12}';
+%     Aout = w2*w1;
+%     Bout = w2*b1+b2;
+%     Cout = eye(states);
+%     D = zeros(outputs,1);
+%     tfinal = 1;
+%     numSteps = 20;
+%     odeblock = LinearODE(Aout,Bout,Cout,D,tfinal,numSteps);
+%     reachStep = tfinal/numSteps;
+%     odelayer = ODEblockLayer(odeblock,1,reachStep,false);
+%     % Output layer
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+% 
+%     % Here they create a NN layer arch. where they connect sequentelay the layers and
+%     % they have the ODE LAYER and then final output layer. So everything is
+%     % defined as a NN except the ODE layer --> SO that's not the same definition format i have for nODE 
+%     neuralLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, odelayer, layerout};       %----> Architecture Definition
+%     net = NN(neuralLayers);
+% 
+%     %% 2) Prepare data and run experiments
+% 
+%     % Define attack parameters and initialize variables
+%     noise = noise*255; % noise 1/10 of max pixel value
+%     pixels_attack = randperm(784,pix);
+%     time_ode = zeros(numT,1);
+%     rob_ode = zeros(numT,1);
+% 
+%     % Create Adversarial attack
+%     for i=1:numT
+%         img_flat = XTest(:,:,:,i)';
+%         lb = img_flat;
+%         ub = img_flat;
+%         if strcmp(perturbation,'random')
+%             for j=pixels_attack
+%                 ub(j) = min(255, ub(j)+noise);
+%                 lb(j) = max(0, lb(j)-noise);
+%             end
+%         elseif strcmp(perturbation,'inf')
+%             for j=pixels_attack
+%                 ub(j) = min(255, ub(j)+noise);
+%                 lb(j) = max(0, lb(j)-noise);
+%             end
+%         else
+%             error('Wrong perturbation type')
+%         end
+% 
+%         % Normalize input (input already normalized)
+%         lb = lb./255;
+%         ub = ub./255;
+%         inpS = ImageStar(lb,ub);
+% 
+%         % Reachability computation
+%         t = tic;
+%         Rode = net.reach(inpS); %----> This sis the function that do the RA
+%         time_ode(i) = toc(t);
+%         rv = net.checkRobust(Rode, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     % Process results
+%     rob = sum(rob_ode == 1);
+%     unk = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+%     disp(' ');
+%     disp('Robust images: '+string(rob));
+%     disp('Unknown images: '+string(unk));
+%     disp('Not robust images: '+string(notr));
+%     disp('Total time = ' + string(timeT));
+%     % Save results
+%     save("cnn_tiny_nnv_"+string(perturbation)+"_"+string(noise)+".mat",'rob','rob_ode','timeT','pix','numT','noise');
+% 
+% end
+% % %------------- END OF CODE V1.0  --------------
+
+%% Reachability Check of Layer 8
+
+% % %------------- BEGIN OF CODE V1.1  --------------
+% % Conv/BatchNorm Channels : 4
+% % ODE Layer States        : 676
+% 
+% function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
+%     % Reachability analysis of an image classification ODE_CNN (MNIST)
+%     % MODIFIED to check volume after Layer 8 (ODE Layer)
+% 
+%     %% 1) Load and construct the NeuralODE
+% 
+%     % Load network parameters
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path); 
+% 
+%     % Contruct NN Layers 
+%     % layer 1
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+%     % layer 2
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+%     % layer 3
+%     layer3 = ReluLayer;
+%     % layer 4
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+%     % layer 5
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+%     % layer 6 and 7
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+%     % layer 8 (odelayer)
+%     states = 676;
+%     outputs = 676;
+%     w1 = Wb{9};
+%     b1 = Wb{10}';
+%     w2 = Wb{11};
+%     b2 = Wb{12}';
+%     Aout = w2*w1;
+%     Bout = w2*b1+b2;
+%     Cout = eye(states);
+%     D = zeros(outputs,1);
+%     tfinal = 1;
+%     numSteps = 20;
+%     % NNV uses 'LinearODE' and 'ODEblockLayer' which uses Star Sets
+%     odeblock = LinearODE(Aout,Bout,Cout,D,tfinal,numSteps);
+%     reachStep = tfinal/numSteps;
+%     odelayer = ODEblockLayer(odeblock,1,reachStep,false);
+% 
+%     % --- MODIFICATION: STOP HERE i.e., cut Layer 9 ---
+%     % We do NOT add the final output layer. We want to measure the ODE output.
+%     neuralLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, odelayer};
+%     net_upto_ODE = NN(neuralLayers);
+% 
+%     % Output layer
+%     % layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+% 
+% 
+%     % neuralLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, odelayer, layerout};       %----> Architecture Definition
+%     % net = NN(neuralLayers);
+% 
+%     %% 2) Prepare data and run experiments
+% 
+%     % Define attack parameters and initialize variables
+%     noise = noise*255; % noise 1/10 of max pixel value
+%     pixels_attack = randperm(784,pix);
+% 
+%     % Loop over Test Images
+%     for i=1:numT
+%         fprintf('\n--- Image %d / %d ---\n', i, numT);
+% 
+%         img_flat = XTest(:,:,:,i)';
+%         lb = img_flat; ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j=pixels_attack
+%                 ub(j) = min(255, ub(j)+noise);
+%                 lb(j) = max(0, lb(j)-noise);
+%             end
+%         else
+%             error('Wrong perturbation type')
+%         end
+% 
+%         lb = lb./255; ub = ub./255;
+%         inpS = ImageStar(lb,ub); % NNV uses ImageStar
+% 
+%         % Reachability computation (Layers 1 -> 8)
+%         t = tic;
+% 
+%         % This returns the Star Set at the output of the ODE layer
+%         Rode = net_upto_ODE.reach(inpS); 
+% 
+%         time_ode = toc(t);
+%         fprintf('  Reachability Time: %.4f seconds\n', time_ode);
+% 
+%         % =========================================================
+%         %             VOLUME CHECK: LAYER 8 OUTPUT
+%         % =========================================================
+%         % Rode is an array of Star objects (because ReLUs split the set).
+%         % We need to find the ranges (Bounding Box) of ALL stars combined.
+% 
+%         [all_lbs, all_ubs] = Rode.getRanges(); 
+% 
+%         % If multiple Stars exist, get the global min/max to form the Hull
+%         ode_lb = min(all_lbs, [], 2);
+%         ode_ub = max(all_ubs, [], 2);
+% 
+%         % Note: We don't have 'Layer 7' output easily accessible here because 
+%         % net.reach runs everything. We focus on Layer 8 output volume.
+% 
+%         % Log-Volume Calculation
+%         epsilon = 1e-20; 
+%         widths_L8 = ode_ub - ode_lb;
+% 
+%         vol_L8 = sum(log(widths_L8 + epsilon));
+% 
+%         fprintf('\n  ++ NNV (Star Set) Interval Hull Volume Analysis ++ \n');
+%         fprintf('   - Layer 8 (Output from ODE Layer): %.4f\n', vol_L8);
+% 
+%         % Interpretation Hint
+%         if vol_L8 < 0
+%             fprintf('   >>> RESULT: Volume is NEGATIVE (Exponentially Small).\n');
+%             fprintf('       This proves NNV handled the rotation without explosion.\n');
+%         else
+%             fprintf('   >>> RESULT: Volume is POSITIVE (Exponentially Large).\n');
+%         end
+%         fprintf('   ------------------------------------------\n');
+% 
+%         fprintf('\n--- STOPPING EXECUTION after Layer 8 ---\n');
+%         return; 
+%     end
+% end
+
+% %------------- END OF CODE V1.1  --------------
+
+%% Reachability Check of Layer 9
+
+% %------------- BEGIN OF CODE V1.2  --------------
 % Conv/BatchNorm Channels : 4
 % ODE Layer States        : 676
 
 function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
-    % Reachability analysis of an image classification ODE_CNN (MNIST)
-    
-    %  % Architecture:
-    % Layer 1: Conv
-    % Layer 2: BatchNorm
-    % Layer 3: RELU
-    % Layer 4: Conv
-    % Layer 5: BatchNorm
-    % Layer 6: RELU
-    % Layer 7: Flatten
+% Reachability analysis of an image classification ODE_CNN (MNIST)
+    % MODIFIED to check volume after Layer 9 using NNV's Star Sets
 
     %% 1) Load and construct the NeuralODE
-    
+
     % Load network parameters
     file_path = 'odecnn_mnist_tiny.mat';
     load(file_path); 
 
-    % Contruct NN
+    % Contruct NN Layers 
     % layer 1
     w1 = permute(Wb{1},[4 3 2 1]);
     b1 = reshape(Wb{2},[1,1,4]);
@@ -46,7 +318,7 @@ function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
     layer6 = ReluLayer;
     layer7 = FlattenLayer;
     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
-    % odelayer
+    % layer 8 (odelayer)
     states = 676;
     outputs = 676;
     w1 = Wb{9};
@@ -59,37 +331,32 @@ function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
     D = zeros(outputs,1);
     tfinal = 1;
     numSteps = 20;
+    % NNV uses 'LinearODE' and 'ODEblockLayer' which uses Star Sets
     odeblock = LinearODE(Aout,Bout,Cout,D,tfinal,numSteps);
     reachStep = tfinal/numSteps;
     odelayer = ODEblockLayer(odeblock,1,reachStep,false);
+
     % Output layer
     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
-    
-    % Here they create a NN layer arch. where they connect sequentelay the layers and
-    % they have the ODE LAYER and then final output layer. So everything is
-    % defined as a NN except the ODE layer --> SO that's not the same definition format i have for nODE 
-    neuralLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, odelayer, layerout};       %----> Architecture Definition
+
+    % Full architecture
+    neuralLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, odelayer, layerout}; %|--> Architecture Definition
     net = NN(neuralLayers);
-    
+
     %% 2) Prepare data and run experiments
-    
+
     % Define attack parameters and initialize variables
     noise = noise*255; % noise 1/10 of max pixel value
     pixels_attack = randperm(784,pix);
-    time_ode = zeros(numT,1);
-    rob_ode = zeros(numT,1);
 
-    % Create Adversarial attack
+    % Loop over Test Images
     for i=1:numT
+        fprintf('\n--- Image %d / %d ---\n', i, numT);
+
         img_flat = XTest(:,:,:,i)';
-        lb = img_flat;
-        ub = img_flat;
-        if strcmp(perturbation,'random')
-            for j=pixels_attack
-                ub(j) = min(255, ub(j)+noise);
-                lb(j) = max(0, lb(j)-noise);
-            end
-        elseif strcmp(perturbation,'inf')
+        lb = img_flat; ub = img_flat;
+
+        if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
             for j=pixels_attack
                 ub(j) = min(255, ub(j)+noise);
                 lb(j) = max(0, lb(j)-noise);
@@ -98,30 +365,42 @@ function reach_cnn_tiny(pix,numT,noise,XTest,YTest,perturbation)
             error('Wrong perturbation type')
         end
 
-        % Normalize input (input already normalized)
-        lb = lb./255;
-        ub = ub./255;
-        inpS = ImageStar(lb,ub);
-    
-        % Reachability computation
-        t = tic;
-        Rode = net.reach(inpS); %----> This sis the function that do the RA
-        time_ode(i) = toc(t);
-        rv = net.checkRobust(Rode, YTest(i));
-        rob_ode(i) = rv;
-    end
-    
-    % Process results
-    rob = sum(rob_ode == 1);
-    unk = sum(rob_ode == 0);
-    notr = sum(rob_ode == 2);
-    timeT = sum(time_ode);
-    disp(' ');
-    disp('Robust images: '+string(rob));
-    disp('Unknown images: '+string(unk));
-    disp('Not robust images: '+string(notr));
-    disp('Total time = ' + string(timeT));
-    % Save results
-    save("cnn_tiny_nnv_"+string(perturbation)+"_"+string(noise)+".mat",'rob','rob_ode','timeT','pix','numT','noise');
+        lb = lb./255; ub = ub./255;
+        inpS = ImageStar(lb,ub); % NNV uses ImageStar
 
+        % Reachability computation (Full Network)
+        t = tic;
+
+        % This returns the Star Set at the final output (Layer 9)
+        Rode = net.reach(inpS);
+        time_ode = toc(t);
+
+        fprintf('  Reachability Time: %.4f seconds\n', time_ode);
+
+        % =========================================================
+        %             VOLUME CHECK: LAYER 9 OUTPUT
+        % =========================================================
+        % Rode contains the Star set(s) for the 10 class scores.
+
+        [all_lbs, all_ubs] = Rode.getRanges(); 
+
+        % Get the global min/max to form the Hull
+        final_lb = min(all_lbs, [], 2);
+        final_ub = max(all_ubs, [], 2);
+
+        % Log-Volume Calculation
+        % Dimension here is 10 equivalent to the Logits in MNIST 0~9(not 676)
+        epsilon = 1e-20; 
+        widths_L9 = final_ub - final_lb;
+
+        vol_L9 = sum(log(widths_L9 + epsilon));
+
+        fprintf('\n  ++ NNV (Star Set) Final Layer Volume Analysis ++ \n');
+        fprintf('   - Layer 9 (Final Output): %.4f\n', vol_L9);
+
+        fprintf('\n--- STOPPING EXECUTION after Layer 9 ---\n');
+        return; 
+    end
 end
+
+% %------------- END OF CODE V1.2  --------------
