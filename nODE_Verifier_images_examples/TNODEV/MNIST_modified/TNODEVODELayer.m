@@ -178,29 +178,60 @@ classdef TNODEVODELayer < handle
 
             % Only set A/B globals if they exist in params (Specific to case 16)
             if isfield(obj.params, 'A') && isfield(obj.params, 'B')
-                Aout_global = obj.params.A;
-                Bout_global = obj.params.B;
+                % Aout_global = obj.params.A;
+                % Bout_global = obj.params.B;
+
+                % FIX: Cast to double to make ode45 happy
+                Aout_global = double(obj.params.A);
+                Bout_global = double(obj.params.B);
             end
         end
 
         % --- Generic evaluate method ---
+
+        % function y = evaluate(obj, x)   
+        %     % 1. Ensure globals are active (in case they were cleared)
+        %     global system_choice Aout_global Bout_global
+        %     system_choice = obj.params.system_choice;
+        % 
+        %     if isfield(obj.params, 'A') && isfield(obj.params, 'B')
+        %         Aout_global = obj.params.A;
+        %         Bout_global = obj.params.B;
+        %     end
+        % 
+        %     % 2. Define generic function handle pointing to System_description.m
+        %     % Signature: dx = f(t, x, p) -> we pass [] for p
+        %     ode_fun = @(t, state) System_description(t, state, []);
+        % 
+        %     % 3. Run Simulation
+        %     t_span = [0, obj.params.t_final];
+        %     [~, y_traj] = ode45(ode_fun, t_span, x);
+        %     y = y_traj(end, :)';
+        % end
+
+        % FIX to remove the ode45 warnings printed
         function y = evaluate(obj, x)   
-            % 1. Ensure globals are active (in case they were cleared)
+            % 1. Ensure globals are active
             global system_choice Aout_global Bout_global
             system_choice = obj.params.system_choice;
-
+            
             if isfield(obj.params, 'A') && isfield(obj.params, 'B')
-                Aout_global = obj.params.A;
-                Bout_global = obj.params.B;
+                % Aout_global = obj.params.A;
+                % Bout_global = obj.params.B;
+               
+                % FIX: Cast to double here as well for safety
+                Aout_global = double(obj.params.A);
+                Bout_global = double(obj.params.B);
             end
             
-            % 2. Define generic function handle pointing to System_description.m
-            % Signature: dx = f(t, x, p) -> we pass [] for p
+            % 2. Define generic function handle
             ode_fun = @(t, state) System_description(t, state, []);
             
-            % 3. Run Simulation
+            % 3. Run Simulation (FIX: FORCE DOUBLE PRECISION)
             t_span = [0, obj.params.t_final];
-            [~, y_traj] = ode45(ode_fun, t_span, x);
+            
+            % Casting x to double prevents "Mixture of single/double" warnings
+            [~, y_traj] = ode45(ode_fun, t_span, double(x));
             y = y_traj(end, :)';
         end
        
