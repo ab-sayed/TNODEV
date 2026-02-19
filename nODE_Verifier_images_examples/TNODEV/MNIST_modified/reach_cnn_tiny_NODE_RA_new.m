@@ -1748,7 +1748,7 @@
 %             % --- VOLUME CHECK LAYER 8 ---
 %             [lb_8, ub_8] = S_ode_out.getRanges();
 %             % Use epsilon to avoid log(0)
-%             vol_8 = sum(log((ub_8 - lb_8) + 1e-50)); 
+%             vol_8 = sum(log((ub_8 - lb_8) + 1e-20)); 
 %             fprintf('       > Layer 8 Hull Log-Volume: %.4f\n', vol_8);
 % 
 %             % --- 3. Reachability for Layer 9 (Output-FC Layer) "NNV" ---
@@ -1763,7 +1763,7 @@
 % 
 %             % --- VOLUME CHECK LAYER 9 ---
 %             [lb_9, ub_9] = S_final.getRanges();
-%             vol_9 = sum(log((ub_9 - lb_9) + 1e-50));
+%             vol_9 = sum(log((ub_9 - lb_9) + 1e-20));
 %             fprintf('       > Layer 9 Hull Log-Volume: %.4f\n', vol_9);
 % 
 %             % --- 4. Check Robustness ---
@@ -2213,7 +2213,7 @@
 %                 % --- VOLUME CHECK LAYER 8 ---
 %                 [lb_8, ub_8] = S_ode_out.getRanges();
 %                 % Use epsilon to avoid log(0)
-%                 vol_8 = sum(log((ub_8 - lb_8) + 1e-50)); 
+%                 vol_8 = sum(log((ub_8 - lb_8) + 1e-20)); 
 %                 fprintf('       > Layer 8 Hull Log-Volume: %.4f\n', vol_8);
 % 
 %                 % --- 3. Reachability for Layer 9 (Output-FC Layer) "NNV" ---
@@ -2228,7 +2228,7 @@
 % 
 %                 % --- VOLUME CHECK LAYER 9 ---
 %                 [lb_9, ub_9] = S_final.getRanges();
-%                 vol_9 = sum(log((ub_9 - lb_9) + 1e-50));
+%                 vol_9 = sum(log((ub_9 - lb_9) + 1e-20));
 %                 fprintf('       > Layer 9 Hull Log-Volume: %.4f\n', vol_9);     
 % 
 %                 % --- 4. Check Robustness ---
@@ -2602,7 +2602,7 @@ function reach_cnn_tiny_NODE_RA_new(pix,numT,noise,XTest,YTest,perturbation,spli
     % Initialize results containers
     time_ode = zeros(numT,1);
     rob_ode = zeros(numT,1);   % 1=Robust, 0=Unknown, 2=Not Robust
-    MAX_ITER = 500;    % Maximum number of iterations for Refinement
+    MAX_ITER = 10;    % Maximum number of iterations for Refinement
 
     % fprintf('\nStarting Verification with NODE_RA_NEW (Iterative Refinement Approach)...\n');
 
@@ -2676,11 +2676,36 @@ function reach_cnn_tiny_NODE_RA_new(pix,numT,noise,XTest,YTest,perturbation,spli
         image_is_robust = true;    
         image_is_unknown = false; 
         iter = 0;
-
-        % Determine batch size based on available workers (cores)
+        
+        % --- OPTIMIZATION START ---
+        
+        % 1. Start Pool
         p = gcp('nocreate'); 
-        if isempty(p), p = parpool; end % Start pool if not running
-        batch_size = p.NumWorkers;      % e.g., 4 or 8
+        if isempty(p)
+            % Limit workers to physical cores to avoid context switching overhead
+            % (Optional: specific cluster profile settings)
+            p = parpool; 
+        end 
+        
+        % 2. Define Load Factor (The Tweak)
+        % A factor of 3 to 5 is usually the "sweet spot" for uneven tasks.
+        % It minimizes overhead from entering/exiting the parfor loop
+        % while keeping all cores fed with work.
+        worker_load_factor = 5;   % Probablly 8 is the maximum on my current processor
+        
+        % 3. Set Batch Size
+        batch_size = p.NumWorkers * worker_load_factor;
+        
+        fprintf('  [Parallel Config] Workers: %d | Batch Size: %d (Load Factor: %dx)\n', ...
+                p.NumWorkers, batch_size, worker_load_factor);
+                
+        % --- OPTIMIZATION END ---
+
+
+        % % Determine batch size based on available workers (cores)
+        % p = gcp('nocreate'); 
+        % if isempty(p), p = parpool; end % Start pool if not running
+        % batch_size = p.NumWorkers;      % e.g., 4 or 8
 
         while ~isempty(queue)
             iter = iter + 1;
@@ -2729,9 +2754,10 @@ function reach_cnn_tiny_NODE_RA_new(pix,numT,noise,XTest,YTest,perturbation,spli
                 S_ode_out = odelayer_NODE_RA.reach(S_ode_in);
                 
                 % --- VOLUME CHECK LAYER 8 ---  --> (Can be messy in parallel)
+                epsilon = 1e-20;      
                 [lb_8, ub_8] = S_ode_out.getRanges();
                 % Use epsilon to avoid log(0)
-                vol_8 = sum(log((ub_8 - lb_8) + 1e-50)); 
+                vol_8 = sum(log((ub_8 - lb_8) + epsilon)); 
                 fprintf('       > Layer 8 Hull Log-Volume: %.4f\n', vol_8);
 
                 % --- 3. Reachability for Layer 9 (Output-FC Layer) "NNV" ---
@@ -2746,7 +2772,7 @@ function reach_cnn_tiny_NODE_RA_new(pix,numT,noise,XTest,YTest,perturbation,spli
                 
                 % --- VOLUME CHECK LAYER 9 ---  --> (Can be messy in parallel)
                 [lb_9, ub_9] = S_final.getRanges();
-                vol_9 = sum(log((ub_9 - lb_9) + 1e-50));
+                vol_9 = sum(log((ub_9 - lb_9) + epsilon));
                 fprintf('       > Layer 9 Hull Log-Volume: %.4f\n', vol_9);     
 
                 % --- 4. Check Robustness ---
