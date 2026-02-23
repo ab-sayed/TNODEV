@@ -2667,6 +2667,25 @@ function reach_cnn_tiny_NODE_RA_new(pix,numT,noise,XTest,YTest,perturbation,spli
         % -----------------------------------------------------
         % C. RUN VERIFICATION (Reachability + Refinement) on the Full Network
         % -----------------------------------------------------
+        
+        % ==========================================================
+        % PJ REQUEST on 202/02/2026: Save `S_ode_in` for 1st iteration & Stop
+        % ==========================================================
+        % if i == 1
+        %     inpS_temp = ImageStar(lb, ub);
+        %     R_pre_temp = net_pre.reach(inpS_temp);
+        % 
+        %     [l7_lb_temp, l7_ub_temp] = R_pre_temp.getRanges();
+        %     l7_lb_temp = reshape(l7_lb_temp, [], 1);
+        %     l7_ub_temp = reshape(l7_ub_temp, [], 1);
+        %     S_ode_in = Star(l7_lb_temp, l7_ub_temp);
+        % 
+        %     save('S_ode_in_first_iter.mat', 'S_ode_in');
+        %     fprintf('[!] Saved "S_ode_in" to S_ode_in_first_iter.mat in your current directory.\n');
+        %     fprintf('[!] Halting execution as requested. You can now email the file.\n\n');
+        %     return; % Exits the entire script immediately
+        % end
+        % ==========================================================
 
         t = tic;
 
