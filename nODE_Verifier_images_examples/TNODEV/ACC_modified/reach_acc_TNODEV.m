@@ -593,7 +593,7 @@ function reach_acc_TNODEV()
     % Select heuristic: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
     heuristic_choice = 'naive'; 
 
-    N = 60; % 50 steps total (5 seconds)
+    N = 50; % 50 steps total (5 seconds)
     MAX_ITER = 100; % Maximum number of batch iterations
 
     %% 2. Load objects
