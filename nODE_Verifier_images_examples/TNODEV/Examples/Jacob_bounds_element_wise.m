@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 20 February 2026
+% Last update: 24 February 2026
 % Last revision: November 2025
 
 % %------------- BEGIN CODE --------------
@@ -695,15 +695,22 @@ function [J_lb, J_ub] = compute_jacobian_bounds_acc(a, b)
     % NN Outputs: [dx3, dx6, dx7, dx8] (But dx7 and dx8 are overridden to 0)
     % NN Inputs:  [x3, x6, x7, x8]
     
-    % Row 3 (dx3) mappings:
+    % Row 3 (dx3) mappings (Lead Car Jerk):
     J_lb(3, nn_idx) = J_nn_lb(1, :);
     J_ub(3, nn_idx) = J_nn_ub(1, :);
     
-    % Row 6 (dx6) mappings:
+    % Row 6 (dx6) mappings (Ego Car Jerk):
     J_lb(6, nn_idx) = J_nn_lb(2, :);
     J_ub(6, nn_idx) = J_nn_ub(2, :);
 
-    % Note: Rows 7 and 8 remain strictly 0 because we froze accelerations.
+    % Row 7 (dx7) mappings (Ego Accel Derivative):
+    J_lb(7, nn_idx) = J_nn_lb(3, :);
+    J_ub(7, nn_idx) = J_nn_ub(3, :);
+
+    % Row 8 (dx8) mappings (Lead Accel Derivative):
+    J_lb(8, nn_idx) = J_nn_lb(4, :);
+    J_ub(8, nn_idx) = J_nn_ub(4, :);
+
 end
 
 

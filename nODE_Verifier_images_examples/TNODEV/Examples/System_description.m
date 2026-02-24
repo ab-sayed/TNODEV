@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 20 February 2026 
+% Last update: 24 February 2026 
 % Last revision:  2026
 
 %% Descripion of the time-varying system with input
@@ -246,14 +246,14 @@ switch system_choice
         % Construct the full 8-dimensional derivative vector.
         % We override the NN's predictions for dims 7 and 8 to 0, 
         % mimicking NNV's discrete holding behavior for acceleration.
-        dx = [x1_dot;     % dx1
-              x2_dot;     % dx2
-              dnn_out(1); % dx3 <--- This is the derivative of x3 (Lead Car Jerk)
-              x4_dot;     % dx4
-              x5_dot;     % dx5
-              dnn_out(2); % dx6 <--- This is the derivative of x6 (Ego Car Jerk)
-              0;          % dx7 (Ego Accel held constant)
-              0];         % dx8 (Lead Accel held constant)
+        dx = [x1_dot;     % dx1: lead_car vel
+              x2_dot;     % dx2: lead_car accel
+              dnn_out(1); % dx3  (NN out 1) <--- This is the derivative of x3 (Lead Car Jerk)
+              x4_dot;     % dx4: ego_car vel
+              x5_dot;     % dx5: ego_car accel
+              dnn_out(2); % dx6: (NN out 2) <--- This is the derivative of x6 (Ego Car Jerk)
+              dnn_out(3);          % dx7: ego target accel derivative (NN out 3) ~~(Ego Accel held constant)~~
+              dnn_out(4)];         % dx8: lead target accel derivative (NN out 4) ~~(Lead Accel held constant)~~
     otherwise
         error('System_description: Unknown system_choice %d', system_choice);
 end

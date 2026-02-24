@@ -9,7 +9,7 @@ x2 = x(3,:);
 x4 = x(5,:);
 x5 = x(6,:);
 y = tanh(w1*x([3,6,7,8],:) + b1);
-dx = w2*y + b2;
-dx = [x1;x2;dx(1,:);x4;x5;dx(2:4,:)];
+dx = w2*y + b2; % 4*1, 
+dx = [x1;x2;dx(1,:);x4;x5;dx(2:4,:)]; % 3 dimensional vector @ 1:02
 end
 
