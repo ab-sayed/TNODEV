@@ -110,7 +110,7 @@
 % 
 %         % Mathematical Safety Check (rel_dist > safe_dist)
 %         [min_rel_dist, ~] = rel_dist_star.getRanges();
-%         [~, max_safe_dist] = safe_dist_star.getRanges();
+%         [~, max_safe_dist] = safe_dist_star.getBox();
 % 
 %         if min_rel_dist <= max_safe_dist
 %             is_safe = false;
@@ -225,7 +225,7 @@
 %         lb_all = zeros(states, length(X0));
 %         ub_all = zeros(states, length(X0));
 %         for s_idx = 1:length(X0)
-%             [lb_all(:, s_idx), ub_all(:, s_idx)] = X0(s_idx).getRanges();
+%             [lb_all(:, s_idx), ub_all(:, s_idx)] = X0(s_idx).getBox();
 %         end
 %         % Get the absolute min and max across all possible split sets
 %         lb_current = min(lb_all, [], 2);
@@ -287,8 +287,8 @@
 %         safe_dis = [safe_dis safe_dist_star]; 
 % 
 %         % Mathematical Safety Check (rel_dist > safe_dist)
-%         [min_rel_dist, ~] = rel_dist_star.getRanges();
-%         [~, max_safe_dist] = safe_dist_star.getRanges();
+%         [min_rel_dist, ~] = rel_dist_star.getBox();
+%         [~, max_safe_dist] = safe_dist_star.getBox();
 % 
 %         if min_rel_dist <= max_safe_dist
 %             is_safe = false;
@@ -593,7 +593,7 @@ function reach_acc_TNODEV()
     % Select heuristic: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
     heuristic_choice = 'naive'; 
 
-    N = 50; % 50 steps total (5 seconds)
+    N = 60; % 50 steps total (5 seconds)
     MAX_ITER = 100; % Maximum number of batch iterations
 
     %% 2. Load objects
