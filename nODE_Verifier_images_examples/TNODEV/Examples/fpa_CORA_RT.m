@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 23 October 2025
-% Last update: 23 October 2025
+% Last update: 15 March 2026
 % Last revision: October 2025
 
 %------------- BEGIN CODE --------------
@@ -74,10 +74,10 @@ reach_params.tFinal   = tFinal;
 sys = nonlinearSys(@CTRNN_FPA, 5, 1);  % 5 states, 1 input (unused)
 
 % === Perform reachability ===
-fprintf('Performing CORA reachability analysis for FPA (5D)...\n');
-fprintf('  Initial center x0 = [%s]\n', num2str(x0', '%.6f '));
-fprintf('  Initial radius = %.4f\n', Initial_radius);
-fprintf('  Time interval = [0, %.2f], step = %.5f\n', tFinal, timeStep);
+% fprintf('Performing CORA reachability analysis for FPA (5D)...\n');      % Commented for clearner print flow in the command window
+% fprintf('  Initial center x0 = [%s]\n', num2str(x0', '%.6f '));          % Commented for clearner print flow in the command window
+% fprintf('  Initial radius = %.4f\n', Initial_radius);                    % Commented for clearner print flow in the command window
+% fprintf('  Time interval = [0, %.2f], step = %.5f\n', tFinal, timeStep); % Commented for clearner print flow in the command window
 tic;
 
 R = reach(sys, reach_params, options);
@@ -117,9 +117,9 @@ reachable_tube_bounds.lb = min_x_overall;
 reachable_tube_bounds.ub = max_x_overall;
 
 % === Display final bounds ===
-fprintf('\n=== Overall Reachable Tube Bounds (FPA) ===\n');
-fprintf('Lower bounds: [%s]\n', num2str(reachable_tube_bounds.lb', '%.6f '));
-fprintf('Upper bounds: [%s]\n', num2str(reachable_tube_bounds.ub', '%.6f '));
+% fprintf('\n=== Overall Reachable Tube Bounds (FPA) ===\n');                   % Commented for clearner print flow in the command window
+% fprintf('Lower bounds: [%s]\n', num2str(reachable_tube_bounds.lb', '%.6f ')); % Commented for clearner print flow in the command window
+% fprintf('Upper bounds: [%s]\n', num2str(reachable_tube_bounds.ub', '%.6f ')); % Commented for clearner print flow in the command window
 
 end
 

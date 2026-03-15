@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 28 February 2026
+% Last update: 06 March 2026
 % Last revision: November 2025
 
 % %------------- BEGIN CODE --------------
@@ -1791,7 +1791,7 @@
 
 %%
 
-%------------- BEGIN OF CODE V1.8 -------------- |--> Includes the correct RT based Jacobian_Bounds for all examples based on a Picard-iteration-style to estimate the RT bounds using interval arithmetic
+%------------- BEGIN OF CODE V1.8 -------------- |--> Includes the correct RT based Jacobian_Bounds for all examples based on a Euler-Picard-iteration-style to estimate the RT bounds using interval arithmetic
 function [J_lb, J_ub] = Jacob_bounds_element_wise(a, b, system_choice)
 % Jacob_bounds_element_wise.m: computes Jacobian bounds using element-wise
 % interval arithmetic.
@@ -1980,10 +1980,10 @@ function [J_lb, J_ub] = compute_jacobian_bounds_fpa(a, b)
 end
 
 %% ========================================================================
-%  ACC: Neural ODE Jacobian Bounds (8D)
+%  ACC: Neural ODE Jacobian Bounds (8D)                                    |->`b2_acc` was removed as we do not need it to compute the Jacobian because the derivative of a constant bias term is zero
 % =========================================================================
 function [J_lb, J_ub] = compute_jacobian_bounds_acc(a, b)
-    global w1_acc b1_acc w2_acc b2_acc
+    global w1_acc b1_acc w2_acc 
     
     % Lazy load if missing (same as System_description)
     if isempty(w1_acc)
@@ -1992,11 +1992,7 @@ function [J_lb, J_ub] = compute_jacobian_bounds_acc(a, b)
         b1_acc = double(extractdata(pl.neuralOdeParameters.fc1.Bias));
         w2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Weights));
         w2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Weights));
-        b2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Bias));
-
-        % FORCE column vectors here too!
-        b1_acc = b1_acc(:);
-        b2_acc = b2_acc(:);
+        b1_acc = b1_acc(:); % FORCE column vectors here too!
     end
 
     num_neurons = size(w1_acc, 1);
@@ -2096,7 +2092,7 @@ function [J_lb, J_ub] = compute_jacobian_bounds_acc(a, b)
 end
 
 %% ========================================================================
-%  SINGLE PENDULUM: Neural ODE Jacobian Bounds (3D, 2 Hidden Layers)
+%  SINGLE PENDULUM: Neural ODE Jacobian Bounds (3D, 2 Hidden Layers) |-------> needs to be revised again [WARNING: Not Ready]
 % =========================================================================
 % function [J_lb, J_ub] = compute_jacobian_bounds_pendulum(a, b)
 %     global w1_sp b1_sp w2_sp b2_sp w3_sp b3_sp

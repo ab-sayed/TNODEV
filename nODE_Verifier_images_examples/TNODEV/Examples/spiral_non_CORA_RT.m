@@ -71,10 +71,10 @@ reach_params.tFinal = tFinal;              % Final time (from params)
 sys = nonlinearSys(@spiral_non, 2, 1); % Ensure @spiral_non is defined
 
 % === Perform reachability ===
-fprintf('Performing CORA reachability analysis...\n');
-fprintf('  Initial center x0 = [%s]\n', num2str(x0', '%.4f '));
-fprintf('  Initial radius = %.4f\n', Initial_radius);
-fprintf('  Time interval = [0, %.4f], step = %.4f\n', tFinal, timeStep);
+% fprintf('Performing CORA reachability analysis...\n');                   % Commented for clearner print flow in the command window
+% fprintf('  Initial center x0 = [%s]\n', num2str(x0', '%.4f '));          % Commented for clearner print flow in the command window
+% fprintf('  Initial radius = %.4f\n', Initial_radius);                    % Commented for clearner print flow in the command window
+% fprintf('  Time interval = [0, %.4f], step = %.4f\n', tFinal, timeStep); % Commented for clearner print flow in the command window
 tic; % Timer for the full reachability analysis
 
 
@@ -118,9 +118,9 @@ reachable_tube_bounds.lb = min_x_overall;
 reachable_tube_bounds.ub = max_x_overall;
 
 % === Display final bounds ===
-fprintf('\n=== Overall Reachable Tube Bounds ===\n');
-fprintf('Lower bounds: [%s]\n', num2str(reachable_tube_bounds.lb', '%.4f '));
-fprintf('Upper bounds: [%s]\n', num2str(reachable_tube_bounds.ub', '%.4f '));
+% fprintf('\n=== Overall Reachable Tube Bounds ===\n');                         % Commented for clearner print flow in the command window
+% fprintf('Lower bounds: [%s]\n', num2str(reachable_tube_bounds.lb', '%.4f ')); % Commented for clearner print flow in the command window
+% fprintf('Upper bounds: [%s]\n', num2str(reachable_tube_bounds.ub', '%.4f ')); % Commented for clearner print flow in the command window
 
 end
 
