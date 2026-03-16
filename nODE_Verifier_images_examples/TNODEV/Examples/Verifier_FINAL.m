@@ -1726,9 +1726,9 @@ addpath('./') % Add current directory for utility functions
 
 % === 1. SYSTEM SELECTION ===
 % system_choice = 14;   % FPA System
-system_choice = 15;   % Spiral_non System
+% system_choice = 15;   % Spiral_non System
 % system_choice = 16;   % MNIST
-% system_choice = 17;   % ACC System
+system_choice = 17;   % ACC System
 
 % === 2. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
