@@ -1742,8 +1742,7 @@ if system_choice == 17
     fprintf('System: Adaptive Cruise Control (ACC) - 8D\n');
     fprintf('Heuristic: %s\n\n', input_split_heuristic);
     
-    % Add the ACC folder to the path so MATLAB can find the specific mat
-    % files  |--> Add this line only if I am going to place each example related files inside a specific folder
+    % Add the ACC folder to the path so MATLAB can find the specific mat files  |--> Add this line only if I am going to place each example related files inside a specific folder
     % addpath(genpath(fullfile(pwd, 'ACC_modified')));
     
     % Pass the user's heuristic choice directly into your optimized ACC function
@@ -1887,10 +1886,6 @@ end
 % === 5. VERIFICATION LOOP PARAMETERS ===
 MAX_ITER = 5000;     %--> "check this crtiteria either we conclude based on that or a time out with a defined time for example 45 mins."
 
-% % === 7. REFINEMENT HEURISTIC CHOICE ===                                 |--> Remove this as it's now identified at the beginning
-% % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-% node_params.input_split_heuristic = 'naive';
-
 % === 6. PLOTTING CONTROL  ===  --> Re-check cause of big changes with V1.2 Origine
 plot_control.show_figures = true;    % Show figures during execution
 plot_control.save_final_plot = true; % Simplified: save if verified or falsified
@@ -1940,8 +1935,6 @@ if system_choice == 14
     reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
 elseif system_choice == 15
     reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
-elseif system_choice == 17
-    reachable_tube_bounds = acc_CORA_RT(cora_full_params);
 end
 fprintf('PART 1 completed.\n\n');
 

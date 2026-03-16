@@ -1935,8 +1935,6 @@ if system_choice == 14
     reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
 elseif system_choice == 15
     reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
-elseif system_choice == 17
-    reachable_tube_bounds = acc_CORA_RT(cora_full_params);
 end
 fprintf('PART 1 completed.\n\n');
 
