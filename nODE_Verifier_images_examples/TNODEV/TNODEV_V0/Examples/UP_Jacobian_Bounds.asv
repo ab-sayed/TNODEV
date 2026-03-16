@@ -1,0 +1,1107 @@
+% Tool Paper:
+%   "Add Title here"
+%
+% Authors:  
+%   Abdelrahman Sayed Sayed, <abdelrahman.ibrahim -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%
+% Date: 21 October 2025
+% Last update: 06 March 2026
+% Last revision: October 2025
+
+
+%% User-provided bounds on the Jacobian matrices for continuous-time or discrete-time systems
+% Used in:
+% - OA_methods/TIRA.m
+%       to check the requirements for over-approximation methods 1,3,5 in
+%       OA_methods/OA_1_CT_Monotonicity.m
+%       OA_methods/OA_3_CT_Mixed_Monotonicity.m
+%       OA_methods/OA_5_DT_Mixed_Monotonicity.m
+% - Utilities/Growth_bound_choice.m
+%       for the definition of a growth bound function to be used in
+%       over-approximation method 2 in
+%       OA_methods/OA_2_CT_Contraction_growth_Bound.m
+% - Utilities/Sensitivity_bounds_choice.m
+%       to compute bounds on the sensitivity matrices of a continuous-time
+%       system, within submethods (4-2) and (4-3), to be used in 
+%       over-approximation method 4 in
+%       OA_methods/OA_4_CT_Sampled_data_MM.m
+% - Utilities/Error_bound_choice.m
+%       for the definition of an error bound function to be used in
+%       over-approximation method 6 in
+%       OA_methods/OA_6_DT_CT_Quasi_Monte_Carlo.m
+
+% The user can either provider global bounds, or a function of the input
+% arguments (t_init,t_final,x_low,x_up,p_low,p_up) returning local bounds
+
+% Jacobian definitions:
+%   to states:  J_x(t) = d(System_description(t,x,p))/dx
+%   to inputs:  J_p(t) = d(System_description(t,x,p))/dp
+% Note that Jacobians may contain elements inf or -inf, but not all methods
+% may support this.
+
+% List of inputs
+%   t_init: initial time
+%   t_final: time at which the reachable set is approximated (for continuous-time system only)
+%       for discrete-time system, a dummy value can be provided
+%   [x_low,x_up]: interval of initial states (at time t_init)
+%   [p_low,p_up]: interval of allowed input values
+
+% List of outputs
+%   [J_x_low,J_x_up]: bounds of the Jacobian with respect to the state
+%   [J_p_low,J_p_up]: bounds of the Jacobian with respect to the input
+
+% Authors:  
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Alex Devonport, <alex_devonport -AT- berkeley.edu>, EECS, UC Berkeley
+%
+% Date: 21th of October 2025
+% Last update: 21th of October 2025
+% Last revision: th of October 2025
+
+% %------------- BEGIN CODE V 1.3--------------
+% 
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% n_x = length(x_low);
+% n_p  = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% User-provided Jacobian bounds
+% % Can be either global bounds
+% % or local bounds depending on inputs: t_init,t_final,x_low,x_up,p_low,p_up
+% 
+% % If System_description.m has no input variable 'p', uncomment below:
+% % J_p_low = zeros(n_x,n_p);
+% % J_p_up = zeros(n_x,n_p);
+% 
+% % ---- 1. Try to read pre-computed Jacobians from globals ----------------
+% global Jacobian_x_low Jacobian_x_up
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up)
+%     J_x_low = Jacobian_x_low;
+%     J_x_up = Jacobian_x_up;
+% 
+%     % autonomous → ∂f/∂p = 0
+%     J_p_low = zeros(n_x,n_p);
+%     J_p_up  = zeros(n_x,n_p);
+%     return;
+% end
+% 
+% % ---- 2. Fallback: hard-coded values (kept for backward compatibility) ----
+% 
+% global system_choice
+% global u        % Some systems need an external control input
+% 
+% switch system_choice
+%     case 14
+%         %% FPA System (continuous-time)
+% 
+%         % State Jacobian bounds
+% 
+% 
+%         % % % 1st Approach (initial step) for t=0-2
+%         % J_x_low = [-0   0   -1.2033   -0.0637   -0.6028; ...
+%         %            0   -0   0.6544   -1.3270    0.0273; ...
+%         %            0    0  -1.5863    0.0534   -0.7954; ...
+%         %            0    0   0.0472   -0.2649    0.0020; ...
+%         %            0    0   0.9859   -0.0748    0.0408];
+%         % J_x_up = [-0   0  -0.6628   -0.0549   -0.0274; ...
+%         %           0   -0   1.1881   -1.1430    0.6021; ...
+%         %           0    0  -0.8738    0.0620   -0.0361; ...
+%         %           0    0   0.0857   -0.2282    0.0442; ...
+%         %           0    0   1.7898   -0.0645    0.8975];
+% 
+%         % No inputs as the system is autonomous
+%         J_p_low = zeros(5,5);
+%         J_p_up = zeros(5,5);
+% 
+%     case 15
+%         %% Spiral_non System (continuous-time)
+% 
+%         % State Jacobian bounds
+% 
+% 
+%         % % % 1st Approach (initial step) for t=0-2
+%         % J_x_low = [-0.5706   -2.0547; ...
+%         %             0.9213   -0.5677];
+%         % J_x_up = [0.4170   -0.9852; ...
+%         %           2.0383    0.4154];
+% 
+%         % No inputs as the system is autonomous
+%         J_p_low = zeros(2,2);
+%         J_p_up = zeros(2,2);
+% 
+% end
+% 
+% 
+% %------------- END OF CODE V 1.3--------------
+
+%%
+
+%------------- BEGIN CODE V 1.4--------------
+
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+% if isempty(Aout_global)
+% error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+% end
+% 
+% % Jacobian wrt x is Aout
+% J_x_low = Aout_global;
+% J_x_up = Aout_global;
+% 
+% % Dummy input exists but does not affect dynamics => df/dp = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% 
+% 
+% % % Aout_global is 676×676, and n_x = 676 for MNIST features
+% % J_x_low = Aout_global;
+% % J_x_up = Aout_global;
+% % 
+% % % ODE is autonomous in our parametrization: no real inputs → Jacobian wrt p is 0
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals (Spiral/FPA path)
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+% all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+% all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+% J_x_low = Jacobian_x_low;
+% J_x_up = Jacobian_x_up;
+% 
+% % autonomous → ∂f/∂p = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% % If dimensions mismatch, ignore the old globals
+% Jacobian_x_low = [];
+% Jacobian_x_up = [];
+% 
+% %% 2) System-specific hard-coded Jacobian bounds
+% 
+% switch system_choice
+% case 14 % FPA (5D)
+% % You can plug in your 5×5 bounds here if you want,
+% % or keep them NaN and rely on CORA + globals for the paper examples.
+% 
+% % Example skeleton:
+% % J_x_low = [...]; % 5×5
+% % J_x_up = [...]; % 5×5
+% 
+% % No inputs as the system is autonomous
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% 
+% case 15 % Spiral_non (2D)
+% % Example skeleton:
+% % J_x_low = [...]; % 2×2
+% % J_x_up = [...]; % 2×2
+% 
+% % No inputs as the system is autonomous
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% 
+% otherwise
+% % Leave J_x_low, J_x_up, J_p_low, J_p_up as NaN's
+% % TIRA will complain if this system_choice is actually used.
+% warning('UP_Jacobian_Bounds: No Jacobian bounds defined for system_choice = %d.', system_choice);
+% end
+% 
+% end
+
+%------------- END OF CODE V1.4 --------------
+
+%%
+
+% %------------- BEGIN OF CODE V1.5 -------------- |--> Includes ACC example 17
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+% if isempty(Aout_global)
+% error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+% end
+% 
+% % Jacobian wrt x is Aout
+% J_x_low = Aout_global;
+% J_x_up = Aout_global;
+% 
+% % Dummy input exists but does not affect dynamics => df/dp = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% 
+% 
+% % % Aout_global is 676×676, and n_x = 676 for MNIST features
+% % J_x_low = Aout_global;
+% % J_x_up = Aout_global;
+% % 
+% % % ODE is autonomous in our parametrization: no real inputs → Jacobian wrt p is 0
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals (Spiral/FPA path)
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+% all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+% all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+% J_x_low = Jacobian_x_low;
+% J_x_up = Jacobian_x_up;
+% 
+% % autonomous → ∂f/∂p = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% % If dimensions mismatch, ignore the old globals
+% Jacobian_x_low = [];
+% Jacobian_x_up = [];
+% 
+% %% 2) System-specific hard-coded Jacobian bounds
+% 
+% % switch system_choice
+% % case 14 % FPA (5D)
+% % % You can plug in your 5×5 bounds here if you want,
+% % % or keep them NaN and rely on CORA + globals for the paper examples.
+% % 
+% % % Example skeleton:
+% % % J_x_low = [...]; % 5×5
+% % % J_x_up = [...]; % 5×5
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% % 
+% % case 15 % Spiral_non (2D)
+% % % Example skeleton:
+% % % J_x_low = [...]; % 2×2
+% % % J_x_up = [...]; % 2×2
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% 
+% switch system_choice
+%     case {14, 15, 17} 
+%         % FPA (14), Spiral_non (15), and ACC (17) 
+%         % Compute bounds dynamically using the `Jacobian_bounds_element_wise.m` function
+%         [J_x_low, J_x_up] = Jacob_bounds_element_wise(x_low, x_up, system_choice);
+% 
+%         % No inputs/disturbances affect these specific dynamics -> ∂f/∂p = 0
+%         J_p_low = zeros(n_x, n_p);
+%         J_p_up = zeros(n_x, n_p);
+% 
+% otherwise
+% % Leave J_x_low, J_x_up, J_p_low, J_p_up as NaN's
+% % TIRA will complain if this system_choice is actually used.
+% warning('UP_Jacobian_Bounds: No Jacobian bounds defined for system_choice = %d.', system_choice);
+% end
+% 
+% end
+% %------------- END OF CODE V1.5 --------------
+
+%%
+
+%------------- BEGIN OF CODE V1.6 -------------- |--> Includes Simple Pendulum example 18
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+% if isempty(Aout_global)
+% error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+% end
+% 
+% % Jacobian wrt x is Aout
+% J_x_low = Aout_global;
+% J_x_up = Aout_global;
+% 
+% % Dummy input exists but does not affect dynamics => df/dp = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% 
+% 
+% % % Aout_global is 676×676, and n_x = 676 for MNIST features
+% % J_x_low = Aout_global;
+% % J_x_up = Aout_global;
+% % 
+% % % ODE is autonomous in our parametrization: no real inputs → Jacobian wrt p is 0
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals (Spiral/FPA path)
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+% all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+% all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+% J_x_low = Jacobian_x_low;
+% J_x_up = Jacobian_x_up;
+% 
+% % autonomous → ∂f/∂p = 0
+% J_p_low = zeros(n_x, n_p);
+% J_p_up = zeros(n_x, n_p);
+% return;
+% end
+% % If dimensions mismatch, ignore the old globals
+% Jacobian_x_low = [];
+% Jacobian_x_up = [];
+% 
+% %% 2) System-specific hard-coded Jacobian bounds
+% 
+% % switch system_choice
+% % case 14 % FPA (5D)
+% % % You can plug in your 5×5 bounds here if you want,
+% % % or keep them NaN and rely on CORA + globals for the paper examples.
+% % 
+% % % Example skeleton:
+% % % J_x_low = [...]; % 5×5
+% % % J_x_up = [...]; % 5×5
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% % 
+% % case 15 % Spiral_non (2D)
+% % % Example skeleton:
+% % % J_x_low = [...]; % 2×2
+% % % J_x_up = [...]; % 2×2
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% 
+% switch system_choice
+%     case {14, 15, 17, 18} 
+%         % FPA (14), Spiral_non (15), ACC (17), and Single Pendulum (18) 
+%         % Compute bounds dynamically using the `Jacobian_bounds_element_wise.m` function
+%         [J_x_low, J_x_up] = Jacob_bounds_element_wise(x_low, x_up, system_choice);
+% 
+%         % No inputs/disturbances affect these specific dynamics -> ∂f/∂p = 0
+%         J_p_low = zeros(n_x, n_p);
+%         J_p_up = zeros(n_x, n_p);
+% 
+% otherwise
+% % Leave J_x_low, J_x_up, J_p_low, J_p_up as NaN's
+% % TIRA will complain if this system_choice is actually used.
+% warning('UP_Jacobian_Bounds: No Jacobian bounds defined for system_choice = %d.', system_choice);
+% end
+% 
+% end
+%------------- END OF CODE V1.6 --------------
+
+%%
+% 
+%------------- BEGIN OF CODE V1.7 -------------- |--> Includes the RT based Jacobian_Bounds 
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+%     if isempty(Aout_global)
+%         error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+%     end
+% 
+%     % Jacobian wrt x is Aout
+%     J_x_low = Aout_global;
+%     J_x_up = Aout_global;
+% 
+%     % Dummy input exists but does not affect dynamics => df/dp = 0
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+% 
+% 
+%     % % Aout_global is 676×676, and n_x = 676 for MNIST features
+%     % J_x_low = Aout_global;
+%     % J_x_up = Aout_global;
+%     % 
+%     % % ODE is autonomous in our parametrization: no real inputs → Jacobian wrt p is 0
+%     % J_p_low = zeros(n_x, n_p);
+%     % J_p_up = zeros(n_x, n_p);
+%     return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals (Spiral/FPA path)
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+%     all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+%     all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+%     J_x_low = Jacobian_x_low;
+%     J_x_up = Jacobian_x_up;
+% 
+%     % autonomous → ∂f/∂p = 0
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+%     return;
+% end
+% % If dimensions mismatch, ignore the old globals
+% Jacobian_x_low = [];
+% Jacobian_x_up = [];
+% 
+% %% 2) System-specific hard-coded Jacobian bounds
+% 
+% % switch system_choice
+% % case 14 % FPA (5D)
+% % % You can plug in your 5×5 bounds here if you want,
+% % % or keep them NaN and rely on CORA + globals for the paper examples.
+% % 
+% % % Example skeleton:
+% % % J_x_low = [...]; % 5×5
+% % % J_x_up = [...]; % 5×5
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% % 
+% % case 15 % Spiral_non (2D)
+% % % Example skeleton:
+% % % J_x_low = [...]; % 2×2
+% % % J_x_up = [...]; % 2×2
+% % 
+% % % No inputs as the system is autonomous
+% % J_p_low = zeros(n_x, n_p);
+% % J_p_up = zeros(n_x, n_p);
+% 
+% switch system_choice
+%     case {14, 15, 18} 
+%         % FPA (14), Spiral_non (15), ACC (17), and Single Pendulum (18) 
+%         % Compute bounds dynamically using the `Jacobian_bounds_element_wise.m` function
+%         [J_x_low, J_x_up] = Jacob_bounds_element_wise(x_low, x_up, system_choice);
+% 
+%         % No inputs/disturbances affect these specific dynamics -> ∂f/∂p = 0
+%         J_p_low = zeros(n_x, n_p);
+%         J_p_up = zeros(n_x, n_p);
+% 
+%     case 17
+%         % === ACC Neural ODE Plant (8D) - RT BOUNDING ===
+%         delta_t = t_final - t_init;
+% 
+%         % 1. Compute the interval bounds of the VELOCITY at the initial set X0
+%         [dx_lb_init, dx_ub_init] = compute_dynamics_interval_acc(x_low, x_up);
+% 
+%         % 2. Euler Bloat: Create a preliminary tube bounding box
+%         %    X_tube = X0 + [0, delta_t] * F(X0)
+%         tube_low_1 = x_low + min(0, dx_lb_init * delta_t);
+%         tube_up_1  = x_up  + max(0, dx_ub_init * delta_t);
+% 
+%         % 3. Picard Refinement: Re-evaluate velocity on the bloated tube
+%         %    This ensures we capture outward growth safely.
+%         [dx_lb_tube, dx_ub_tube] = compute_dynamics_interval_acc(tube_low_1, tube_up_1);
+% 
+%         % 4. Final Reachable Tube Bounds (The physical space traversed)
+%         tube_low = x_low + min(0, dx_lb_tube * delta_t);
+%         tube_up  = x_up  + max(0, dx_ub_tube * delta_t);
+% 
+%         % 5. Evaluate the Jacobian over the full RT
+%         [J_x_low, J_x_up] = Jacob_bounds_element_wise(tube_low, tube_up, system_choice);
+% 
+%         J_p_low = zeros(n_x, n_p);
+%         J_p_up = zeros(n_x, n_p);
+% 
+%     otherwise
+%         % Leave J_x_low, J_x_up, J_p_low, J_p_up as NaN's
+%         % TIRA will complain if this system_choice is actually used.
+%         warning('UP_Jacobian_Bounds: No Jacobian bounds defined for system_choice = %d.', system_choice);
+% end
+% 
+% end
+% 
+% %% ========================================================================
+% %  HELPER: ACC Continuous Interval Dynamics Evaluation (f(x), NOT Jacobian)
+% % =========================================================================
+% function [dx_lb, dx_ub] = compute_dynamics_interval_acc(a, b)
+%     % Evaluates the interval bounds of the velocity (f(x)) for the ACC
+%     % neural ODE example
+%     global w1_acc b1_acc w2_acc b2_acc
+% 
+%     if isempty(w1_acc)
+%         pl = load("plant_3rd_order_tanh.mat");
+%         w1_acc = double(extractdata(pl.neuralOdeParameters.fc1.Weights));
+%         b1_acc = double(extractdata(pl.neuralOdeParameters.fc1.Bias));
+%         w2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Weights));
+%         b2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Bias));
+%         b1_acc = b1_acc(:); b2_acc = b2_acc(:);
+%     end
+% 
+%     % Extract NN inputs (states 3, 6, 7, 8)
+%     nn_idx = [3, 6, 7, 8];
+%     a_sub = a(nn_idx);
+%     b_sub = b(nn_idx);
+% 
+%     num_neurons = size(w1_acc, 1);
+%     out_dim = size(w2_acc, 1);
+% 
+%     % 1. Bounds for z = w1 * x_sub + b1
+%     z_lb = zeros(num_neurons, 1);
+%     z_ub = zeros(num_neurons, 1);
+%     for i = 1:num_neurons
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:4
+%             if w1_acc(i,j) >= 0
+%                 t_lb = t_lb + w1_acc(i,j) * a_sub(j);
+%                 t_ub = t_ub + w1_acc(i,j) * b_sub(j);
+%             else
+%                 t_lb = t_lb + w1_acc(i,j) * b_sub(j);
+%                 t_ub = t_ub + w1_acc(i,j) * a_sub(j);
+%             end
+%         end
+%         z_lb(i) = t_lb + b1_acc(i);
+%         z_ub(i) = t_ub + b1_acc(i);
+%     end
+% 
+%     % 2. Bounds for h = tanh(z)
+%     h_lb = tanh(z_lb);
+%     h_ub = tanh(z_ub);
+% 
+%     % 3. Bounds for nn_out = w2 * h + b2
+%     nn_lb = zeros(out_dim, 1);
+%     nn_ub = zeros(out_dim, 1);
+%     for i = 1:out_dim
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:num_neurons
+%             if w2_acc(i,j) >= 0
+%                 t_lb = t_lb + w2_acc(i,j) * h_lb(j);
+%                 t_ub = t_ub + w2_acc(i,j) * h_ub(j);
+%             else
+%                 t_lb = t_lb + w2_acc(i,j) * h_ub(j);
+%                 t_ub = t_ub + w2_acc(i,j) * h_lb(j);
+%             end
+%         end
+%         nn_lb(i) = t_lb + b2_acc(i);
+%         nn_ub(i) = t_ub + b2_acc(i);
+%     end
+% 
+%     % 4. Assemble full 8D state derivative (velocity) bounds
+%     dx_lb = zeros(8,1); dx_ub = zeros(8,1);
+% 
+%     dx_lb(1) = a(2); dx_ub(1) = b(2);         % dx1 = x2
+%     dx_lb(2) = a(3); dx_ub(2) = b(3);         % dx2 = x3
+%     dx_lb(3) = nn_lb(1); dx_ub(3) = nn_ub(1); % dx3 = NN_out_1
+%     dx_lb(4) = a(5); dx_ub(4) = b(5);         % dx4 = x5
+%     dx_lb(5) = a(6); dx_ub(5) = b(6);         % dx5 = x6
+%     dx_lb(6) = nn_lb(2); dx_ub(6) = nn_ub(2); % dx6 = NN_out_2
+%     dx_lb(7) = 0; dx_ub(7) = 0;               % Forced 0
+%     dx_lb(8) = 0; dx_ub(8) = 0;               % Forced 0
+% end
+
+%------------- END OF CODE V1.7 --------------
+
+%%
+
+
+%------------- BEGIN OF CODE V1.8 -------------- |--> Includes the correct RT based Jacobian_Bounds for all examples based on a Euler-Picard-iteration-style to estimate the RT bounds using interval arithmetic
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+%     if isempty(Aout_global)
+%         error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+%     end
+% 
+%     % Jacobian wrt x is Aout
+%     % Aout_global is 676×676, and n_x = 676 for MNIST features
+%     J_x_low = Aout_global;
+%     J_x_up = Aout_global;
+% 
+%     % ODE is autonomous in our parametrization "i.e., no real inputs" => Jacobian wrt p is 0 (df/dp = 0)
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+% 
+%     return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals (Spiral/FPA path)
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+%     all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+%     all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+%     J_x_low = Jacobian_x_low;
+%     J_x_up = Jacobian_x_up;
+% 
+%     % autonomous → ∂f/∂p = 0
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+%     return;
+% end
+% % If dimensions mismatch, ignore the old globals
+% Jacobian_x_low = [];
+% Jacobian_x_up = [];
+% 
+% %% 2) System-specific via Reachable Tube (RT) OA estimation
+% 
+% delta_t = t_final - t_init;
+% 
+% switch system_choice
+%     case {14, 15, 17, 18} 
+%         % FPA (14), Spiral_non (15), ACC (17), Single Pendulum (18)
+% 
+%         % 1. Compute the interval bounds of dx/dt (time derivative of the state vector) at the initial set X0 (the box that the initial state is currently bounded in at t_{init})    
+%         [dx_lb_init, dx_ub_init] = compute_system_dynamics_interval(x_low, x_up, system_choice);
+% 
+%         % 2. Euler Bloat: Create a preliminary tube bounding box
+%         %    X_tube = X0 + [0, delta_t] * f(X0)
+%         tube_low_1 = x_low + min(0, dx_lb_init * delta_t);
+%         tube_up_1  = x_up  + max(0, dx_ub_init * delta_t);
+% 
+%         % 3. Picard Refinement: Re-evaluate velocity on the bloated tube
+%         [dx_lb_tube, dx_ub_tube] = compute_dynamics_interval_acc(tube_low_1, tube_up_1);
+% 
+%         % 4. Final Reachable Tube Bounds (The physical space traversed)
+%         tube_low = x_low + min(0, dx_lb_tube * delta_t);
+%         tube_up  = x_up  + max(0, dx_ub_tube * delta_t);
+% 
+%         % 5. Evaluate the Jacobian over the full Reachable Tube
+%         [J_x_low, J_x_up] = Jacob_bounds_element_wise(tube_low, tube_up, system_choice);
+% 
+%         % Autonomous systems -> df/dp = 0
+%         J_p_low = zeros(n_x, n_p);
+%         J_p_up = zeros(n_x, n_p);
+% 
+%     otherwise
+%         % Leave J_x_low, J_x_up, J_p_low, J_p_up as NaN's
+%         % TIRA will complain if this system_choice is actually used.
+%         warning('UP_Jacobian_Bounds: No Jacobian bounds defined for system_choice = %d.', system_choice);
+% end
+% 
+% end
+% 
+% %% ========================================================================
+% %                           Helper Functions
+% % =========================================================================
+% 
+% % % 1. Route Continuous Interval Dynamics Evaluation (f(x))
+% function [dx_lb, dx_ub] = compute_system_dynamics_interval(a, b, system_choice)
+%     switch system_choice
+%         case 14
+%             [dx_lb, dx_ub] = compute_dynamics_interval_fpa(a, b);
+%         case 15
+%             [dx_lb, dx_ub] = compute_dynamics_interval_spiral(a, b);
+%         case 17
+%             [dx_lb, dx_ub] = compute_dynamics_interval_acc(a, b);
+%         case 18
+%             [dx_lb, dx_ub] = compute_dynamics_interval_pendulum(a, b);
+%     end
+% end
+% 
+% % % 2. FPA Interval Dynamics
+% function [dx_lb, dx_ub] = compute_dynamics_interval_fpa(a, b)
+%     tau = -1e-6;
+%     A = [-1.20327, -0.07202, -0.93635; 1.18810, -1.50015,  0.93519];
+%     B = [ 1.21464, -0.10502; 0.12023,  0.19387; -1.36695,  0.12201];
+%     BA = B * A;
+%     W = [zeros(2,2), A; zeros(3,2), BA];
+% 
+%     tanh_lb = tanh(a);
+%     tanh_ub = tanh(b);
+% 
+%     dx_lb = zeros(5,1); dx_ub = zeros(5,1);
+%     for i = 1:5
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:5
+%             if W(i,j) >= 0
+%                 t_lb = t_lb + W(i,j) * tanh_lb(j);
+%                 t_ub = t_ub + W(i,j) * tanh_ub(j);
+%             else
+%                 t_lb = t_lb + W(i,j) * tanh_ub(j);
+%                 t_ub = t_ub + W(i,j) * tanh_lb(j);
+%             end
+%         end
+%         % dx = tau*x + W*tanh(x)
+%         % Note: tau is negative (-1e-6), so tau*b is the lower bound contribution
+%         dx_lb(i) = t_lb + tau * b(i);
+%         dx_ub(i) = t_ub + tau * a(i); 
+%     end
+% end
+% 
+% % % 3. Spiral Interval Dynamics
+% 
+% function [dx_lb, dx_ub] = compute_dynamics_interval_spiral(a, b)
+%     w1 = [0.2911133 ,  0.12008807; -0.24582624,  0.23181419; -0.25797904,  0.21687193;
+%          -0.19282854, -0.2602416 ;  0.26780415, -0.20697702;  0.23462369,  0.2294843 ;
+%          -0.2583547 ,  0.21444395; -0.04514714,  0.29514763; -0.15318371, -0.275755  ;
+%           0.24873598,  0.21018365];
+%     b1 = [0.0038677 , -0.00026365, -0.007168970,  0.02469357,  0.01338706,...
+%           0.00856025, -0.00888401,  0.00516089, -0.00634514, -0.01914518]';
+%     w2 = [-0.58693904, -0.814841  , -0.8175157 ,  0.97060364,  0.6908913 ,...
+%          -0.92446184, -0.79249185, -1.1507587 ,  1.2072723 , -0.7983982 ;
+%           1.1564877 , -0.8991244 , -1.0774536 , -0.6731967 ,  1.0154784 ,...
+%           0.8984464 , -1.0766245 , -0.238209  , -0.5233613 ,  0.8886671];
+%     b2 = [-0.04129209, -0.01508532]';
+% 
+%     % z = w1*x + b1
+%     z_lb = zeros(10, 1); z_ub = zeros(10, 1);
+%     for i = 1:10
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:2
+%             if w1(i,j) >= 0
+%                 t_lb = t_lb + w1(i,j) * a(j); t_ub = t_ub + w1(i,j) * b(j);
+%             else
+%                 t_lb = t_lb + w1(i,j) * b(j); t_ub = t_ub + w1(i,j) * a(j);
+%             end
+%         end
+%         z_lb(i) = t_lb + b1(i); z_ub(i) = t_ub + b1(i);
+%     end
+% 
+%     h_lb = tanh(z_lb); h_ub = tanh(z_ub);
+% 
+%     % dx = w2*h + b2
+%     dx_lb = zeros(2, 1); dx_ub = zeros(2, 1);
+%     for i = 1:2
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:10
+%             if w2(i,j) >= 0
+%                 t_lb = t_lb + w2(i,j) * h_lb(j); t_ub = t_ub + w2(i,j) * h_ub(j);
+%             else
+%                 t_lb = t_lb + w2(i,j) * h_ub(j); t_ub = t_ub + w2(i,j) * h_lb(j);
+%             end
+%         end
+%         dx_lb(i) = t_lb + b2(i); dx_ub(i) = t_ub + b2(i);
+%     end
+% end
+% 
+% % % 4. ACC Interval Dynamics
+% 
+% function [dx_lb, dx_ub] = compute_dynamics_interval_acc(a, b)
+%     global w1_acc b1_acc w2_acc b2_acc
+%     if isempty(w1_acc)
+%         pl = load("plant_3rd_order_tanh.mat");
+%         w1_acc = double(extractdata(pl.neuralOdeParameters.fc1.Weights));
+%         b1_acc = double(extractdata(pl.neuralOdeParameters.fc1.Bias));
+%         w2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Weights));
+%         b2_acc = double(extractdata(pl.neuralOdeParameters.fc2.Bias));
+%         b1_acc = b1_acc(:); b2_acc = b2_acc(:);
+%     end
+% 
+%     nn_idx = [3, 6, 7, 8];
+%     a_sub = a(nn_idx); b_sub = b(nn_idx);
+%     num_neurons = size(w1_acc, 1); out_dim = size(w2_acc, 1);
+% 
+%     z_lb = zeros(num_neurons, 1); z_ub = zeros(num_neurons, 1);
+%     for i = 1:num_neurons
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:4
+%             if w1_acc(i,j) >= 0
+%                 t_lb = t_lb + w1_acc(i,j) * a_sub(j); t_ub = t_ub + w1_acc(i,j) * b_sub(j);
+%             else
+%                 t_lb = t_lb + w1_acc(i,j) * b_sub(j); t_ub = t_ub + w1_acc(i,j) * a_sub(j);
+%             end
+%         end
+%         z_lb(i) = t_lb + b1_acc(i); z_ub(i) = t_ub + b1_acc(i);
+%     end
+% 
+%     h_lb = tanh(z_lb); h_ub = tanh(z_ub);
+% 
+%     nn_lb = zeros(out_dim, 1); nn_ub = zeros(out_dim, 1);
+%     for i = 1:out_dim
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:num_neurons
+%             if w2_acc(i,j) >= 0
+%                 t_lb = t_lb + w2_acc(i,j) * h_lb(j); t_ub = t_ub + w2_acc(i,j) * h_ub(j);
+%             else
+%                 t_lb = t_lb + w2_acc(i,j) * h_ub(j); t_ub = t_ub + w2_acc(i,j) * h_lb(j);
+%             end
+%         end
+%         nn_lb(i) = t_lb + b2_acc(i); nn_ub(i) = t_ub + b2_acc(i);
+%     end
+% 
+%     dx_lb = zeros(8,1); dx_ub = zeros(8,1);
+% 
+%     dx_lb(1) = a(2); dx_ub(1) = b(2);          % dx1 = x2
+%     dx_lb(2) = a(3); dx_ub(2) = b(3);          % dx2 = x3
+%     dx_lb(3) = nn_lb(1); dx_ub(3) = nn_ub(1);  % dx3 = NN_out_1
+%     dx_lb(4) = a(5); dx_ub(4) = b(5);          % dx4 = x5
+%     dx_lb(5) = a(6); dx_ub(5) = b(6);          % dx5 = x6
+%     dx_lb(6) = nn_lb(2); dx_ub(6) = nn_ub(2);  % dx6 = NN_out_2
+%     dx_lb(7) = nn_lb(3); dx_ub(7) = nn_ub(3);  % dx7 = NN_out_3
+%     dx_lb(8) = nn_lb(4); dx_ub(8) = nn_ub(4);  % dx8 = NN_out_4
+% end
+% 
+% % % 5. Single Pendulum Interval Dynamics
+% 
+% function [dx_lb, dx_ub] = compute_dynamics_interval_pendulum(a, b)
+%     global w1_sp b1_sp w2_sp b2_sp 
+%     if isempty(w1_sp)
+%         pl = load('odenet_pendulum_surrogate.mat');
+%         w1_sp = double(pl.Wb{1}); b1_sp = double(pl.Wb{2}(:));
+%         w2_sp = double(pl.Wb{3}); b2_sp = double(pl.Wb{4}(:));
+%     end
+% 
+%     n_neurons = size(w1_sp, 1); 
+%     n_in = size(w1_sp, 2);  % 3
+%     n_out = size(w2_sp, 1); % 2
+% 
+%     z_lb = zeros(n_neurons, 1); z_ub = zeros(n_neurons, 1);
+%     for i = 1:n_neurons
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:n_in
+%             if w1_sp(i,j) >= 0
+%                 t_lb = t_lb + w1_sp(i,j) * a(j); t_ub = t_ub + w1_sp(i,j) * b(j);
+%             else
+%                 t_lb = t_lb + w1_sp(i,j) * b(j); t_ub = t_ub + w1_sp(i,j) * a(j);
+%             end
+%         end
+%         z_lb(i) = t_lb + b1_sp(i); z_ub(i) = t_ub + b1_sp(i);
+%     end
+% 
+%     h_lb = tanh(z_lb); h_ub = tanh(z_ub);
+% 
+%     nn_lb = zeros(n_out, 1); nn_ub = zeros(n_out, 1);
+%     for i = 1:n_out
+%         t_lb = 0; t_ub = 0;
+%         for j = 1:n_neurons
+%             if w2_sp(i,j) >= 0
+%                 t_lb = t_lb + w2_sp(i,j) * h_lb(j); t_ub = t_ub + w2_sp(i,j) * h_ub(j);
+%             else
+%                 t_lb = t_lb + w2_sp(i,j) * h_ub(j); t_ub = t_ub + w2_sp(i,j) * h_lb(j);
+%             end
+%         end
+%         nn_lb(i) = t_lb + b2_sp(i); nn_ub(i) = t_ub + b2_sp(i);
+%     end
+% 
+%     dx_lb = zeros(3,1); dx_ub = zeros(3,1);
+%     dx_lb(1:n_out) = nn_lb; 
+%     dx_ub(1:n_out) = nn_ub;
+%     dx_lb(3) = 0; dx_ub(3) = 0; % Assuming 3rd state derivative is 0 based on Jacobian structure
+% end
+
+%------------- END OF CODE V1.8 --------------
+
+
+%%
+
+%------------- BEGIN OF CODE V1.9 -------------- |--> Now only using CORA for computing the RT 
+% function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% % UP_Jacobian_Bounds.m
+% % Retrieves the pre-computed Jacobian bounds for the current system.
+% % The actual Reachable Tube (RT) bounds are now computed via CORA 
+% % in the main verification script and passed here via global variables.
+% 
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% %% Default values as NaN (not a number)
+% J_x_low = NaN(n_x);
+% J_x_up = NaN(n_x);
+% J_p_low = NaN(n_x,n_p);
+% J_p_up = NaN(n_x,n_p);
+% 
+% %% Globals
+% global system_choice
+% global Aout_global % used only for MNIST Neural ODE
+% global Jacobian_x_low Jacobian_x_up
+% global u % kept for compatibility
+% 
+% %% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% % dx/dt = Aout_global * x + Bout_global
+% if system_choice == 16
+%     if isempty(Aout_global)
+%         error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+%     end
+% 
+%     % Jacobian wrt x is Aout
+%     % Aout_global is 676×676, and n_x = 676 for MNIST features
+%     J_x_low = Aout_global;
+%     J_x_up = Aout_global;
+% 
+%     % ODE is autonomous in our parametrization "i.e., no real inputs" => Jacobian wrt p is 0 (df/dp = 0)
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+% 
+%     return;
+% end
+% 
+% %% 1) Try to read pre-computed Jacobians from globals 
+% if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+%     all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+%     all(size(Jacobian_x_up) == [n_x, n_x])
+% 
+%     J_x_low = Jacobian_x_low;
+%     J_x_up = Jacobian_x_up;
+% 
+%     % autonomous → ∂f/∂p = 0
+%     J_p_low = zeros(n_x, n_p);
+%     J_p_up = zeros(n_x, n_p);
+%     return;
+% else
+%     %% 2) Error Handling
+%     % If we reach this point, it means TIRA was called but the global 
+%     % Jacobian matrices were not pre-calculated and pushed to the workspace.
+%     error(['UP_Jacobian_Bounds: Pre-computed Jacobian bounds missing for system %d. ', ...
+%            'Ensure Jacob_bounds_element_wise is called over the CORA RT in VERIFIER_FINAL.m ', ...
+%            'and pushed to global Jacobian_x_low/up.'], system_choice);
+% end
+% 
+% end
+
+%--> handles BOTH situations: it checks for globals first (for VERIFIER_FINAL.m), and if it doesn't find them, it runs CORA dynamically (for reach_acc_TNODEV.m)
+
+function [J_x_low,J_x_up,J_p_low,J_p_up] = UP_Jacobian_Bounds(t_init,t_final,x_low,x_up,p_low,p_up)
+% UP_Jacobian_Bounds.m
+% Retrieves the pre-computed Jacobian bounds for the current system.
+% The actual Reachable Tube (RT) bounds are now computed via CORA 
+% in the main verification script and passed here via global variables.
+
+n_x = length(x_low);
+n_p = length(p_low);
+
+%% Default values as NaN (not a number)
+J_x_low = NaN(n_x);
+J_x_up = NaN(n_x);
+J_p_low = NaN(n_x,n_p);
+J_p_up = NaN(n_x,n_p);
+
+%% Globals
+global system_choice
+global Aout_global % used only for MNIST Neural ODE
+global Jacobian_x_low Jacobian_x_up
+global u % kept for compatibility
+
+
+%% Infer system_choice if lost in parallel workers
+if isempty(system_choice)
+    if n_x == 8, system_choice = 17;
+    elseif n_x == 5, system_choice = 14;
+    elseif n_x == 3, system_choice = 18;
+    elseif n_x == 2, system_choice = 15;
+    elseif n_x == 676, system_choice = 16;
+    end
+end
+
+%% 0) Special case: MNIST Neural ODE (system_choice = 16)
+% dx/dt = Aout_global * x + Bout_global
+if system_choice == 16
+    if isempty(Aout_global)
+        error('UP_Jacobian_Bounds: Aout_global not set for system_choice = 16.');
+    end
+
+    % Jacobian wrt x is Aout
+    % Aout_global is 676×676, and n_x = 676 for MNIST features
+    J_x_low = Aout_global;
+    J_x_up = Aout_global;
+    
+    % ODE is autonomous in our parametrization "i.e., no real inputs" => Jacobian wrt p is 0 (df/dp = 0)
+    J_p_low = zeros(n_x, n_p);
+    J_p_up = zeros(n_x, n_p);
+    
+    return;
+end
+
+%% 1) Try to read pre-computed Jacobians from globals 
+% (This triggers ONLY when running VERIFIER_FINAL.m)
+if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
+    all(size(Jacobian_x_low) == [n_x, n_x]) && ...
+    all(size(Jacobian_x_up) == [n_x, n_x])
+
+    J_x_low = Jacobian_x_low;
+    J_x_up = Jacobian_x_up;
+    
+    % autonomous → ∂f/∂p = 0
+    J_p_low = zeros(n_x, n_p);
+    J_p_up = zeros(n_x, n_p);
+    return;
+end
+    %% 2) Error Handling
+    % If we reach this point, it means TIRA was called but the global 
+    % Jacobian matrices were not pre-calculated and pushed to the workspace.
+    error(['UP_Jacobian_Bounds: Pre-computed Jacobian bounds missing for system %d. ', ...
+           'Ensure Jacob_bounds_element_wise is called over the CORA RT in VERIFIER_FINAL.m ', ...
+           'and pushed to global Jacobian_x_low/up.'], system_choice);
+end
+
+end
+
+
+
+%------------- END OF CODE V1.9 -------------- |
