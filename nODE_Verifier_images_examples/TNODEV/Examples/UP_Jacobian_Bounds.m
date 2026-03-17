@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 21 October 2025
-% Last update: 06 March 2026
+% Last update: 17 March 2026
 % Last revision: October 2025
 
 
@@ -1107,7 +1107,10 @@ if system_choice == 17
     cora_params.Initial_radius = (x_up - x_low) / 2;
     
     % Get Reachable Tube from CORA
-    rt_bounds = acc_CORA_RT(cora_params);
+    % rt_bounds = acc_CORA_RT(cora_params);
+
+    % Get Reachable Tube from Unified CORA function
+    rt_bounds = compute_CORA_Reachable_Tube(cora_params, system_choice);
     
     % Compute Jacobian over that Tube
     [J_x_low, J_x_up] = Jacob_bounds_element_wise(rt_bounds.lb, rt_bounds.ub, 17);

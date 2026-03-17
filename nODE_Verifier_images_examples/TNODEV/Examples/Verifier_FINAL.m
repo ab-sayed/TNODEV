@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 11 March 2026 
+% Last update: 17 March 2026 
 % Last revision: XX XX 2026
 
 %% V1.3 --> Last Working code pushed to GitHub
@@ -1737,11 +1737,12 @@ input_split_heuristic = 'naive';
 % =========================================================================
 %                     HYBRID NNCS DISPATCHER (ACC)
 % =========================================================================
+
 if system_choice == 17
     fprintf('=== Starting Hybrid NNCS Verification Example ===\n');
     fprintf('System: Adaptive Cruise Control (ACC) - 8D\n');
     fprintf('Heuristic: %s\n\n', input_split_heuristic);
-    
+       
     % Add the ACC folder to the path so MATLAB can find the specific mat files  |--> Add this line only if I am going to place each example related files inside a specific folder
     % addpath(genpath(fullfile(pwd, 'ACC_modified')));
     
@@ -1931,11 +1932,9 @@ cora_full_params                = cora_params;
 cora_full_params.x0             = x0;
 cora_full_params.Initial_radius = Initial_radius;
 
-if system_choice == 14
-    reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
-elseif system_choice == 15
-    reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
-end
+% Unified CORA Call for the RT
+reachable_tube_bounds = compute_CORA_Reachable_Tube(cora_full_params, system_choice);
+
 fprintf('PART 1 completed.\n\n');
 
 % Pre-compute Jacobian Bounds once, as they depend on the full CORA reachable tube

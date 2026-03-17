@@ -1092,15 +1092,39 @@ if ~isempty(Jacobian_x_low) && ~isempty(Jacobian_x_up) && ...
     J_p_up = zeros(n_x, n_p);
     return;
 end
-    %% 2) Error Handling
+
+%% 2) Dynamic CORA Computation
+% (This triggers ONLY in parfor loops / N-step reachability where globals are empty)
+if system_choice == 17
+    % Construct CORA params dynamically based on TIRA's current bounds
+    cora_params.timeStep      = 0.05; % the controller was 0.1 sec
+    cora_params.tFinal        = t_final - t_init;
+    cora_params.taylorTerms   = 3;
+    cora_params.zonotopeOrder = 10;
+    cora_params.alg           = 'lin';
+    cora_params.tensorOrder   = 2;
+    cora_params.x0            = (x_up + x_low) / 2;
+    cora_params.Initial_radius = (x_up - x_low) / 2;
+    
+    % Get Reachable Tube from CORA
+    rt_bounds = acc_CORA_RT(cora_params);
+    
+    % Compute Jacobian over that Tube
+    [J_x_low, J_x_up] = Jacob_bounds_element_wise(rt_bounds.lb, rt_bounds.ub, 17);
+    
+    J_p_low = zeros(n_x, n_p);
+    J_p_up = zeros(n_x, n_p);
+    return;
+end
+    %% 3) Error Handling (If missing for other systems)
     % If we reach this point, it means TIRA was called but the global 
     % Jacobian matrices were not pre-calculated and pushed to the workspace.
-    error(['UP_Jacobian_Bounds: Pre-computed Jacobian bounds missing for system %d. ', ...
-           'Ensure Jacob_bounds_element_wise is called over the CORA RT in VERIFIER_FINAL.m ', ...
-           'and pushed to global Jacobian_x_low/up.'], system_choice);
+    % error(['UP_Jacobian_Bounds: Pre-computed Jacobian bounds missing for system %d. ', ...
+    %        'Ensure Jacob_bounds_element_wise is called over the CORA RT in VERIFIER_FINAL.m ', ...
+    %        'and pushed to global Jacobian_x_low/up.'], system_choice);
+    error('UP_Jacobian_Bounds: No global bounds found and dynamic RT not defined for system %d.', system_choice);
 end
 
-end
 
 
 

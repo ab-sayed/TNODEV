@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 16 March 2026 
+% Last update: 17 March 2026 
 % Last revision: XX XX 2026
 
 %% V1.5
@@ -242,11 +242,9 @@ cora_full_params                = cora_params;
 cora_full_params.x0             = x0;
 cora_full_params.Initial_radius = Initial_radius;
 
-if system_choice == 14
-    reachable_tube_bounds = fpa_CORA_RT(cora_full_params);
-elseif system_choice == 15
-    reachable_tube_bounds = spiral_non_CORA_RT(cora_full_params);
-end
+% Unified CORA Call for the RT
+reachable_tube_bounds = compute_CORA_Reachable_Tube(cora_full_params, system_choice);
+
 fprintf('PART 1 completed.\n\n');
 
 % Pre-compute Jacobian Bounds once, as they depend on the full CORA reachable tube
