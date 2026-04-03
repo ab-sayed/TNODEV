@@ -7,7 +7,7 @@
 %   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
 %
 % Date: 20 October 2025
-% Last update: 24 February 2026 
+% Last update: 28 February 2026 
 % Last revision:  2026
 
 %% Descripion of the time-varying system with input
@@ -344,7 +344,9 @@ switch system_choice
         end
         
         dx = Aout_global * x + Bout_global;
-
+    
+    case 19
+        
     case 17 
         %% === ACC Non-Linear Neural ODE Plant ===
         % 8-dimensional state vector:
@@ -399,8 +401,8 @@ switch system_choice
               dnn_out(4)];         % dx8: lead target accel derivative (NN out 4) ~~(Lead Accel held constant)~~
     case 18 
         %% === Single Pendulum Neural ODE Surrogate (3D) ===
-        global w1_sp b1_sp w2_sp b2_sp w3_sp b3_sp
-        
+        % global w1_sp b1_sp w2_sp b2_sp w3_sp b3_sp
+        global w1_sp b1_sp w2_sp b2_sp  % 1 Layer architecture
         % Lazy loading to avoid reading the .mat file every solver step
         if isempty(w1_sp)
             pl = load('odenet_pendulum_surrogate.mat');
@@ -416,9 +418,13 @@ switch system_choice
         x = x(:);
         
         % Forward pass through the 2-hidden-layer network
+        % h1 = tanh(w1_sp * x + b1_sp);
+        % h2 = tanh(w2_sp * h1 + b2_sp);
+        % dx_nn = w3_sp * h2 + b3_sp;
+
+        % Forward pass through the 1-hidden-layer network
         h1 = tanh(w1_sp * x + b1_sp);
-        h2 = tanh(w2_sp * h1 + b2_sp);
-        dx_nn = w3_sp * h2 + b3_sp;
+        dx_nn = w2_sp * h1 + b2_sp; % w2 is now the output layer!
 
         % FIX: If fitnet stripped the constant time derivative, add it back!
         if size(dx_nn, 1) < length(x)
