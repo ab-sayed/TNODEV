@@ -1166,8 +1166,10 @@ if isempty(system_choice)
     elseif n_x == 3, system_choice = 18;
     elseif n_x == 2, system_choice = 15;
     elseif n_x == 676, system_choice = 16;
-    % elseif n_x == 256, system_choice = 19; % 2nd nODE Network `IMG_SIZE = 16`
-    elseif n_x == 32, system_choice = 19; % 1st nODE Network `IMG_SIZE = 8`
+    % elseif n_x == 32, system_choice = 19; % 1st nODE Network with ReLU AF `IMG_SIZE = 8`
+    % elseif n_x == 256, system_choice = 19; % 2nd nODE Network with ReLU AF `IMG_SIZE = 16`
+    elseif n_x == 32, system_choice = 20; % 1st nODE Network with Tanh AF `IMG_SIZE = 8`
+    
     end
 end
 
@@ -1190,9 +1192,17 @@ if system_choice == 16
     return;
 end
 
-% % 0b) Copepod Neural ODE (system_choice = 19)
+% % 0b) Copepod Neural ODE (system_choice = 19) with ReLU AF
 if system_choice == 19
     [J_x_low, J_x_up] = Jacob_bounds_element_wise(x_low, x_up, 19);
+    J_p_low = zeros(n_x, n_p);
+    J_p_up = zeros(n_x, n_p);
+    return;
+end
+
+% % 0c) Copepod Neural ODE (system_choice = 20) with Tanh AF
+if system_choice == 20
+    [J_x_low, J_x_up] = Jacob_bounds_element_wise(x_low, x_up, 20);
     J_p_low = zeros(n_x, n_p);
     J_p_up = zeros(n_x, n_p);
     return;

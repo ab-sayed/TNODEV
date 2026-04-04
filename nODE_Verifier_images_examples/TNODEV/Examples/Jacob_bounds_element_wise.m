@@ -2971,6 +2971,90 @@ switch system_choice
                 J_ub(i,j) = sum_ub;
             end
         end
+    
+    case 20
+        % === Copepod Neural ODE (32D, TANH bottleneck) ===
+        % Dynamics: dx/dt = W2 * tanh(W1*x + b1) + b2
+        % Jacobian: J(x) = W2 * diag(tanh'(W1*x + b1)) * W1
+        % tanh'(z) = sech^2(z) = 1 - tanh^2(z)
+        %   sech^2(z) is always in (0, 1]  (never zero, unlike ReLU)
+        %   sech^2(0) = 1  (maximum, at z = 0)
+        %   sech^2 decreases monotonically as |z| increases
+        
+        global W1_ode b1_ode W2_ode b2_ode
+        
+        if isempty(W1_ode)
+            error('Jacob_bounds_element_wise: W1_ode not set for system 20.');
+        end
+        
+        bottleneck = size(W1_ode, 1);  % 8
+        state_dim = size(W1_ode, 2);   % 32
+        
+        % 1. Compute bounds for z = W1*x + b1
+        z_lb = zeros(bottleneck, 1);
+        z_ub = zeros(bottleneck, 1);
+        for i = 1:bottleneck
+            temp_lb = 0; temp_ub = 0;
+            for j = 1:state_dim
+                if W1_ode(i,j) >= 0
+                    temp_lb = temp_lb + W1_ode(i,j) * a(j);
+                    temp_ub = temp_ub + W1_ode(i,j) * b(j);
+                else
+                    temp_lb = temp_lb + W1_ode(i,j) * b(j);
+                    temp_ub = temp_ub + W1_ode(i,j) * a(j);
+                end
+            end
+            z_lb(i) = temp_lb + b1_ode(i);
+            z_ub(i) = temp_ub + b1_ode(i);
+        end
+        
+        % 2. Compute tanh derivative (sech^2) bounds over each bottleneck neuron
+        % sech^2(z) = 1 - tanh^2(z)
+        % sech^2 is maximized where |z| is smallest (closest to 0)
+        % sech^2 is minimized where |z| is largest (farthest from 0)
+        tanh_deriv_lb = zeros(bottleneck, 1);
+        tanh_deriv_ub = zeros(bottleneck, 1);
+        for i = 1:bottleneck
+            % Find |z| closest to 0 in [z_lb, z_ub] -> gives max sech^2
+            if z_lb(i) <= 0 && z_ub(i) >= 0
+                % Interval contains 0 -> sech^2 max = sech^2(0) = 1
+                z_closest = 0;
+            elseif z_lb(i) > 0
+                z_closest = z_lb(i);
+            else  % z_ub < 0
+                z_closest = z_ub(i);
+            end
+            
+            % Find |z| farthest from 0 in [z_lb, z_ub] -> gives min sech^2
+            z_farthest = max(abs(z_lb(i)), abs(z_ub(i)));
+            
+            % sech^2 bounds
+            tanh_deriv_ub(i) = 1 - tanh(z_closest)^2;    % max sech^2
+            tanh_deriv_lb(i) = 1 - tanh(z_farthest)^2;    % min sech^2
+        end
+        
+        % 3. Compute Jacobian bounds: J = W2 * diag(sech^2) * W1
+        J_lb = zeros(state_dim, state_dim);
+        J_ub = zeros(state_dim, state_dim);
+        for i = 1:state_dim
+            for j = 1:state_dim
+                sum_lb = 0; sum_ub = 0;
+                for k = 1:bottleneck
+                    prod_w = W2_ode(i,k) * W1_ode(k,j);
+                    d_min = tanh_deriv_lb(k);
+                    d_max = tanh_deriv_ub(k);
+                    if prod_w >= 0
+                        sum_lb = sum_lb + prod_w * d_min;
+                        sum_ub = sum_ub + prod_w * d_max;
+                    else
+                        sum_lb = sum_lb + prod_w * d_max;
+                        sum_ub = sum_ub + prod_w * d_min;
+                    end
+                end
+                J_lb(i,j) = sum_lb;
+                J_ub(i,j) = sum_ub;
+            end
+        end
         
     otherwise
         error('Invalid system_choice: %d', system_choice);

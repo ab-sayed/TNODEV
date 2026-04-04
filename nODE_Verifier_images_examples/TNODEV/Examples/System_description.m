@@ -358,11 +358,26 @@ switch system_choice
         % The ReLU acts on only 16 dimensions — this keeps the nonlinearity
         % low-dimensional and more tractable for TIRA CTMM.
         global W1_ode b1_ode W2_ode b2_ode
-        
         h = W1_ode * x + b1_ode;       % 16-dim hidden (bottleneck)
         h_relu = max(0, h);             % ReLU on 16 neurons only
         dx = W2_ode * h_relu + b2_ode;  % back to 256-dim state
-
+    
+    case 20
+        % === copepod neural ODE dynamics ===
+        % This defines the NONLINEAR ODE dynamics for the copepod Neural ODE:
+        %   dx/dt = W2 * Tanh(W1*x + b1) + b2
+        %
+        % Same structure as the MNIST nonlinear dynamics.
+        % W1: 16 x 256 (compress state to 16-dim bottleneck)
+        % b1: 16 x 1   (bottleneck bias)
+        % W2: 256 x 16 (expand back to 256-dim state)
+        % b2: 256 x 1  (state bias)
+        % The Tanh acts on only 16 dimensions — this keeps the nonlinearity
+        % low-dimensional and more tractable for TIRA CTMM.
+        global W1_ode b1_ode W2_ode b2_ode
+        h = W1_ode * x + b1_ode;
+        h_tanh = tanh(h);               % tanh instead of max(0, h)
+        dx = W2_ode * h_tanh + b2_ode;
        
     case 17 
         %% === ACC Non-Linear Neural ODE Plant ===
