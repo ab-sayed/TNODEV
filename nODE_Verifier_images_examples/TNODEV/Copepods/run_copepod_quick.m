@@ -288,7 +288,7 @@ fprintf('--- End Diagnostic ---\n\n');
 % === Verification Parameters ===
 pix = 192;          % number of pixels per image to attack (max: 192 = 8*8*3)
 numT = 1;         % number of images to test
-noise = 5/255;  % L_inf_norm radius (images already in [0,1])
+noise = 0.01/255;  % L_inf_norm radius (images already in [0,1])
 rng(2022);        % Set random seed
 
 % --- CHOOSE HEURISTIC HERE ---

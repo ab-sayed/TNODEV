@@ -1167,9 +1167,9 @@ if isempty(system_choice)
     elseif n_x == 2, system_choice = 15;
     elseif n_x == 676, system_choice = 16;
     % elseif n_x == 32, system_choice = 19; % 1st nODE Network with ReLU AF `IMG_SIZE = 8`
-    % elseif n_x == 256, system_choice = 19; % 2nd nODE Network with ReLU AF `IMG_SIZE = 16`
-    elseif n_x == 32, system_choice = 20; % 1st nODE Network with Tanh AF `IMG_SIZE = 8`
-    
+    % elseif n_x == 256, system_choice = 19; % 1st nODE Network with ReLU AF `IMG_SIZE = 16`
+    elseif n_x == 32, system_choice = 20; % 2nd nODE Network with Tanh AF `IMG_SIZE = 8`
+    % elseif n_x == 256, system_choice = 20;  % 2nd nODE Network with Tanh AF `IMG_SIZE = 16` 
     end
 end
 
