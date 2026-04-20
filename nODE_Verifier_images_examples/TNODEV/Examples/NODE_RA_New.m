@@ -600,12 +600,17 @@ if system_choice == 16
     run_boundary_analysis = false;
 
 elseif system_choice == 17
-    % --- ACC CONFIGURATION (8 Dims) ---
+    % --- Nonlinear ACC CONFIGURATION (8 Dims) ---
     % Methods 3 and 4 are kept. 
     % Boundary analysis is kept ON by default similar to sprial and FPA.
     % If it runs too slowly, you can change the below to 'false' and limit the methods to only CTMM [3].
     % methods = [3, 4]; 
     methods = [3]; 
+    run_boundary_analysis = false;
+
+elseif system_choice == 24
+    % --- Linear ACC (8D) ---
+    methods = [3];
     run_boundary_analysis = false;
 
 elseif system_choice == 18
@@ -614,6 +619,17 @@ elseif system_choice == 18
     % iterative refinement. (Change to methods=[3,4] and true for tighter bounds).
     methods = [3]; 
     run_boundary_analysis = false;    
+
+elseif system_choice == 21
+    % --- Spiral_linear CONFIGURATION (2D) ---
+    methods = [3];
+    run_boundary_analysis = false;
+
+elseif system_choice == 22
+    % --- Cartpole CONFIGURATION (12D) ---
+    % Boundary analysis would be prohibitively expensive in 12D (2^12 = 4096 vertices).
+    methods = [3];
+    run_boundary_analysis = false;
 end
 
 n_methods_single_step = length(methods);  % 2
