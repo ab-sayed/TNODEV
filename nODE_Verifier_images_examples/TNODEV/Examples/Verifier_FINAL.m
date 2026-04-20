@@ -2606,15 +2606,23 @@ input_split_heuristic = 'naive';
 %                     HYBRID NNCS DISPATCHER (ACC)
 % =========================================================================
 
+% === 3. PLOT MODE FOR ACC (system_choice == 17 or 24) ===
+% Options:
+%   'single_pass'   -> one simulation from the full initial set (fastest, matches NNV figure style)
+%   'refined_union' -> union envelope across all verified sub-cells (more faithful to refinement)
+%   'none'          -> skip plotting entirely
+acc_plot_mode = 'refined_union';
+
 if ismember(system_choice, [17, 24])
     fprintf('=== Starting Hybrid NNCS Verification Example ===\n');
     switch system_choice
-        case 17, fprintf('System: ACC - Nonlinear NODE (8D)\n');
-        case 24, fprintf('System: ACC - Linear NODE (8D)\n');
+        case 17, fprintf('System: ACC - Nonlinear 3rd-order NODE (8D)\n');
+        case 24, fprintf('System: ACC - Linear 3rd-order NODE (8D)\n');
     end
-    fprintf('Heuristic: %s\n\n', input_split_heuristic);
+    fprintf('Heuristic: %s\n', input_split_heuristic);
+    fprintf('Plot mode: %s\n\n', acc_plot_mode);
 
-    reach_acc_TNODEV(input_split_heuristic, system_choice);
+    reach_acc_TNODEV(input_split_heuristic, system_choice, acc_plot_mode);
     return;
 end
 

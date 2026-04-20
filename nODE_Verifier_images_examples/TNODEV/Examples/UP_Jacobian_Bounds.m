@@ -1391,10 +1391,10 @@ end
 % (This triggers ONLY in parfor loops / N-step reachability where globals are empty)
 if system_choice == 17
     % Construct CORA params dynamically based on TIRA's current bounds
-    cora_params.timeStep      = 0.05; % the controller was 0.1 sec
+    cora_params.timeStep      = 0.01; % the controller was 0.1 sec      %0.05
     cora_params.tFinal        = t_final - t_init;
-    cora_params.taylorTerms   = 3;
-    cora_params.zonotopeOrder = 10;
+    cora_params.taylorTerms   = 4;      % 3
+    cora_params.zonotopeOrder = 50;     % 10
     cora_params.alg           = 'lin';
     cora_params.tensorOrder   = 2;
     cora_params.x0            = (x_up + x_low) / 2;
