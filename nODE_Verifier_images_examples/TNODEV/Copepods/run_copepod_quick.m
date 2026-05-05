@@ -178,8 +178,26 @@ warning('off', 'MATLAB:odearguments:InconsistentDataType');
 
 
 % === Load data and weights ===
-load('odenet_tiny_copepod_weights.mat');
-load('copepod_test_images_tiny.mat');
+% load('odenet_tiny_copepod_weights.mat');
+% load('copepod_test_images_tiny.mat');
+
+
+% ===23-04_Tiny_model_8x8_relu_adv__[Verifiable]=== NB. not verifiable at noise = 0.1/255; 
+% load('odenet_tiny_adv_copepod_weights.mat');
+% load('copepod_test_images_tiny_adv.mat');
+
+% ===23-04_Tiny_model_8x8_ReLU_adv_trades__[Verifiable]=== NB. not verifiable at noise = 0.1/255; 
+% load('odenet_tiny_trades_copepod_weights.mat');
+% load('copepod_test_images_tiny_trades.mat');
+
+% ===24-04_ReLU_8_binary_madry=== --> Not robust (FALSIFIED)
+% load('odenet_tiny_binary_madry_weights.mat');
+% load('copepod_test_images_tiny_binary_madry.mat');
+
+% ===24-04_ReLU_8_binary_trades=== --> Not robust (FALSIFIED)
+load('odenet_tiny_binary_trades_weights.mat');
+load('copepod_test_images_tiny_binary_trades.mat');
+
 
 % === DIAGNOSTIC: Check basic image info ===
 img = double(images(:,:,:,1));

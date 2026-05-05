@@ -9,8 +9,34 @@ function run_copepod_tanh_quick()
 % Adapted from run_copepod_quick.m for the tanh activation model
 
 % === Load data and weights ===
-load('odenet_tanh_8x8_copepod_weights.mat');
-load('copepod_test_images_tanh_8x8.mat');
+% load('odenet_tanh_8x8_copepod_weights.mat');
+% load('copepod_test_images_tanh_8x8.mat');
+
+% === 23-04_Tiny_model_8x8_Tanh_adv__[Verifiable]===
+% load('odenet_tanh_8x8_adv_copepod_weights.mat');
+% load('copepod_test_images_tanh_8x8_adv.mat');
+
+% === 23-04_Tiny_model_8x8_Tanh_adv_trades__[Verifiable]=== NB. not verifiable at noise = 0.1/255;
+% load('odenet_tanh_8x8_trades_copepod_weights.mat');
+% load('copepod_test_images_tanh_8x8_trades.mat');
+
+% === 24-04_Tanh_8_binary_madry === --> Not robust (FALSIFIED)
+% load('odenet_tanh_8x8_binary_madry_weights.mat');
+% load('copepod_test_images_tanh_8x8_binary_madry.mat');
+
+% === 24-04_Tanh_8_binary_trades === --> Not robust (FALSIFIED)
+% load('odenet_tanh_8x8_binary_madry_weights.mat');
+% load('copepod_test_images_tanh_8x8_binary_madry.mat');
+
+% === 27-04_tanh_8_binary_madry_n4_b8 === --> Not robust (FALSIFIED)
+load('odenet_tanh_8x8_binary_madry_n4_b8_weights.mat');
+load('copepod_test_images_tanh_8x8_binary_madry_n4_b8.mat');
+
+% === 27-04_tanh_8_binary_trades_n4_b8 === --> Not robust (FALSIFIED)
+% load('odenet_tanh_8x8_binary_trades_n4_b8_weights.mat');
+% load('copepod_test_images_tanh_8x8_binary_trades_n4_b8.mat');
+
+
 
 % === DIAGNOSTIC: Check basic image info ===
 img = double(images(:,:,:,1));
