@@ -1,4 +1,4 @@
-784 dimensions activefunction run_mnist_inf()
+function run_mnist_inf()
 
     % Parameters
     pix = 784; % pixels per image to attack

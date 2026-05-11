@@ -2177,7 +2177,7 @@ system_choice = 22;     % Cartpole 12D System
 
 % === 2. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-input_split_heuristic = 'naive';
+input_split_heuristic = 'interval-norm-gradient';
 
 % =========================================================================
 %                     HYBRID NNCS DISPATCHER (ACC)
@@ -2397,34 +2397,55 @@ elseif system_choice == 22 % Cartpole (12D)
     % Dims 2 (cart_vel) and 4 (pole_rate) have loose OAs due to the
     % Lipschitz-style Jacobian bounds on the physics rows — they drive
     % refinement. All other dims have tight OAs and pass on the first call.
-     node_params.safe_inf = [
-        -0.01331;   % cart_pos     (k=2.5)
-        -0.15393;   % cart_vel     (k=1.25)   TIGHT
-        -0.00049;   % pole_angle   (k=2.5)
-        -0.01340;   % pole_rate    (k=1.25)   TIGHT
-         0.16692;   % h_00         (k=2.5)
-         0.11130;   % h_01         (k=2.5)
-        -0.17051;   % h_02         (k=2.5)
-        -0.04520;   % h_03         (k=2.5)
-        -0.01098;   % h_04         (k=2.5)
-         0.05158;   % h_05         (k=2.5)
-         0.06538;   % h_06         (k=2.5)
-        -0.07744;   % h_07         (k=2.5)
-    ];
+    %  node_params.safe_inf = [
+    %     -0.01331;   % cart_pos     (k=2.5)
+    %     -0.15393;   % cart_vel     (k=1.25)   TIGHT
+    %     -0.00049;   % pole_angle   (k=2.5)
+    %     -0.01340;   % pole_rate    (k=1.25)   TIGHT
+    %      0.16692;   % h_00         (k=2.5)
+    %      0.11130;   % h_01         (k=2.5)
+    %     -0.17051;   % h_02         (k=2.5)
+    %     -0.04520;   % h_03         (k=2.5)
+    %     -0.01098;   % h_04         (k=2.5)
+    %      0.05158;   % h_05         (k=2.5)
+    %      0.06538;   % h_06         (k=2.5)
+    %     -0.07744;   % h_07         (k=2.5)
+    % ];
+    % node_params.safe_sup = [
+    %      0.00365;   % cart_pos
+    %      0.04187;   % cart_vel               TIGHT
+    %      0.01811;   % pole_angle
+    %      0.20027;   % pole_rate              TIGHT
+    %      0.17060;   % h_00
+    %      0.12512;   % h_01
+    %     -0.16483;   % h_02
+    %      0.00320;   % h_03
+    %      0.01632;   % h_04
+    %      0.08214;   % h_05
+    %      0.11548;   % h_06
+    %     -0.05098;   % h_07
+    % ];
+
+    % === Option E: The "Showcase" Spec (Engineered for rich refinement) ===
+    % This spec aggressively cuts off the known loose over-approximation tails 
+    % of Dim 2 (cart_vel) and Dim 4 (pole_rate), forcing the heuristics to 
+    % engage deeply before successfully proving safety.
+
+    node_params.safe_inf = [
+        -0.015;   % cart_pos
+        -0.110;   % cart_vel   (Cuts off the -0.153 root OA tail)
+        -0.015;   % pole_angle
+        -0.050;   % pole_rate  
+        -0.2 * ones(8,1) % Hidden states safely bounded
+        ];
+
     node_params.safe_sup = [
-         0.00365;   % cart_pos
-         0.04187;   % cart_vel               TIGHT
-         0.01811;   % pole_angle
-         0.20027;   % pole_rate              TIGHT
-         0.17060;   % h_00
-         0.12512;   % h_01
-        -0.16483;   % h_02
-         0.00320;   % h_03
-         0.01632;   % h_04
-         0.08214;   % h_05
-         0.11548;   % h_06
-        -0.05098;   % h_07
-    ];
+        0.015;   % cart_pos
+        0.060;   % cart_vel   
+        0.020;   % pole_angle
+        0.160;   % pole_rate  (Cuts off the 0.200 root OA tail)
+        0.2 * ones(8,1) % Hidden states safely bounded
+        ];
 
 end
 
@@ -2438,7 +2459,7 @@ MAX_ITER = 5000;     %--> "check this crtiteria either we conclude based on that
 
 % === 6. PLOTTING CONTROL  ===  --> Re-check cause of big changes with V1.2 Origine
 plot_control.show_figures = false;    % Show figures during execution
-plot_control.save_final_plot = false; % Simplified: save if verified or falsified
+plot_control.save_final_plot = true; % Simplified: save if verified or falsified
 % New Selector:
 plot_control.verified_set_style = 'all'; 
 % Options: 
