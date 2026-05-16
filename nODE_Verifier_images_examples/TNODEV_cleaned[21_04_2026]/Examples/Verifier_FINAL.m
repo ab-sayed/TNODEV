@@ -2170,14 +2170,14 @@ addpath('./') % Add current directory for utility functions
 % system_choice = 14;   % FPA System
 % system_choice = 15;   % Spiral_non System
 % system_choice = 16;   % MNIST
-% system_choice = 17;   % ACC Nonlinear System
+system_choice = 17;   % ACC Nonlinear System
 % system_choice = 24;     % ACC - Linear 3rd-order NODE
 % system_choice = 21;   % Spiral_linear System
-system_choice = 22;     % Cartpole 12D System
+% system_choice = 22;     % Cartpole 12D System
 
 % === 2. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-input_split_heuristic = 'interval-norm-gradient';
+input_split_heuristic = 'naive';
 
 % =========================================================================
 %                     HYBRID NNCS DISPATCHER (ACC)
