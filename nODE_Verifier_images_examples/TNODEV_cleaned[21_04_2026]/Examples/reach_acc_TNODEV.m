@@ -1673,6 +1673,7 @@ function reach_acc_TNODEV(heuristic_choice, system_choice)
 
     N = 50;         % 50 steps total (5 seconds)
     MAX_ITER = 5000; % Maximum number of batch iterations
+    TIMEOUT_SECONDS = 120 * 60; % Wall-clock timeout T_max for the verification & refinement loop ONLY (does not include the CORA / Jacobian / falsification preamble). The loop stops once EITHER MAX_ITER or TIMEOUT_SECONDS is reached, whichever comes first; a non-empty queue at that point yields an UNKNOWN verdict. Set to `Inf` to disable the timeout and recover budget-only behavior.
     
     % --- ADD THESE THREE COUNTERS HERE ---
     total_refinements = 0;     % total number of cells that got split
@@ -1758,6 +1759,14 @@ function reach_acc_TNODEV(heuristic_choice, system_choice)
         if iter > MAX_ITER
             fprintf('\n[!] MAX_ITER (%d) reached. Stopping refinement.\n', MAX_ITER);
             final_result = 'UNKNOWN (Wrapping effect dominated)';
+            break;
+        end
+
+        if toc(t_full) >= TIMEOUT_SECONDS
+            fprintf('\n[!] TIMEOUT (T_max = %.0f min) reached after %d batches. Stopping refinement.\n', ...
+                    TIMEOUT_SECONDS/60, iter - 1);
+            final_result = sprintf('UNKNOWN (Timeout: T_max = %.0f min, %d sub-regions remain in queue).', ...
+                                   TIMEOUT_SECONDS/60, length(queue));
             break;
         end
 
@@ -1989,7 +1998,7 @@ function reach_acc_TNODEV(heuristic_choice, system_choice)
              'total_refinements', 'verified_subsets', ...           % <-- ADDED on 12/05
              'max_queue_size', ...                                  % <-- ADDED on 12/05
              'heuristic_choice', 'system_choice', 'sys_name', ...
-             'N', 'MAX_ITER', 'batch_size', 'fig_path', ...
+             'N', 'MAX_ITER', 'TIMEOUT_SECONDS', 'batch_size', 'fig_path', ...
              'total_explosions', ...
              'SPEC_T_GAP', 'SPEC_D_DEFAULT', 'SPEC_ALPHA');
         fprintf('Results saved to: %s\n', save_filename);
