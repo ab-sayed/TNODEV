@@ -1,48 +1,42 @@
 % =========================================================================
-% File: Verifier_FINAL.m
+% File: Verifier_MAIN_CALL.m
 %
 % Purpose:
-%   Extended top-level entry point for the TNODEV Toolbox, covering all
-%   currently-supported systems including Spiral_linear and Cartpole 12D.
-%
-%   NOTE: Verifier_FINAL.m is a super-set of Verifier_MAIN_CALL.m; the
-%   two scripts share the same structure and duplicate most of their
-%   user-configuration blocks. For new users, start from
-%   Verifier_MAIN_CALL.m. This file is kept as the development entry
-%   point that also exposes systems 21 (Spiral_linear) and 22 (Cartpole).
+%   Top-level entry point of the TNODEV Toolbox. Performs falsification,
+%   verification and refinement of Pure neural ODE / neural ODE control
+%   systems, and supports GNODEs.
 %
 % Description:
-%   Same pipeline as Verifier_MAIN_CALL.m:
-%     - Hybrid NNCS Dispatcher  (ACC nonlinear / linear via reach_acc_TNODEV)
-%     - Pure NODE pipeline      (Spiral / FPA / Cartpole)
-%     - Falsification -> Verification -> Refinement loop
-%     - Final plotting and .mat save
+%   This is the only file the end-user is expected to edit. It exposes
+%   a small USER CONFIGURATION block (system selection, refinement
+%   heuristic, safe set, ...) and dispatches to the appropriate
+%   verification pipeline:
 %
-%   Supported systems (system_choice):
-%     14   FPA             pure NODE,   5D
-%     15   Spiral_non      pure NODE,   2D
-%     16   MNIST           GNODE
-%     17   ACC nonlinear   hybrid NNCS, 8D, tanh activation
-%     21   Spiral_linear   pure NODE,   2D
-%     22   Cartpole CTRNN  pure NODE,  12D
-%     24   ACC linear      hybrid NNCS, 8D, no activation
+%     - Pure neural ODE systems (Spiral, FPA, Cartpole)
+%     - Hybrid neural ODE control systems (ACC) 
+%     - GNODE Classification (MNIST)
+%
+%
+%   Available systems:             
+%     Spiral_linear
+%     Spiral_non 
+%     FPA 
+%     Cartpole   
+%     ACC linear      
+%     ACC nonlinear
+%     MNIST  
+%
+%   Available refinement heuristics:
+%     'naive'                          
+%     'most-sensitive-input-radius'    
+%     'interval-norm-gradient'         
 %
 % Prerequisites:
-%   - CORA
-%   - NNV 2.0 (for ACC / MNIST)
-%
-% Outputs:
-%   A timestamped folder ./FINAL_RESULTS_<s>_<date>/ containing plots
-%   (PNG, PDF, FIG, EPS, high-res PNG) and a .mat data dump.
+%   - CORA      (used for reachable-tube for Pure neural ODE)
+%   - NNV 2.0   (used for Hybrid neural ODE + GNODE)
 %
 % Part of the TNODEV Toolbox
-% Tool Paper: "Add Title here"
-%
-% Authors:
-%   Abdelrahman Sayed Sayed   <abdelrahman.ibrahim -AT- univ-eiffel.fr>
-%   Pierre-Jean Meyer         <pierre-jean.meyer    -AT- univ-eiffel.fr>
-%   Mohamed Ghazel            <mohamed.ghazel       -AT- univ-eiffel.fr>
-%   COSYS-ESTAS, Univ Gustave Eiffel
+% Paper: TNODEV: Toolbox for Neural ODE Verification
 %
 % License: CC BY-NC-SA 4.0
 %
@@ -52,52 +46,63 @@
 % =========================================================================
 
 %------------- BEGIN CODE --------------
-
 clear all; close all; clc;
 
-addpath('../OA_methods')
-addpath('../Utilities')
-addpath('./') % Add current directory for utility functions
+this_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(this_dir, 'OA_methods'));
+addpath(fullfile(this_dir, 'Utilities'));
+addpath(this_dir);   % current directory 
 
-%%%  -------------------------------------------------------------------
-%  USER CONFIGURATION - EDIT ONLY THIS BLOCK
-%%%  -------------------------------------------------------------------
 
-% === 1. SYSTEM SELECTION ===
-% system_choice = 14;   % FPA System
-% system_choice = 15;   % Spiral_non System
-system_choice = 16;   % MNIST
-% system_choice = 17;   % ACC Nonlinear System
-% system_choice = 24;     % ACC - Linear 3rd-order NODE
-% system_choice = 21;   % Spiral_linear System
-% system_choice = 22;     % Cartpole 12D System
+%% =========================================================================
+%   USER CONFIGURATION  --  EDIT ONLY THIS BLOCK
+%  =========================================================================
 
-% === 2. REFINEMENT HEURISTIC CHOICE ===
+% --- 1. SYSTEM SELECTION -------------------------------------------------
+% Uncomment exactly ONE of the lines below.
+%
+% system_choice = 21;   % Spiral_linear (pure nODE,   2D)
+% system_choice = 15;   % Spiral_non    (pure nODE,   2D)
+% system_choice = 14;   % FPA           (pure nODE,   5D)
+% system_choice = 22;   % Cartpole      (pure nODE,   12D)
+% system_choice = 17;   % ACC nonlinear (hybrid nODE, 8D, tanh activation)
+% system_choice = 24;   % ACC linear    (hybrid nODE, 8D, no activation)
+system_choice = 16;   % MNIST         (GNODE)
+
+% --- 2. REFINEMENT HEURISTIC ---------------------------------------------
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-input_split_heuristic = 'naive';
+input_split_heuristic = 'most-sensitive-input-radius';
 
-
-% =========================================================================
-%                     HYBRID NNCS DISPATCHER (ACC)
-% =========================================================================
+%% =========================================================================
+%   HYBRID neural ODE Control System DISPATCHER  (ACC)
+%  =========================================================================
 
 if ismember(system_choice, [17, 24])
-    fprintf('=== Starting Hybrid NNCS Verification Example ===\n');
-    switch system_choice
-        case 17, fprintf('System: ACC - Nonlinear 3rd-order NODE (8D)\n');
-        case 24, fprintf('System: ACC - Linear 3rd-order NODE (8D)\n');
+    if system_choice == 17
+        sys_label = 'Adaptive Cruise Control (ACC) - 8D - Nonlinear (tanh)';
+    else
+        sys_label = 'Adaptive Cruise Control (ACC) - 8D - Linear';
     end
+
+    fprintf('=== Starting Hybrid NNCS Verification Example ===\n');
+    fprintf('System:    %s\n',   sys_label);
     fprintf('Heuristic: %s\n\n', input_split_heuristic);
 
-    % reach_acc_TNODEV handles its own single-pass plotting internally
-    % (see local_plot_single_pass at the bottom of that file).
+    % Make the Examples folder visible so reach_acc_TNODEV can locate
+    % its system-specific .mat files (controller weights, etc.)
+    addpath(genpath(fullfile(this_dir, 'Examples')));
+
+    % Dispatch (reach_acc_TNODEV handles its own plotting and saving)
     reach_acc_TNODEV(input_split_heuristic, system_choice);
+
+    % Stop execution here as ACC has its own end-to-end pipeline
     return;
 end
 
-% =========================================================================
-%                     MNIST GNODE CLASSIFICATION DISPATCHER
-% =========================================================================
+
+%% =========================================================================
+%   GNODE CLASSIFICATION DISPATCHER  (MNIST)
+%  =========================================================================
 
 if system_choice == 16
     fprintf('=== Starting MNIST GNODE Classification Verification ===\n');
@@ -105,14 +110,20 @@ if system_choice == 16
     % Which network(s) to run: 'tiny' (CNODE_S) | 'medium' (CNODE_M) | 'both'
     mnist_network = 'both';
 
-    % The MNIST runners, their reachability helpers (reach_cnn_*_NODE_RA_expm),
-    % and the .ubyte data files all live in the MNIST subfolder next to this
-    % script. Resolve that folder from this file's own location so the dispatch
-    % does not depend on the current working directory.
-    examples_dir = fileparts(mfilename('fullpath'));
-    mnist_dir    = fullfile(examples_dir, 'MNIST');
-    if ~exist(mnist_dir, 'dir')
-        error('MNIST folder not found at: %s', mnist_dir);
+    % Locate the MNIST subfolder relative to THIS script's own location so
+    % the dispatch is independent of the current working directory.
+    candidates = { fullfile(this_dir, 'Examples', 'MNIST'), ...
+                   fullfile(this_dir, 'MNIST') };
+    mnist_dir  = '';
+    for c = 1:numel(candidates)
+        if exist(candidates{c}, 'dir')
+            mnist_dir = candidates{c};
+            break;
+        end
+    end
+    if isempty(mnist_dir)
+        error('MNIST folder not found. Looked in:\n  %s\n  %s', ...
+              candidates{1}, candidates{2});
     end
     addpath(mnist_dir);
 
@@ -146,40 +157,43 @@ if system_choice == 16
     return;
 end
 
-% =========================================================================
-%               PURE neural ODE SYSTEM SETUP (Spiral / FPA / Cartpole) 
-% =========================================================================
+
+%% =========================================================================
+%   PURE NEURAL ODE SETUP  (Spital / FPA / Cartpole)
+%  =========================================================================
+
 node_params.input_split_heuristic = input_split_heuristic;
 
-% === 1. INITIAL SET ===
-% Spiral_non (2D)
-x0_spiral     = [2.0; 0.0];            % nODE input set center
-radius_spiral = 0.2;                   % Initial radius
-timeStep_spiral = 0.01;                % CORA and TIRA time step
-tFinal_spiral   = 1.0;                 % CORA and TIRA final time
 
-% Spiral_linear (2D) — same geometric setup as Spiral_non for comparability
+% --- 1. INITIAL SET ------------------------------------------------------
+
+% Spiral_non (2D)
+x0_spiral       = [2.0; 0.0];
+radius_spiral   = 0.2;
+timeStep_spiral = 0.01;        
+tFinal_spiral   = 1.0;        
+
+% Spiral_linear (2D) 
 x0_spiral_lin     = [2.0; 0.0];
 radius_spiral_lin = 0.2;
 timeStep_spiral_lin = 0.01;
 tFinal_spiral_lin   = 1.0;
 
 % FPA (5D)
-x0_fpa     = [0, -0.58587, 0.8, 0.52323, 0.7]';
-radius_fpa = 0.01;
-timeStep_fpa = 0.05;                   % CORA and TIRA time step
-tFinal_fpa   = 2.0;                    % CORA and TIRA final time
+x0_fpa       = [0; -0.58587; 0.8; 0.52323; 0.7];
+radius_fpa   = 0.01;
+timeStep_fpa = 0.05;
+tFinal_fpa   = 2.0;
 
-% Cartpole (12D): 4 physical + 8 RNN hidden states
-x0_cartpole     = [0; 0; 0.001; 0; 0; 0; 0; 0; 0; 0; 0; 0];   % near-upright
-radius_cartpole = 1e-4;                                       % 1e-2:causes an explosion for RT computation | 1e-4 matches Manzanas Lopez paper
+% Cartpole (12D)
+x0_cartpole     = [0; 0; 0.001; 0; 0; 0; 0; 0; 0; 0; 0; 0];   
+radius_cartpole = 1e-4;                                      
 timeStep_cartpole = 0.02;
-tFinal_cartpole   = 0.2;                                      % short horizon for 12D
+tFinal_cartpole   = 0.2;                                    
 
 % Auto-select based on system_choice
 if system_choice == 15
     x0             = x0_spiral;
-    % Initial_radius = radius_spiral;
     Initial_radius = radius_spiral * ones(length(x0), 1);
     system_name    = 'spiral_non';
     cora_params.timeStep = timeStep_spiral;
@@ -189,7 +203,6 @@ if system_choice == 15
     timeStep_TIRA        = timeStep_spiral;
 elseif system_choice == 14
     x0             = x0_fpa;
-    % Initial_radius = radius_fpa;
     Initial_radius = radius_fpa * ones(length(x0), 1);
     system_name    = 'fpa';
     cora_params.timeStep = timeStep_fpa;
@@ -214,199 +227,79 @@ elseif system_choice == 22
     cora_params.tFinal   = tFinal_cartpole;
     t_init_TIRA          = 0;
     t_final_TIRA         = tFinal_cartpole;
-    timeStep_TIRA        = timeStep_cartpole;    
+    timeStep_TIRA        = timeStep_cartpole;
+
 else
-    error('Invalid system_choice. Use 14 (FPA) or 15 (Spiral_non) or 21 or 22.');  % |---> Update this error print with all of the systems
+    error('Invalid system_choice: %d. Use 14 (FPA), 15 (Spiral_non), 21 (Spiral_lin), 22 (Cartpole).', ...
+          system_choice);
 end
 
-% === 2. CORA PARAMETERS (for Reachable tube bounds) ===
-cora_params.taylorTerms  = 2;      % Taylor terms for nonlinear approximation
-cora_params.zonotopeOrder = 20;    % Zonotope order for set representation
-cora_params.alg          = 'lin';  % Linear approximation
-cora_params.tensorOrder  = 2;      % Tensor order for nonlinear dynamics --> "check what will happen if I increase this"
 
-% === 3. TIRA PARAMETERS (for nODE reachability @NODE_RA_New.m) ===
-node_params.system_choice = system_choice;
-node_params.x0 = x0;
-node_params.Initial_radius = Initial_radius;
-node_params.t_final = t_final_TIRA;
-node_params.timeStep = timeStep_TIRA;
-node_params.plot_last_only = true;
-node_params.sample_succ_number = 1000; %--> check PJ comment about using the falsification to determine this number
+% --- 2. CORA PARAMETERS (reachable-tube bounds) --------------------------
+cora_params.taylorTerms   = 2;       
+cora_params.zonotopeOrder = 20;       
+cora_params.alg           = 'lin';    
+cora_params.tensorOrder   = 2;       
 
-% === 4. SAFE SET (USER-ADJUSTABLE) ===  --> Remove these examples at the end
-% and leave it for the User to define it or maybe put just one SAFT SET and
-% mention next to it that it's adjustable
 
-% FIX to Ensure Safe Set dimensions match the system dimensions
+% --- 3. TIRA PARAMETERS (NODE_RA_New) ------------------------------------
+node_params.system_choice      = system_choice;
+node_params.x0                 = x0;
+node_params.Initial_radius     = Initial_radius;
+node_params.t_final            = t_final_TIRA;
+node_params.timeStep           = timeStep_TIRA;
+node_params.plot_last_only     = true;
+node_params.sample_succ_number = 1000;   
+
+
+% --- 4. SAFE SET (USER-ADJUSTABLE) ---------------------------------------
+
+% Make sure the safe-set dimension matches the system dimension
 n_sys = length(x0);
 
-if system_choice == 15 % Spiral_non (2D)
-    % Example 1: Safety verified for all OA methods 
-    % node_params.safe_inf = [-1.8; 0.6];   % lower-left corner (x1, x2)
-    % node_params.safe_sup = [0.7; 2.8];   % upper-right corner (x1, x2)
-   
-    % % Example 2: Safety violated for some methods
-    % node_params.safe_inf = [-1.3; 0.95];   % [x1_low, x2_low]
-    % node_params.safe_sup = [0.25; 2.45]; % [x1_up,  x2_up]
-   
-    % Example 3: Safety violated for some methods
-    % node_params.safe_inf = [-1; 1.2];   % [x1_low, x2_low]
-    % node_params.safe_sup = [0.3; 2];    % [x1_up, x2_up]
-
-    % Example 4: Safety violated for some methods
+if system_choice == 15            % Spiral_non (2D)
     node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
     node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
 
-    % Example 5: Safety violated --> counter example works here 
-    % node_params.safe_inf = [-3; 1.5];   % [x1_low, x2_low]
-    % node_params.safe_sup = [0; 3]; % [x1_up,  x2_up]
-
-
-elseif system_choice == 21 % Spiral_linear (2D)
-    
-    % Example 1: the i/p set is inside the safe set but the fullt i/p set OA is not safe | Simple axis-aligned safe region; the linear dynamics stay contained.
-    % node_params.safe_inf = [-3; -2];
-    % node_params.safe_sup = [ 3;  2];
-
-    % Example 4: Safety violated for some methods
+elseif system_choice == 21        % Spiral_linear (2D)
     node_params.safe_inf = [-2; 1.2];   % [x1_low, x2_low]
     node_params.safe_sup = [0.1; 5];    % [x1_up, x2_up]
 
-    % Example 5: Safety violated --> counter example works here 
-    % node_params.safe_inf = [-3; 1.5];   % [x1_low, x2_low]
-    % node_params.safe_sup = [0; 3]; % [x1_up,  x2_up]
-
-elseif system_choice == 14 % FPA (5D)
-    
-    % This set goes into verification and it can't be falsified --> However it won't
-    % conclude as I am setting finite values only for the x1-x2 and disregarding the
-    % rest of the dimensions !!
-    % node_params.safe_inf = [-1.285; -2; -Inf; -Inf; -Inf];
-    % node_params.safe_sup = [ -0.5;  1;  Inf;  Inf;  Inf];
-
-    % node_params.safe_inf = [-1.4;  -10; -10; -10; -10];
-    % node_params.safe_sup = [ 10;   10;  10;  0.0;  10];
-
-    % node_params.safe_inf = [-0; -2; -2; 0; -2]; 
-    % node_params.safe_sup = [ -2;  2;  2; 0;  2];
-    
-    % Falsified Example
-    % node_params.safe_inf = [-10; -10; -10; -10; -10];
-    % node_params.safe_sup = [ 10;  10;  10; 0; 10];
-
-    % FPA Example 6: 5D safe set (PJ) => safe without refinement
-    % node_params.safe_inf = [-1.3; -0.7;-0.9;0.3;2.3];
-    % node_params.safe_sup = [-1.2;-0.5;-0.7;0.4;2.5];
-    
-    % FPA Example that goes into Refinement
-    % 1 Refinement only 
-    % node_params.safe_inf = [-1.3; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
-    % node_params.safe_sup = [-1.2;-0.55;-0.72;0.38;2.48];  % [x1_up,  x2_up, ...]
-    
-    % Refinement iteration ex.1 --> WORKING @ 2.07 minutes for naive / @ 2.23 minutes 
-    % for most-sensitive-input-radius / @ 59.75 seconds for interval-norm-gradient
+elseif system_choice == 14        % FPA (5D)
     node_params.safe_inf = [-1.29; -0.7;-0.75;0.35;2.38]; % [x1_low, x2_low, ...]
     node_params.safe_sup = [-1.23;-0.59;-0.72;0.38;2.46];  % [x1_up,  x2_up, ...]
 
-    % Refinement iteration ex.2 --> WORKING @ 35 minutes for naive with 343 iterations / 
-    % @39.92 minutes for most-sensitive-input-radius with 343 iterations /
-    % Tried with interval-norm-gradient and it has been running for more than 12 hrs. and 
-    % reached 1850 without any signs of concluding 
-    % node_params.safe_inf = [-1.29; -0.68;-0.74;0.35;2.38]; % [x1_low, x2_low, ...]
-    % node_params.safe_sup = [-1.23;-0.59;-0.72;0.37;2.45];  % [x1_up,  x2_up, ...]
-
-elseif system_choice == 22 % Cartpole (12D)
-    % Physical states must stay near upright:
-    %   cart position x_00 in [-1, 1]
-    %   cart velocity x_01 in [-2, 2]
-    %   pole angle   x_02 in [-0.2, 0.2]   (rad, ~11.5 degrees)
-    %   pole rate    x_03 in [-2, 2]
-    % RNN hidden states are bounded by tanh saturation in [-1, 1]; we allow
-    % a generous [-2, 2] to avoid spurious false positives.
-
-    % node_params.safe_inf = [-1; -2; -0.2; -2; -2*ones(8,1)];
-    % node_params.safe_sup = [ 1;  2;  0.2;  2;  2*ones(8,1)];
-
-    % === Option A: moderately tight — expected few refinements ===
-    % node_params.safe_inf = [-0.05; -0.2; -0.05; -0.5; -0.5*ones(8,1)];
-    % node_params.safe_sup = [ 0.05;  0.2;  0.05;  0.5;  0.5*ones(8,1)];
-
-    % === Option B: tighter — expected more refinement iterations ===
-    % node_params.safe_inf = [-0.02; -0.1; -0.02; -0.2; -0.3*ones(8,1)];
-    % node_params.safe_sup = [ 0.02;  0.1;  0.02;  0.2;  0.3*ones(8,1)];
-
-    % === Option C: very tight — may trigger many refinements or falsification ===
-    % node_params.safe_inf = [-0.015; -0.08; -0.015; -0.15; -0.2*ones(8,1)];
-    % node_params.safe_sup = [ 0.015;  0.08;  0.015;  0.15;  0.2*ones(8,1)];
-
-    % === Option D: Designed from the OA diagnostic at rad=1e-4, tf=0.2 ===
-    %
-    % Dims 2 (cart_vel) and 4 (pole_rate) have loose OAs due to the
-    % Lipschitz-style Jacobian bounds on the physics rows — they drive
-    % refinement. All other dims have tight OAs and pass on the first call.
-    %  node_params.safe_inf = [
-    %     -0.01331;   % cart_pos     (k=2.5)
-    %     -0.15393;   % cart_vel     (k=1.25)   TIGHT
-    %     -0.00049;   % pole_angle   (k=2.5)
-    %     -0.01340;   % pole_rate    (k=1.25)   TIGHT
-    %      0.16692;   % h_00         (k=2.5)
-    %      0.11130;   % h_01         (k=2.5)
-    %     -0.17051;   % h_02         (k=2.5)
-    %     -0.04520;   % h_03         (k=2.5)
-    %     -0.01098;   % h_04         (k=2.5)
-    %      0.05158;   % h_05         (k=2.5)
-    %      0.06538;   % h_06         (k=2.5)
-    %     -0.07744;   % h_07         (k=2.5)
-    % ];
-    % node_params.safe_sup = [
-    %      0.00365;   % cart_pos
-    %      0.04187;   % cart_vel               TIGHT
-    %      0.01811;   % pole_angle
-    %      0.20027;   % pole_rate              TIGHT
-    %      0.17060;   % h_00
-    %      0.12512;   % h_01
-    %     -0.16483;   % h_02
-    %      0.00320;   % h_03
-    %      0.01632;   % h_04
-    %      0.08214;   % h_05
-    %      0.11548;   % h_06
-    %     -0.05098;   % h_07
-    % ];
-
-    % === Option E: The "Showcase" Spec (Engineered for rich refinement) ===
-    % This spec aggressively cuts off the known loose over-approximation tails 
-    % of Dim 2 (cart_vel) and Dim 4 (pole_rate), forcing the heuristics to 
-    % engage deeply before successfully proving safety.
-
+elseif system_choice == 22        % Cartpole (12D)
     node_params.safe_inf = [
-        -0.015;   % cart_pos
-        -0.110;   % cart_vel   (Cuts off the -0.153 root OA tail)
-        -0.015;   % pole_angle
-        -0.050;   % pole_rate  
-        -0.2 * ones(8,1) % Hidden states safely bounded
+        -0.015;   
+        -0.110;  
+        -0.015;   
+        -0.050;    
+        -0.2 * ones(8,1) 
         ];
 
     node_params.safe_sup = [
-        0.015;   % cart_pos
-        0.060;   % cart_vel   
-        0.020;   % pole_angle
-        0.160;   % pole_rate  (Cuts off the 0.200 root OA tail)
-        0.2 * ones(8,1) % Hidden states safely bounded
+        0.015;   
+        0.060;   
+        0.020;  
+        0.160;   
+        0.2 * ones(8,1) 
         ];
-
 end
 
 % Validate dimensions
 if length(node_params.safe_inf) ~= n_sys
-    error('Dimension mismatch: Safe set has %d dims, but system has %d.', length(node_params.safe_inf), n_sys);
+    error('Dimension mismatch: Safe set has %d dims, but system has %d.', ...
+          length(node_params.safe_inf), n_sys);
 end
 
-% === 5. VERIFICATION LOOP PARAMETERS ===
-MAX_ITER = 5000;     %--> "check this crtiteria either we conclude based on that or a time out with a defined time for example 45 mins."
-TIMEOUT_SECONDS = 120 * 60; % Wall-clock timeout T_max for the verification & refinement loop ONLY (does not include the CORA / Jacobian / falsification preamble). The loop stops once EITHER MAX_ITER or TIMEOUT_SECONDS is reached, whichever comes first; a non-empty queue at that point yields an UNKNOWN verdict. Set to `Inf` to disable the timeout and recover budget-only behavior.
 
-% === 6. PLOTTING CONTROL  ===  --> Re-check cause of big changes with V1.2 Origine
+% --- 5. VERIFICATION-LOOP PARAMETERS -------------------------------------
+MAX_ITER = 5000;    
+TIMEOUT_SECONDS = 120 * 60; % Wall-clock timeout T_max for the verification & refinement loop ONLY (does not include the CORA / Jacobian / falsification preamble). Set to `Inf` to disable the timeout and recover budget-only behavior.
+
+
+% --- 6. PLOTTING CONTROL -------------------------------------------------
 plot_control.show_figures = false;    % Show figures during execution
 plot_control.save_final_plot = true; % Simplified: save if verified or falsified
 % New Selector:
@@ -425,38 +318,38 @@ fprintf('Initial set: center = [%s], radius = %.3f\n', ...
 fprintf('TIRA: t = [%.2f, %.2f], step = %.3f\n', t_init_TIRA, t_final_TIRA, timeStep_TIRA);
 fprintf('CORA: tFinal = %.2f\n\n', cora_params.tFinal);
 
-%% ------------------------------------------------------------------------
+%% =========================================================================
 %   INITIALIZATION
-% -------------------------------------------------------------------------
+%  =========================================================================
 
-tic; % Start timer for total VERDICT time
+tic;     % global timer (verdict time only)
 
-% Queue of input sets to verify: {x_center, radius}
+% Queue of input sets to verify: { {x_center, radius}, ... }
 verification_queue = {{x0, Initial_radius}};
 
-% Results tracking
-num_verified = 0;
+% Result counters
+num_verified  = 0;
 num_falsified = 0;
-num_unknown = 1;
+num_unknown   = 1;
 
-% Global flag for safety
-overall_safe = true;
-falsified_example = [];
+% Global safety flag and falsification artefacts
+overall_safe            = true;
+falsified_example       = [];
 falsified_initial_point = [];
-verified_initial_sets = {}; % <--Store OA boxes ([center, radius]) of the initial sets that were proven safe
+verified_initial_sets   = {};  % stores {center, radius, intersect_low, intersect_up} per verified subset
 
-% Pre-compute CORA bounds once
+
+% --- PART 1: Pre-compute the overall reachable-tube bounds (CORA) --------
 fprintf('PART 1: Computing Overall Reachable Tube Bounds (CORA)...\n');
 cora_full_params                = cora_params;
 cora_full_params.x0             = x0;
 cora_full_params.Initial_radius = Initial_radius;
 
-% Unified CORA Call for the RT
 reachable_tube_bounds = compute_CORA_Reachable_Tube(cora_full_params, system_choice);
-
 fprintf('PART 1 completed.\n\n');
 
-% Pre-compute Jacobian Bounds once, as they depend on the full CORA reachable tube
+
+% --- PART 2: Pre-compute element-wise Jacobian bounds --------------------
 fprintf('PART 2: Computing Jacobian Bounds...\n');
 a = reachable_tube_bounds.lb;
 b = reachable_tube_bounds.ub;
@@ -464,101 +357,75 @@ b = reachable_tube_bounds.ub;
 fprintf('PART 2 completed.\n\n');
 
 
-% % ================ DIAGNOSTIC BLOCK ================                     % % |---> Remove this Block later
-% % Compute CTMM OA for the full initial set, print bounds, then stop.
-% % Comment this block out once you've picked a safe set.
-% fprintf('\n=== DIAGNOSTIC: OA of full initial set ===\n');
-% node_params_diag = node_params;
-% node_params_diag.x0 = x0;
-% node_params_diag.Initial_radius = Initial_radius;
-% res_diag = NODE_RA_New(node_params_diag);
-% 
-% fprintf('CTMM OA at t_f = %.3f:\n', t_final_TIRA);
-% labels = {'cart_pos   ', 'cart_vel   ', 'pole_angle ', 'pole_rate  ', ...
-%           'h_00       ', 'h_01       ', 'h_02       ', 'h_03       ', ...
-%           'h_04       ', 'h_05       ', 'h_06       ', 'h_07       '};
-% for i = 1:length(x0)
-%     w = res_diag.intersect_up(i) - res_diag.intersect_low(i);
-%     fprintf('  %s in [% .5f, % .5f]   (width = %.5f)\n', ...
-%             labels{i}, res_diag.intersect_low(i), res_diag.intersect_up(i), w);
-% end
-% return;  % STOP here — remove this line once you've picked safe bounds
-% % ================ END DIAGNOSTIC ==================
-
-% Pass Jacobians to UP_Jacobian_Bounds.m
+% --- PART 3: Push Jacobians + system_choice into globals -----------------
+% These globals are read by the UP_* sensitivity / Jacobian routines.
 fprintf('PART 3: Passing Jacobian bounds via globals...\n');
 global Jacobian_x_low Jacobian_x_up system_choice
 Jacobian_x_low = J_lb;
 Jacobian_x_up  = J_ub;
-system_choice = system_choice;
+system_choice  = system_choice;   % preserved on purpose (interaction with global)
 
 [~, ~, ~, ~] = UP_Jacobian_Bounds(t_init_TIRA, t_final_TIRA, J_lb, J_ub, [], []);
 fprintf('PART 3 completed.\n\n');
 
-%% -----------------------------------------------------------------------------
-%   MAIN VERIFICATION LOOP (1. Falsification, 2. Verification , 3. Refinement)
-% ----------------------------------------------------------------------------
 
-% ----------------------------------------------------------------------------
-%   INITIAL FALSIFICATION STEP
-% ----------------------------------------------------------------------------
+%% =========================================================================
+%   MAIN VERIFICATION LOOP  (1. Falsification, 2. Verification, 3. Refinement)
+%  =========================================================================
 
+% --- PART 4: Initial falsification attempt -------------------------------
 fprintf('PART 4: Initial Falsification Attempt...\n');
-% check_dims = size(node_params.safe_inf, 1);
 check_dims = length(node_params.safe_inf);
 
-% Generate random samples from the FULL initial input set
+% Sample uniformly inside the FULL initial input set
 num_falsification_samples = 1000;
 initial_samples = node_params.x0 - node_params.Initial_radius + ...
-                  2 * node_params.Initial_radius .* rand(length(node_params.x0), num_falsification_samples);
+                  2 * node_params.Initial_radius .* ...
+                      rand(length(node_params.x0), num_falsification_samples);
 
 % Simulate trajectories for these samples
 final_samples = zeros(check_dims, num_falsification_samples);
 global g_sensitivity_bounds_method;
-parameters = get_solver_parameters(length(node_params.x0), 0, g_sensitivity_bounds_method);
-ode_solver = parameters.ode_solver;
+parameters  = get_solver_parameters(length(node_params.x0), 0, g_sensitivity_bounds_method);
+ode_solver  = parameters.ode_solver;
 ode_options = parameters.ode_options;
 
-% Fix for anonymous functions and global scope
-% We must declare 'system_choice' as global here so the handle can capture it.
-global system_choice; 
-% Create the function handle for the ODE solver. This handle now "closes over"
-% or "captures" the value of system_choice from the workspace where it is defined.
+% System_description reads system_choice from the global scope, so we
+% redeclare it here before constructing the closure below.
+global system_choice;
+% Creates the function handle for the ODE solver
 ode_func = @(t,x) System_description(t,x,[]);
 
 
+% Simulate every initial sample to t_final
 for i = 1:num_falsification_samples
     x0_rand = initial_samples(:, i);
-    [~, x_traj] = ode_solver(@(t,x) System_description(t,x,[]), [t_init_TIRA, t_final_TIRA], x0_rand, ode_options);
-    final_samples(:,i) = x_traj(end, 1:check_dims)';
+    [~, x_traj] = ode_solver(@(t,x) System_description(t, x, []), ...
+                             [t_init_TIRA, t_final_TIRA], x0_rand, ode_options);
+    final_samples(:, i) = x_traj(end, 1:check_dims)';
 end
 
-% Check if any sample violates the safe set
-violation_indices = find(any(final_samples < node_params.safe_inf | final_samples > node_params.safe_sup, 1));
+% Counter-example check to see if any sample violates the safe set
+violation_indices = find(any(final_samples < node_params.safe_inf | ...
+                             final_samples > node_params.safe_sup, 1));
 
 if ~isempty(violation_indices)
-    first_violation_idx = violation_indices(1);
-    overall_safe = false;
-    falsified_example = final_samples(:, first_violation_idx);
+    first_violation_idx     = violation_indices(1);
+    overall_safe            = false;
+    falsified_example       = final_samples(:, first_violation_idx);
     falsified_initial_point = initial_samples(:, first_violation_idx);
     fprintf('  FALSIFIED! Counter-example found from initial sampling.\n');
-    % Use generic string printing for N-D points
     fprintf('  Initial point: [%s]\n', num2str(falsified_initial_point', '%.4f '));
-    fprintf('  Final point:   [%s]\n', num2str(falsified_example', '%.4f '));
+    fprintf('  Final point:   [%s]\n', num2str(falsified_example',       '%.4f '));
 else
     fprintf('  No counter-example found in initial falsification.\n');
 end
-
 fprintf('PART 4 completed.\n\n');
 
-% ----------------------------------------------------------------------------
-%    MAIN VERIFICATION & REFINEMENT LOOP
-% ----------------------------------------------------------------------------
-fprintf('PART 5: Verification and Refinement based Heuristics Loop (parallel)...\n');
 
-% Snapshot host-side globals: parfor workers start with a clean global
-% workspace, so we capture these into broadcast locals here and re-seed them
-% on each worker via the helper function defined at the bottom of this file.
+% --- PART 5: Verification and refinement loop ------------------------------
+fprintf('PART 5: Verification and Refinement based Heuristics Loop...\n');
+
 host_system_choice = system_choice;
 host_Jx_low        = Jacobian_x_low;
 host_Jx_up         = Jacobian_x_up;
@@ -576,35 +443,24 @@ fprintf('  [Parallel Config] Workers: %d | Batch Size: %d (Load Factor: %dx)\n',
 
 batch_iter              = 0;
 total_subsets_processed = 0;
-total_explosions        = 0;     % CORA/TIRA reachable-set explosions
+total_explosions        = 0;
 
-% Termination bookkeeping: which limit (if any) ended the loop.
-% '' (empty) means the loop ended because the queue drained (SAFE).
-loop_stop_reason = '';
+% '' (empty) means the loop ended because the queue is empty (i.e., SAFE).
+loop_stop_reason = ''
 
-% Loop-only wall clock. Separate from the run-wide `tic` above so that
+% Loop-only wall clock. Separated from the run-wide `tic` above so that
 % TIMEOUT_SECONDS bounds the verification & refinement loop only, matching
 % the paper's T_max (the CORA/Jacobian/falsification preamble is excluded).
 loop_timer = tic;
 
 if overall_safe   % only enter the loop if we have not already falsified
-     % The loop stops as soon as ANY of the following holds:
-     %   - the queue is empty               (everything verified -> SAFE)
-     %   - the refinement budget is spent   (total_subsets_processed >= MAX_ITER)
-     %   - the loop wall-clock exceeds T_max (toc(loop_timer) >= TIMEOUT_SECONDS)
-     % The time check is evaluated BETWEEN batches (parfor batches cannot be
-     % interrupted mid-flight), so actual runtime may exceed T_max by at most
-     % one batch's duration.
     while ~isempty(verification_queue) ...
             && total_subsets_processed < MAX_ITER ...
             && toc(loop_timer) < TIMEOUT_SECONDS
 
         batch_iter = batch_iter + 1;
 
-        % Pop up to batch_size subsets, but never more than the remaining
-        % MAX_ITER budget allows (keeps MAX_ITER as a hard cap on the total
-        % number of subsets processed -- same semantics as the original
-        % serial loop where MAX_ITER was the iteration cap).
+        % Pop up to batch_size subsets
         remaining_budget = MAX_ITER - total_subsets_processed;
         num_tasks        = min([length(verification_queue), batch_size, remaining_budget]);
 
@@ -775,8 +631,7 @@ if overall_safe   % only enter the loop if we have not already falsified
     end
 
      % Record which limit ended the loop (checked in the same priority order
-    % as the verdict logic below). An empty queue takes precedence: if the
-    % queue drained, the run is SAFE regardless of how close we were to a limit.
+     % as the verdict logic below).
     if ~isempty(verification_queue)
         if toc(loop_timer) >= TIMEOUT_SECONDS
             loop_stop_reason = 'timeout';
@@ -789,9 +644,7 @@ end
 % Capture the loop-only elapsed time for reporting.
 loop_elapsed_time = toc(loop_timer);
 
-% Keep `iter` for backward-compatible final summary reporting
-% (in the parallel version it counts subsets processed across all batches,
-%  same as the iteration count of the original serial loop).
+% Keep `iter` for final summary reporting.
 iter = total_subsets_processed;
 
 if total_explosions > 0
@@ -799,15 +652,13 @@ if total_explosions > 0
 end
 fprintf('PART 5 completed.\n\n');
 
-% Stop VERDICT timer and get elapsed time --> This is the correct location to
-% have it since the time taken for plotting is not related to the algorithm
-% concluding a Verdict 
+% Stop VERDICT timer and get elapsed time 
 elapsed_time = toc;
 
 
-% ------------------------------------------------------------------------
-%   FINAL PLOTTING AND SAVING
-% ------------------------------------------------------------------------
+%% =========================================================================
+%   PART 6 : FINAL PLOTTING AND SAVING
+%  =========================================================================
 
 if plot_control.save_final_plot
     fprintf('PART 6: Generating Final_Entire_input_set_Verification_Plot and Saving Data...\n');
@@ -821,7 +672,7 @@ if plot_control.save_final_plot
     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
     fprintf('  Created results folder:\n    %s\n', save_dir);
     
-    % Calculate the R_s OA for the initial input set one last time --> Maybe check if I can pass the one directly from above !!
+    % Calculate the R_s OA for the initial input set one last time 
     node_params_full = node_params;
     node_params_full.x0 = x0;
     node_params_full.Initial_radius = Initial_radius;
@@ -856,8 +707,7 @@ if plot_control.save_final_plot
                           unrefined_up(px)-unrefined_low(px), unrefined_up(py)-unrefined_low(py)];
 
         % Safe Set Projection (Clamp Inf for plotting) --> Main Usage is to ensure X_s is
-        % plotted correctly by MATLAB, even if your safety definition includes Infinity.
-        % /--> I will probably remove it later as it adds complexity 
+        % plotted correctly by MATLAB
         sx_inf = max(node_params.safe_inf(px)); sx_sup = min(node_params.safe_sup(px));
         sy_inf = max(node_params.safe_inf(py)); sy_sup = min(node_params.safe_sup(py));
         safe_x = [sx_inf, sx_sup, sx_sup, sx_inf, sx_inf];
@@ -870,7 +720,7 @@ if plot_control.save_final_plot
         fig = figure('Color', 'w', 'Visible', plot_control.show_figures, 'Position', [100 100 900 700]);
         hold on; grid on; box on;
         set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
-        k = 1; % final time index
+        k = 1;
 
         % 1. Black sampled points (from the full initial set)
         plot(final_samples(px,:), final_samples(py,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled Trajectories');
@@ -885,13 +735,6 @@ if plot_control.save_final_plot
     
         h_int = []; 
 
-        % Initialize variables for 'union' mode calculation
-        % union_low = Inf(length(x0), 1); --> check which ones are the correct?
-        % union_up = -Inf(length(x0), 1);
-        
-        % union_low = Inf; % Scalars for plotting min/max
-        % union_up = -Inf; % Scalars for plotting min/max
-
         union_low = [Inf; Inf];  % For 2D projections
         union_up = [-Inf; -Inf]; % For 2D projections
     
@@ -904,10 +747,10 @@ if plot_control.save_final_plot
             for i = 1:length(verified_initial_sets)
                 % Extract subset data
                 set_info = verified_initial_sets{i};
-                x_sub      = set_info{1};  % <-- reuse from the MAIN VERIFICATION LOOP
-                r_sub      = set_info{2};  % <-- reuse
-                int_low    = set_info{3};  % <-- reuse
-                int_up     = set_info{4};  % <-- reuse
+                x_sub      = set_info{1}; 
+                r_sub      = set_info{2};  
+                int_low    = set_info{3};  
+                int_up     = set_info{4};  
                                
                 % Logic for different plotting styles
                 if strcmp(plot_control.verified_set_style, 'all')
@@ -916,9 +759,7 @@ if plot_control.save_final_plot
                     rectangle('Position', rect_dims, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 1.5);
                 
                 elseif strcmp(plot_control.verified_set_style, 'true_union')
-                    % MODE: TRUE_UNION 
-                    % Create a polyshape for this box
-                    % vertices: [x1 y1; x2 y1; x2 y2; x1 y2]
+                    % MODE: TRUE_UNION  
                     x_corners = [int_low(px), int_up(px), int_up(px), int_low(px)];
                     y_corners = [int_low(py), int_low(py), int_up(py), int_up(py)];
                     new_poly = polyshape(x_corners, y_corners);
@@ -926,7 +767,7 @@ if plot_control.save_final_plot
                     total_union_poly = union(total_union_poly, new_poly);    
                 
                 else
-                    % MODE: UNION/Interval Hull - Accumulate global min/max bounds
+                    % MODE: UNION/Interval Hull 
                     union_low = min(union_low, [int_low(px); int_low(py)]);
                     union_up  = max(union_up,  [int_up(px);  int_up(py)]);
                 end
@@ -955,8 +796,6 @@ if plot_control.save_final_plot
         end
     
         % 4. Safe set (thick green)
-        % safe_x = [node_params.safe_inf(1), node_params.safe_sup(1), node_params.safe_sup(1), node_params.safe_inf(1), node_params.safe_inf(1)];
-        % safe_y = [node_params.safe_inf(2), node_params.safe_inf(2), node_params.safe_sup(2), node_params.safe_sup(2), node_params.safe_inf(2)];
         h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
     
         % 5. Falsified point (if any)
@@ -970,12 +809,8 @@ if plot_control.save_final_plot
         ylabel(['$x_' num2str(py) '$'], 'Interpreter','latex','FontSize',20);
         title(['Reachable set OA vs Verified Safe Subsets ($x_' num2str(px) ', x_' num2str(py) '$)'], 'Interpreter','latex','FontSize',18);
     
-        % xlabel('$x_1$','Interpreter','latex','FontSize',20);
-        % ylabel('$x_2$','Interpreter','latex','FontSize',20);
-        % title('Reachable set OA for the entire initial input set vs. Verified Safe subsets','Interpreter','latex','FontSize',18);
-        
+
         % 6. Legend Logic
-        % Order: Unrefined (Red) -> Verified (Purple) -> Safe (Green) -> CounterEx (Red rX)
         legend_entries = [h_unrefined];
         legend_labels = {'Entire Initial input set OA'};
         
@@ -1134,26 +969,21 @@ if plot_control.save_final_plot
             'verified_initial_sets', ...
             'falsified_example', 'falsified_initial_point', ...
             'final_samples', ...
-            'res_full', ... % Added the result of the Entire Initial input set to the saved data
+            'res_full', ... 
             'overall_safe', '-v7.3');
     
         fprintf('Final .mat data saved to: %s.mat\n', filename_base);
-
-        % % Also save a simpler summary file %--> ##Check how to save it as .txt file 
-        % save(fullfile(save_dir, 'verification_summary.mat'), 'verified_initial_sets', 'falsified_example', 'falsified_initial_point', 'verdict_string', '-v7.3');
-        % fprintf('  Saved summary to: verification_summary.mat\n');
     
         fprintf('PART 6 completed.\n\n');
 end
 
-%% ------------------------------------------------------------------------
+%% =========================================================================
 %   FINAL VERDICT & SUMMARY
-% -------------------------------------------------------------------------
+%  =========================================================================
 
 clear global Jacobian_x_low Jacobian_x_up system_choice_global
 
 % --- Final Verdict ---
-
 is_fully_verified = false;
 verdict_string = '';
 
@@ -1161,13 +991,12 @@ if ~overall_safe
     verdict_string = 'FALSIFIED! Counter-example found.';
 else
     % Simplified clear Logic:
-    % If queue is empty, we verified everything, i.e. it means we didn't time out,
-    % and we didn't throw anything away. Therefore, the entire volume is safe.
+    % If queue is empty
     if isempty(verification_queue)
         is_fully_verified = true;
         verdict_string = 'FULLY VERIFIED (SAFE) for the initial input set.';
     else
-        % If queue is not empty, it means we reached MAX_ITER, i.e. Timeout
+        % If queue is not empty
         verdict_string = sprintf('UNKNOWN (Timeout: %d subsets remain unverified).', length(verification_queue));
     end
 end
@@ -1182,7 +1011,7 @@ fprintf('System: %s\n', upper(system_name));
 fprintf('Total Iterations: %d\n', iter);
 fprintf('Verified Subsets: %d\n', num_verified);
 fprintf('Falsified Subsets: %d\n', num_falsified);
-fprintf('Remaining Unknown Subsets: %d\n', length(verification_queue)); % Re-check if this is reading the correct number
+fprintf('Remaining Unknown Subsets: %d\n', length(verification_queue)); 
 
 % Logic to print the elapsed time in seconds (if less than 60 seconds) or minutes 
 % (if 60 seconds or more) for easier readability
@@ -1202,14 +1031,6 @@ fprintf('\n=================================================================\n')
 %   LOCAL HELPER FUNCTION (used by the parfor body in PART 5)
 %  =========================================================================
 function seed_globals_for_worker(sc, Jx_low, Jx_up)
-    % Re-seed the host-side globals on a parfor worker.
-    %
-    % parfor workers start with a clean global workspace, so the values that
-    % were assigned in PART 3 of the host script are not visible to the
-    % worker by default. NODE_RA_New and the splitting heuristics rely on
-    % `system_choice` (and on the pre-computed Jacobian bounds for some
-    % heuristic paths), so we re-publish them here at the top of every
-    % parfor iteration. Cheap; runs once per task.
     global system_choice Jacobian_x_low Jacobian_x_up
     system_choice  = sc;
     Jacobian_x_low = Jx_low;
