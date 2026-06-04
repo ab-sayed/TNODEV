@@ -3313,17 +3313,17 @@ addpath('./') % Add current directory for utility functions
 %%%  -------------------------------------------------------------------
 
 % === 1. SYSTEM SELECTION ===
-% system_choice = 14;   % FPA System
+system_choice = 14;   % FPA System
 % system_choice = 15;   % Spiral_non System
 % system_choice = 16;   % MNIST
-system_choice = 17;   % ACC Nonlinear System
+% system_choice = 17;   % ACC Nonlinear System
 % system_choice = 24;     % ACC - Linear 3rd-order NODE
 % system_choice = 21;   % Spiral_linear System
 % system_choice = 22;     % Cartpole 12D System
 
 % === 2. REFINEMENT HEURISTIC CHOICE ===
 % Options: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
-input_split_heuristic = 'interval-norm-gradient';
+input_split_heuristic = 'naive';
 
 % =========================================================================
 %                     HYBRID NNCS DISPATCHER (ACC)
@@ -3345,7 +3345,7 @@ end
 
 
 % =========================================================================
-%               PURE neural ODE SYSTEM SETUP (FPA / Spiral_non) 
+%               PURE neural ODE SYSTEM SETUP (Spiral / FPA / Cartpole) 
 % =========================================================================
 node_params.input_split_heuristic = input_split_heuristic;
 
@@ -3608,7 +3608,7 @@ TIMEOUT_SECONDS = 120 * 60; % Wall-clock timeout T_max for the verification & re
 plot_control.show_figures = false;    % Show figures during execution
 plot_control.save_final_plot = true; % Simplified: save if verified or falsified
 % New Selector:
-plot_control.verified_set_style = 'all'; 
+plot_control.verified_set_style = 'true_union'; 
 % Options: 
 %   'all'   -> Plot individual reachable sets for every verified subset (Detailed)
 %   'union --> Interval Hull' -> Plot the union of all verified reachable subsets (Clean)
@@ -4175,7 +4175,7 @@ if plot_control.save_final_plot
         % 6. Legend Logic
         % Order: Unrefined (Red) -> Verified (Purple) -> Safe (Green) -> CounterEx (Red rX)
         legend_entries = [h_unrefined];
-        legend_labels = {'Entire Initial input set'};
+        legend_labels = {'Entire Initial input set OA'};
         
         if ~isempty(h_int)
             legend_entries = [legend_entries, h_int];
@@ -4243,7 +4243,7 @@ if plot_control.save_final_plot
         % 3. [OUTPUT] Unrefined Reachable Set (Red Dashed)
         
         rectangle('Position', rect_unrefined, 'EdgeColor', [0.85 0.33 0.1], 'LineWidth', 2, 'LineStyle', '--');
-        h_unrefined_2 = plot(NaN,NaN,'--','Color',[0.85 0.33 0.1],'LineWidth',2, 'DisplayName', 'Entire Initial input set');
+        h_unrefined_2 = plot(NaN,NaN,'--','Color',[0.85 0.33 0.1],'LineWidth',2, 'DisplayName', 'Entire Initial input set OA');
 
 
         % 4. [OUTPUT] Verified Reachable Sets (Purple)
