@@ -1,7 +1,7 @@
 
 # TNODEV: Toolbox for Neural ODE Verification
 
-This repository contains the Matlab codes for TNODEV tool:
+This repository contains the MATLAB codes for TNODEV toolbox:
 
 - Paper: `TNODEV: Toolbox for Neural ODE Verification`
 - Venue: `Transactions on Machine Learning Research
