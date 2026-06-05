@@ -41,13 +41,8 @@ function [J_x_low, J_x_up, J_p_low, J_p_up] = UP_Jacobian_Bounds(t_init, t_final
     if isempty(system_choice)
         if     n_x == 8,   system_choice = 17;
         elseif n_x == 5,   system_choice = 14;
-        elseif n_x == 3,   system_choice = 18;
         elseif n_x == 2,   system_choice = 15;
         elseif n_x == 676, system_choice = 16;
-        % elseif n_x == 32,  system_choice = 19; % 1st nODE Network with ReLU AF, IMG_SIZE = 8
-        % elseif n_x == 256, system_choice = 19; % 1st nODE Network with ReLU AF, IMG_SIZE = 16
-        elseif n_x == 32,  system_choice = 20;   % 2nd nODE Network with Tanh AF, IMG_SIZE = 8
-        % elseif n_x == 256, system_choice = 20; % 2nd nODE Network with Tanh AF, IMG_SIZE = 16
         elseif n_x == 12,  system_choice = 22;   % Cartpole
         end
     end

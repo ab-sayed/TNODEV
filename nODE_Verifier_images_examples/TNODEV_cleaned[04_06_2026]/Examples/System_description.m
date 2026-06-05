@@ -255,41 +255,6 @@ function dx = System_description(t, x, p) %#ok<INUSL>
                   dnn_out(3); dnn_out(4)];
 
 
-        case 18
-            %% --- Single Pendulum Neural ODE Surrogate (3D) ---
-            % 1-hidden-layer architecture (the previously tried 2-hidden-
-            % layer architecture is no longer used).
-            global w1_sp b1_sp w2_sp b2_sp
-
-            % Lazy loading to avoid reading the .mat file every solver step.
-            % w3_sp / b3_sp are still loaded so the 2-hidden-layer pass can
-            % be re-enabled below without changing the .mat read.
-            if isempty(w1_sp)
-                pl    = load('odenet_pendulum_surrogate.mat');
-                w1_sp = double(pl.Wb{1});
-                b1_sp = double(pl.Wb{2}(:));   % force column vector
-                w2_sp = double(pl.Wb{3});
-                b2_sp = double(pl.Wb{4}(:));
-                w3_sp = double(pl.Wb{5}); %#ok<NASGU>
-                b3_sp = double(pl.Wb{6}(:)); %#ok<NASGU>
-            end
-
-            % Ensure x is a column vector
-            x = x(:);
-
-            % Forward pass through the 1-hidden-layer network
-            % (w2 is the output layer in this configuration).
-            h1     = tanh(w1_sp * x + b1_sp);
-            dx_nn  = w2_sp * h1 + b2_sp;
-
-            % FIX: if fitnet stripped the constant time derivative, add it back
-            if size(dx_nn, 1) < length(x)
-                dx = [dx_nn; 1];
-            else
-                dx = dx_nn;
-            end
-
-
         case 21
             %% --- Spiral_linear System (continuous-time, 2D) ---
             % From Manzanas Lopez et al., FORMATS 2022 (spiral.m).

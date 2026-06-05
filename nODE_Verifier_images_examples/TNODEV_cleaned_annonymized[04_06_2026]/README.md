@@ -10,7 +10,6 @@ This repository contains the MATLAB codes for TNODEV toolbox:
 ## Prerequisites
 - [CORA](https://tumcps.github.io/CORA/):  Continuous Reachability Analyzer toolbox
 - [NNV](https://github.com/verivital/nnv/tree/master): Neural Network Verification toolbox
-- [TIRA](https://gitlab.com/pj_meyer/TIRA): Toolbox for Interval Reachability Analysis
 
 ## Folder structure
 ```
