@@ -43,11 +43,14 @@ function run_copepod_quick_unified()
 % Pick exactly one weights/images pair:
 
 % --- Clean baselines (N_FILTERS=2) ---
-WEIGHTS_FILE = 'odenet_tanh_8x8_copepod_weights.mat';
-IMAGES_FILE  = 'copepod_test_images_tanh_8x8.mat';
 
-% WEIGHTS_FILE = 'odenet_tiny_copepod_weights.mat';
-% IMAGES_FILE  = 'copepod_test_images_tiny.mat';
+% === 04-04_Tiny_model_8x8_Tanh ===
+% WEIGHTS_FILE = 'odenet_tanh_8x8_copepod_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_tanh_8x8.mat';
+
+% === 03-04_Tiny_model_8x8_ReLU ===
+WEIGHTS_FILE = 'odenet_tiny_copepod_weights.mat';
+IMAGES_FILE  = 'copepod_test_images_tiny.mat';
 
 % --- 7-class adversarial (N_FILTERS=2) ---
 % WEIGHTS_FILE = 'odenet_tanh_8x8_adv_copepod_weights.mat';
