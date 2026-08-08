@@ -49,8 +49,8 @@ function run_copepod_quick_unified()
 % IMAGES_FILE  = 'copepod_test_images_tanh_8x8.mat';
 
 % === 03-04_Tiny_model_8x8_ReLU ===
-WEIGHTS_FILE = 'odenet_tiny_copepod_weights.mat';
-IMAGES_FILE  = 'copepod_test_images_tiny.mat';
+% WEIGHTS_FILE = 'odenet_tiny_copepod_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_tiny.mat';
 
 % --- 7-class adversarial (N_FILTERS=2) ---
 % WEIGHTS_FILE = 'odenet_tanh_8x8_adv_copepod_weights.mat';
@@ -88,6 +88,29 @@ IMAGES_FILE  = 'copepod_test_images_tiny.mat';
 % IMAGES_FILE  = 'copepod_test_images_tiny_binary_trades_n4_b8.mat';
 % IMAGES_FILE  = 'copepod_test_images_tiny_binary_trades_n4_b8_v2.mat';
 
+% % === 07-08_Tanh_trades_n4_8x8_beta50 ===
+% WEIGHTS_FILE = 'copepod_test_images_tanh_8x8_beta_50_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_v2_tanh_8x8_beta_50_trades.mat';
+
+% % === 07-08_ReLU_trades_n4_8x8_beta50 ===
+% WEIGHTS_FILE = 'copepod_test_images_relu_8x8_beta_50_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_v2_relu_8x8_beta_50_trades.mat';
+
+% % === 07-08_Tanh_trades_n4_8x8_beta20 ===
+% WEIGHTS_FILE = 'copepod_test_images_tanh_8x8_beta_20_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_v2_tanh_8x8_beta_20_trades.mat';
+
+% % === 07-08_ReLU_trades_n4_8x8_beta20 ===
+% WEIGHTS_FILE = 'copepod_test_images_relu_8x8_beta_20_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_v2_relu_8x8_beta_20_trades.mat';
+
+% % === 07-08_Tanh_trades_n2_8x8_beta6 ===
+% WEIGHTS_FILE = 'copepod_test_images_tanh_8x8_beta_6_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_tanh_8x8_beta_6_trades.mat';
+
+% % === 07-08_ReLU_trades_n2_8x8_beta6 ===
+WEIGHTS_FILE = 'copepod_test_images_relu_8x8_beta_6_trades_weights.mat';
+IMAGES_FILE  = 'copepod_test_images_relu_8x8_beta_6_trades.mat';
 
 % % To see the confidence_quartile % %
 % load('copepod_test_images_..._v2.mat');
