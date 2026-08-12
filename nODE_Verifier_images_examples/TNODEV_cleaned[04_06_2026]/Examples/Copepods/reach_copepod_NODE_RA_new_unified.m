@@ -723,21 +723,51 @@ function reach_copepod_NODE_RA_new_unified(weights_file, pix, numT, noise, ...
         batch_size = p.NumWorkers * worker_load_factor;
         fprintf('  [Parallel] Workers: %d | Batch: %d\n', p.NumWorkers, batch_size);
 
-        % Pre-split to fill all workers
+        % ---------------------------------------------------------------
+        % [OLD] Unconditional pre-split sized by the worker count.
+        %
+        % This splits the input box into 2^ceil(log2(NumWorkers)) pieces
+        % BEFORE ever trying it undivided, so the amount of reachability
+        % work scales with the size of the parallel pool:
+        %     1 worker  -> ceil(log2(1))  = 0 -> 1  sub-interval
+        %     24 workers-> ceil(log2(24)) = 5 -> 32 sub-intervals
+        % At small noise radii the undivided box verifies in a single
+        % reach call ("0 Splitting" in every batch), so the other 31
+        % sub-intervals are pure waste. Because an ImageStar reach on a
+        % smaller box costs about the same as on the full box, 24 workers
+        % ended up SLOWER in wall-clock than 1 worker while doing 32x the
+        % work. Replaced by split-on-demand below.
+        % ---------------------------------------------------------------
+        % % Pre-split to fill all workers
+        % queue = {{lb, ub}};
+        % num_presplits = ceil(log2(p.NumWorkers));
+        % for ps = 1:num_presplits
+        %     new_queue = {};
+        %     for qi = 1:length(queue)
+        %         [s1, s2] = split_interval_heuristic( ...
+        %             queue{qi}{1}, queue{qi}{2}, splitting_heuristic, Aout);
+        %         new_queue{end+1} = s1;
+        %         new_queue{end+1} = s2;
+        %     end
+        %     queue = new_queue;
+        % end
+        % fprintf('  Pre-split into %d sub-intervals.\n', length(queue));
+
+        % ---------------------------------------------------------------
+        % [NEW] Split on demand.
+        %
+        % Start from the undivided box. The refinement loop below splits
+        % only the sub-intervals that actually fail to verify, and the
+        % "fan-out" block inside that loop tops the queue up to one
+        % sub-interval per worker as soon as real splitting begins. Easy
+        % images therefore cost a single reach call regardless of pool
+        % size, while hard images still use all workers.
+        % ---------------------------------------------------------------
         queue = {{lb, ub}};
-        num_presplits = ceil(log2(p.NumWorkers));
-        for ps = 1:num_presplits
-            new_queue = {};
-            for qi = 1:length(queue)
-                [s1, s2] = split_interval_heuristic( ...
-                    queue{qi}{1}, queue{qi}{2}, splitting_heuristic, Aout);
-                new_queue{end+1} = s1;
-                new_queue{end+1} = s2;
-            end
-            queue = new_queue;
-        end
-        fprintf('  Pre-split into %d sub-intervals.\n', length(queue));
-        
+        fprintf('  Starting from %d undivided sub-interval (split on demand).\n', ...
+                length(queue));
+
+
         total_subsets_processed = 0;   % counts sub-intervals popped & processed (the budget)
         loop_timer = tic;              % loop-only wall clock for the timeout
 
@@ -835,6 +865,25 @@ function reach_copepod_NODE_RA_new_unified(weights_file, pix, numT, noise, ...
             end
             fprintf('  Batch: %d Safe, %d Splitting.\n', safe_count, split_count);
             total_subsets_processed = total_subsets_processed + current_batch_size;
+
+            % -----------------------------------------------------------
+            % [NEW] Fan out to fill the pool, but only once refinement is
+            % genuinely under way (queue non-empty => something failed to
+            % verify). This replaces the old unconditional pre-split: the
+            % cost is paid only on images that actually need splitting,
+            % and it stops the queue from growing 2x per iteration (which
+            % would take log2(NumWorkers) near-serial rounds to saturate
+            % the workers).
+            % -----------------------------------------------------------
+            while ~isempty(queue) && length(queue) < p.NumWorkers ...
+                    && (total_subsets_processed + length(queue)) < MAX_ITER
+                curr = queue{1};
+                [s1, s2] = split_interval_heuristic(curr{1}, curr{2}, ...
+                                                   splitting_heuristic, Aout);
+                queue(1)     = [];
+                queue{end+1} = s1;
+                queue{end+1} = s2;
+            end
         end
         
         % Non-empty queue at exit => we hit the budget or the timeout => UNKNOWN.

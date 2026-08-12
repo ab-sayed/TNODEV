@@ -88,6 +88,22 @@ function run_copepod_quick_unified()
 % IMAGES_FILE  = 'copepod_test_images_tiny_binary_trades_n4_b8.mat';
 % IMAGES_FILE  = 'copepod_test_images_tiny_binary_trades_n4_b8_v2.mat';
 
+% % === 07-08_Tanh_trades_n2_8x8_beta6 === --> Only 2 filters
+% WEIGHTS_FILE = 'copepod_test_images_tanh_n2_8x8_beta_6_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_tanh_n2_8x8_beta_6_trades.mat';
+
+% % === 07-08_ReLU_trades_n2_8x8_beta6 === --> Only 2 filters
+% WEIGHTS_FILE = 'copepod_test_images_relu_n2_8x8_beta_6_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_relu_n2_8x8_beta_6_trades.mat';
+
+% % === 09-08_Tanh_trades_n4_8x8_beta6 ===
+WEIGHTS_FILE = 'copepod_test_images_tanh_n4_8x8_beta_6_trades_weights.mat';
+IMAGES_FILE  = 'copepod_test_images_v2_tanh_n4_8x8_beta_6_trades.mat';
+
+% % === 09-08_ReLU_trades_n4_8x8_beta6 ===
+% WEIGHTS_FILE = 'copepod_test_images_relu_n4_8x8_beta_6_trades_weights.mat';
+% IMAGES_FILE  = 'copepod_test_images_v2_relu_n4_8x8_beta_6_trades.mat';
+
 % % === 07-08_Tanh_trades_n4_8x8_beta50 ===
 % WEIGHTS_FILE = 'copepod_test_images_tanh_8x8_beta_50_trades_weights.mat';
 % IMAGES_FILE  = 'copepod_test_images_v2_tanh_8x8_beta_50_trades.mat';
@@ -104,13 +120,6 @@ function run_copepod_quick_unified()
 % WEIGHTS_FILE = 'copepod_test_images_relu_8x8_beta_20_trades_weights.mat';
 % IMAGES_FILE  = 'copepod_test_images_v2_relu_8x8_beta_20_trades.mat';
 
-% % === 07-08_Tanh_trades_n2_8x8_beta6 ===
-% WEIGHTS_FILE = 'copepod_test_images_tanh_8x8_beta_6_trades_weights.mat';
-% IMAGES_FILE  = 'copepod_test_images_tanh_8x8_beta_6_trades.mat';
-
-% % === 07-08_ReLU_trades_n2_8x8_beta6 ===
-WEIGHTS_FILE = 'copepod_test_images_relu_8x8_beta_6_trades_weights.mat';
-IMAGES_FILE  = 'copepod_test_images_relu_8x8_beta_6_trades.mat';
 
 % % To see the confidence_quartile % %
 % load('copepod_test_images_..._v2.mat');
@@ -358,7 +367,7 @@ fprintf('--- end diagnostic ---\n\n');
 %   6. Verification parameters
 % ─────────────────────────────────────────────────────────────────────────
 pix    = img_size * img_size * 3;     % attack all input pixels by default
-numT   = 1;                           % number of images to verify
+numT   = 20;                           % number of images to verify
 noise  = 0.01/255;                     % L_inf radius | works for 0.01/255 - 0.1/255 - 0.5/255 | 1/255 goes into splitting
 rng(2022);
 
