@@ -1,0 +1,29 @@
+[2026-06-05 20:09:26] INFO:	Start of TIRA call
+[2026-06-05 20:09:26] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-06-05 20:09:26] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-07 19:30:13] INFO:	Start of TIRA call
+[2026-08-07 19:30:13] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-07 19:30:13] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-08 17:52:30] INFO:	Start of TIRA call
+[2026-08-08 17:52:30] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-08 17:52:30] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-08 17:52:30] INFO:	Start of TIRA call
+[2026-08-08 17:52:30] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-08 17:52:30] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-08 17:52:30] INFO:	Start of TIRA call
+[2026-08-08 17:52:30] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-08 17:52:30] INFO:	Start of TIRA call
+[2026-08-08 17:52:30] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-08 17:52:30] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-08 17:52:30] INFO:	Start of TIRA call
+[2026-08-08 17:52:30] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m[2026-08-08 17:52:30] INFO:	(3) Checking conditions for continuous-time mixed-monotonicity method...
+[2026-08-08 17:52:30] ERROR:	Continuous-time mixed-monotonicity approach selected (OA_method=3), but:
+ - Jacobian bounds are not defined in Input_files/UP_Jacobian_Bounds.m
+ - Jacobian signs are not defined in Input_files/UP_Jacobian_Signs.m
