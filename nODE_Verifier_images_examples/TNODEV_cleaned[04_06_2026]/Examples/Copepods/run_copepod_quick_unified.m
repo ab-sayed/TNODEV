@@ -371,7 +371,7 @@ numT   = 20;                           % number of images to verify
 noise  = 0.01/255;                     % L_inf radius | works for 0.01/255 - 0.1/255 - 0.5/255 | 1/255 goes into splitting
 rng(2022);
 
-splitting_heuristic = 'naive';        % 'naive' | 'most-sensitive-input-radius' | 'interval-norm-gradient'
+splitting_heuristic = 'most-sensitive-input-radius';        % 'naive' | 'most-sensitive-input-radius' | 'interval-norm-gradient'
 
 % Build XTest, YTest from the loaded images
 XTest = zeros(img_size, img_size, 3, numT, 'double');
