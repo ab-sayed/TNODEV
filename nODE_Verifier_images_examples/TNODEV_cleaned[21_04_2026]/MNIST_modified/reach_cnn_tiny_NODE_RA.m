@@ -1,0 +1,1695 @@
+% function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+%     % Reachability analysis of tiny MNIST Neural ODE using our NODE_RA.m function
+%     % instead of NNV's ODEblockLayer.
+% 
+%     % === Add our Verifier repo to the MATLAB path ===
+%     verifier_root = '/home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));   % safe to call multiple times
+% 
+%     %% 1) Load and construct the NeuralODE pieces (same as reach_cnn_tiny)
+% 
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path);  % loads Wb
+% 
+%     % ---- Prefix CNN: layers 1–7 ----
+%     % layer 1
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% 
+%     % layer 2
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+%         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% 
+%     % layer 3
+%     layer3 = ReluLayer;
+% 
+%     % layer 4
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% 
+%     % layer 5
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+%         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% 
+%     % layers 6–7
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% 
+%     % Create prefix NN (up to Flatten)
+%     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+%     net_prefix   = NN(prefixLayers);
+% 
+%     % ---- ODE parameters: dx/dt = Aout x + Bout ----
+%     states  = 676;
+%     outputs = 676;
+%     w1_ode = Wb{9};
+%     b1_ode = Wb{10}';
+%     w2_ode = Wb{11};
+%     b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;
+%     Bout = w2_ode * b1_ode + b2_ode;
+% 
+%     % === Make neural ODE dynamics visible to TIRA.m / System_description.m ===
+%     % Expose Aout, Bout to our System_description.m
+%     global Aout_global Bout_global
+%     Aout_global = Aout; % 676×676
+%     Bout_global = Bout; % 676×676
+%     system_choice = 16;   % dedicated ID for MNIST neural ODE
+% 
+%     % ODE horizon and steps: must match NODE_RA params
+%     tfinal   = 1;
+%     numSteps = 20;
+%     reachStep = tfinal / numSteps;   % can be your timeStep_TIRA
+% 
+%     % ---- Output layer only ----
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+%     net_out  = NN({layerout});
+% 
+%     %% 2) Attack parameters and result arrays
+% 
+%     noise = noise * 255;          % same as reach_cnn_tiny
+%     pixels_attack = randperm(784, pix);
+% 
+%     time_ode = zeros(numT,1);
+%     rob_ode  = zeros(numT,1);
+% 
+%     %% 3) Loop over test images
+% 
+%     for i = 1:numT
+%         % --- Build L_inf box in pixel space, as ImageStar ---
+% 
+%         img_flat = XTest(:,:,:,i)';   % 784x1
+%         lb = img_flat;
+%         ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j = pixels_attack
+%                 ub(j) = min(255, ub(j) + noise);
+%                 lb(j) = max(0,   lb(j) - noise);
+%             end
+%         else
+%             error('Wrong perturbation type');
+%         end
+% 
+%         lb = lb./255;
+%         ub = ub./255;
+% 
+%         inpS = ImageStar(lb, ub);
+% 
+%         % --- Step 1: reachability through prefix CNN (NNV) ---
+% 
+%         R0 = net_prefix.reach(inpS);   % set (or array of sets) in ℝ^(28x28x1) → ℝ^676
+% 
+%         % We need a simple interval [x_low, x_up] in feature space for NODE_RA.
+%         % If R0 is a single ImageStar/Star:
+%         if isa(R0, 'ImageStar') || isa(R0, 'Star')
+%             [x_low, x_up] = R0.getRanges;   % vectors of length 676
+%         else
+%             % If R0 is an array of sets, take global min/max over them:
+%             n_sets = length(R0);
+%             x_low = inf(states,1);
+%             x_up  = -inf(states,1);
+%             for k = 1:n_sets
+%                 [lk, uk] = R0(k).getRanges;
+%                 x_low = min(x_low, lk);
+%                 x_up  = max(x_up,  uk);
+%             end
+%         end
+% 
+%         % --- Step 2: our NODE_RA.m over the 676-D ODE ---
+% 
+%         % Assume:
+%         %   x0_feat      = center of feature box (676×1)
+%         %   r0_feat      = radius of feature box (676×1, all >= 0)
+%         %   tfinal       = 1;      % same as in NNV (LinearODE)
+%         %   reachStep    = 1/20;   % same as numSteps = 20 in NNV ODE block
+% 
+%         params.system_choice  = 16;          % 16 = MNIST Neural ODE
+%         params.x0             = x0_feat;     % feature-space center
+%         params.Initial_radius = r0_feat;     % feature-space radius
+%         params.t_final        = tfinal;      % 1.0
+%         params.timeStep       = reachStep;   % 0.05
+% 
+%         t_start = tic;
+%         res_RA  = NODE_RA(params);
+%         time_ode(i) = toc(t_start);
+% 
+%         xT_low = res_RA.intersect_low;
+%         xT_up  = res_RA.intersect_up;
+% 
+%         % --- Step 3: convert NODE_RA.m output to NNV star-set and propagate output layer ---
+% 
+%         % Assuming Star(lb,ub) constructor exists (box Star):
+%         S_T = Star(xT_low, xT_up);             % set in ℝ^676
+%         Rout = net_out.reach(S_T);             % set of logits (Star array)
+% 
+%         % --- Step 4: robustness check w.r.t true label YTest(i) ---
+% 
+%         rv = net_out.checkRobust(Rout, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     %% 4) Aggregate results (same format as reach_cnn_tiny.m)
+% 
+%     rob  = sum(rob_ode == 1);
+%     unk  = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+% 
+%     disp(' ');
+%     disp('Robust images: '  + string(rob));
+%     disp('Unknown images: ' + string(unk));
+%     disp('Not robust images: ' + string(notr));
+%     disp('Total time = ' + string(timeT));
+% 
+%     % Optionally save:
+%     % save("cnn_tiny_myRA_"+string(perturbation)+"_"+string(noise)+".mat',...
+%     %     'rob','rob_ode','timeT','pix','numT','noise');
+% 
+% end
+
+
+% function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+%     % Reachability analysis of tiny MNIST Neural ODE using our NODE_RA.m function
+%     % instead of NNV's ODEblockLayer.
+% 
+%     % === Add our Verifier repo to the MATLAB path ===
+%     verifier_root = '/home/ibrahima/Documents/GitHub_repos/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));   % safe to call multiple times
+% 
+%     %% 1) Load and construct the NeuralODE pieces (same as reach_cnn_tiny)
+% 
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path);  % loads Wb
+% 
+%     % ---- Prefix CNN: layers 1–7 ----
+%     % layer 1
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% 
+%     % layer 2
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+%         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% 
+%     % layer 3
+%     layer3 = ReluLayer;
+% 
+%     % layer 4
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% 
+%     % layer 5
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+%         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% 
+%     % layers 6–7
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% 
+%     % Create prefix NN (up to Flatten)
+%     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+%     net_prefix   = NN(prefixLayers);
+% 
+%     % ---- ODE parameters: dx/dt = Aout x + Bout ----
+%     states  = 676;
+%     outputs = 676;
+%     w1_ode = Wb{9};
+%     b1_ode = Wb{10}';
+%     w2_ode = Wb{11};
+%     b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;           % 676 x 676
+%     Bout = w2_ode * b1_ode + b2_ode;  % 676 x 1
+% 
+%     % === Make neural ODE dynamics visible to TIRA.m / System_description.m ===
+%     % Expose Aout, Bout to our System_description.m
+%     global Aout_global Bout_global system_choice   % <-- make system_choice global
+%     Aout_global  = Aout;  %676x676
+%     Bout_global  = Bout;  %676x1
+%     global system_choice
+%     system_choice = 16;   % dedicated ID for MNIST neural ODE
+% 
+%     % ODE horizon and steps: must match NODE_RA params
+%     tfinal   = 1;
+%     numSteps = 20;
+%     reachStep = tfinal / numSteps;   % can be your timeStep_TIRA
+% 
+%     % ---- Output layer only ----
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+%     net_out  = NN({layerout});
+% 
+%     %% 2) Attack parameters and result arrays
+% 
+%     noise = noise * 255;          % same as reach_cnn_tiny
+%     pixels_attack = randperm(784, pix);
+% 
+%     time_ode = zeros(numT,1);
+%     rob_ode  = zeros(numT,1);
+% 
+%     %% 3) Loop over test images
+% 
+%     for i = 1:numT
+%         % --- Build L_inf box in pixel space, as ImageStar ---
+% 
+%         img_flat = XTest(:,:,:,i)';   % 784x1
+%         lb = img_flat;
+%         ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j = pixels_attack
+%                 ub(j) = min(255, ub(j) + noise);
+%                 lb(j) = max(0,   lb(j) - noise);
+%             end
+%         else
+%             error('Wrong perturbation type');
+%         end
+% 
+%         lb = lb./255;
+%         ub = ub./255;
+% 
+%         inpS = ImageStar(lb, ub);
+% 
+%         % --- Step 1: reachability through prefix CNN (NNV) ---
+% 
+%         R0 = net_prefix.reach(inpS);   % set (or array of sets) in feature space (676-D)
+% 
+%         % We need a simple interval [x_low, x_up] in feature space for NODE_RA.
+%         if isa(R0, 'ImageStar') || isa(R0, 'Star')
+%             [x_low, x_up] = R0.getRanges;   % vectors of length 676
+%             x_low = x_low(:);
+%             x_up  = x_up(:);
+%         else
+%             % If R0 is an array of sets, take global min/max over them:
+%             n_sets = length(R0);
+%             x_low = inf(states,1);
+%             x_up  = -inf(states,1);
+%             for k = 1:n_sets
+%                 [lk, uk] = R0(k).getRanges;
+%                 lk = lk(:);
+%                 uk = uk(:);
+%                 x_low = min(x_low, lk);
+%                 x_up  = max(x_up,  uk);
+%             end
+%         end
+% 
+%         % --- Step 2: build center and radius for NODE_RA in feature space ---
+% 
+%         x0_feat = 0.5 * (x_low + x_up);         % center of feature box
+%         r0_feat = 0.5 * (x_up  - x_low);       % radius (component-wise)
+%         r0_feat = max(r0_feat, 1e-8);          % avoid zero radius (for safety)
+% 
+%         params.system_choice  = 16;            % 16 = MNIST Neural ODE
+%         params.x0             = x0_feat;       % feature-space center (676 x 1)
+%         params.Initial_radius = r0_feat;       % feature-space radius (676 x 1)
+%         params.t_final        = tfinal;        % 1.0
+%         params.timeStep       = reachStep;     % 0.05
+% 
+%         t_start = tic;
+%         res_RA  = NODE_RA(params);
+%         time_ode(i) = toc(t_start);
+% 
+%         xT_low = res_RA.intersect_low;
+%         xT_up  = res_RA.intersect_up;
+% 
+%         % --- Step 3: convert NODE_RA.m output to NNV star-set and propagate output layer ---
+% 
+%         % Assuming box Star constructor exists: Star(lb,ub)
+%         S_T  = Star(xT_low, xT_up);   % set in ℝ^676
+%         Rout = net_out.reach(S_T);    % set of logits (Star array)
+% 
+%         % --- Step 4: robustness check w.r.t true label YTest(i) ---
+% 
+%         rv = net_out.checkRobust(Rout, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     %% 4) Aggregate results (same format as reach_cnn_tiny.m)
+% 
+%     rob  = sum(rob_ode == 1);
+%     unk  = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+% 
+%     disp(' ');
+%     disp('Robust images: '  + string(rob));
+%     disp('Unknown images: ' + string(unk));
+%     disp('Not robust images: ' + string(notr));
+%     disp('Total time = ' + string(timeT));
+% 
+%     % Optionally save:
+%     % save("cnn_tiny_myRA_"+string(perturbation)+"_"+string(noise)+".mat',...
+%     %     'rob','rob_ode','timeT','pix','numT','noise');
+% 
+% end
+
+%% 16-12-2025 Version  |--> Last working version
+
+% function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+% % Reachability analysis of tiny MNIST Neural ODE using NODE_RA.m
+% % Prefix CNN (layers 1–7) and output layer are handled by NNV.
+% % Only the ODE block is handled by NODE_RA.
+% 
+%     %% 0) Add Verifier repo to MATLAB path
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 1) Load weights
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path);  % loads Wb
+% 
+%     %% 2) Build prefix CNN: layers 1–7 (NNV)
+%     % layer 1: conv
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% 
+%     % layer 2: BN
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+%         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% 
+%     % layer 3: ReLU
+%     layer3 = ReluLayer;
+% 
+%     % layer 4: conv
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% 
+%     % layer 5: BN
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+%         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% 
+%     % layers 6–7: ReLU + Flatten
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% 
+%     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+%     net_prefix   = NN(prefixLayers);
+% 
+%     fprintf("Prefix network has %d layers\n", length(net_prefix.Layers));
+%     for L = 1:length(net_prefix.Layers)
+%         fprintf("%2d: %s\n", L, class(net_prefix.Layers{L}));
+%     end
+% 
+%     %% 3) Build ODE block dynamics for NODE_RA: dx/dt = Aout x + Bout
+%     states  = 676;
+% 
+%     w1_ode = Wb{9};
+%     b1_ode = Wb{10}';
+%     w2_ode = Wb{11};
+%     b2_ode = Wb{12}';
+% 
+%     Aout = w2_ode * w1_ode;           % 676 x 676
+%     Bout = w2_ode * b1_ode + b2_ode;  % 676 x 1
+% 
+%     % Make ODE visible to your System_description.m
+%     global Aout_global Bout_global system_choice
+%     Aout_global  = Aout;
+%     Bout_global  = Bout;
+%     system_choice = 16;
+% 
+%     tfinal    = 1;
+%     numSteps  = 20;
+%     reachStep = tfinal / numSteps;
+% 
+%     %% 4) Output layer (NNV)
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+%     net_out  = NN({layerout});
+% 
+%     fprintf("Output network has %d layers\n", length(net_out.Layers));
+%     for L = 1:length(net_out.Layers)
+%         fprintf("%2d: %s\n", L, class(net_out.Layers{L}));
+%     end
+% 
+%     %% 5) Attack parameters
+%     % Keep your original convention:
+%     % noise = noise * 255; % old wrong way related to the incorrect scaling
+%     % I WAS DOING
+% 
+%     pixels_attack = randperm(784, pix);
+% 
+%     time_ode = zeros(numT,1);
+%     rob_ode  = zeros(numT,1);
+% 
+%     %% 6) Main loop over test images
+%     for i = 1:numT
+% 
+%         % --- Build L_inf box in pixel space, as ImageStar ---
+%         img_flat = XTest(:,:,:,i)';   % 784x1   
+% 
+%         % Detect data range (common: MNIST is [0,1] in many loaders)
+%         if max(img_flat) <= 1.0
+%         imgMax = 1.0;
+%         noisePix = noise; % noise already in [0,1] domain (e.g., 0.5/255)
+%         else
+%         imgMax = 255.0;
+%         noisePix = noise * 255; % noise given as 0.5/255 -> convert to 0.5 in [0,255]
+%         end    
+% 
+%         lb = img_flat;
+%         ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j = pixels_attack
+%                 ub(j) = min(imgMax, ub(j) + noisePix);
+%                 lb(j) = max(0, lb(j) - noisePix);
+%             end
+%         else
+%             error('Wrong perturbation type');
+%         end
+% 
+%         % Create ImageStar in [0,1] domain for NNV
+%         if imgMax == 255.0
+%             inpS = ImageStar(lb./255, ub./255);
+%         else
+%             inpS = ImageStar(lb, ub);
+%         end
+% 
+%         % if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%         %     for j = pixels_attack
+%         %         ub(j) = min(255, ub(j) + noise);
+%         %         lb(j) = max(0,   lb(j) - noise);
+%         %     end
+%         % else
+%         %     error('Wrong perturbation type');
+%         % end
+%         % 
+%         % lb = lb./255;
+%         % ub = ub./255;
+%         % 
+%         % inpS = ImageStar(lb, ub);
+% 
+%         % ============================================================
+%         % Step 1) Prefix CNN reach (NNV) -- LAYER BY LAYER (1..7)
+%         % ============================================================
+% 
+%         R = inpS;
+% 
+%         for L = 1:length(net_prefix.Layers)
+%             layerObj = net_prefix.Layers{L};
+%             fprintf("Reachability for layer %d/%d (%s)\n", ...
+%                 L, length(net_prefix.Layers), class(layerObj));
+% 
+%             tL = tic;
+%             try
+%                 R = layerObj.reach(R, 'approx-star');
+%                 used = "approx-star";
+%             catch ME
+%                 % IMPORTANT: you need to know when/why you are falling back
+%                 fprintf(" WARNING: layer %d did not accept approx-star. Falling back.\n", L);
+%                 fprintf(" Reason: %s\n", ME.message);
+%                 R = layerObj.reach(R);
+%                 used = "default";
+%             end
+%             fprintf(" method=%s | time=%.3f s | numel(R)=%d | class=%s\n", ...
+%                 used, toc(tL), numel(R), class(R));
+%         end
+% 
+%         R0 = R;
+% 
+% 
+%         % R = inpS;
+%         % for L = 1:length(net_prefix.Layers)
+%         %     layerObj = net_prefix.Layers{L};
+%         %     fprintf("Reachability for layer %d/%d (%s)\n", ...
+%         %         L, length(net_prefix.Layers), class(net_prefix.Layers{L}));
+%         % 
+%         %     tL = tic;
+%         % 
+%         %     % Try calling reach with a method; if that fails, call plain reach.
+%         % %     try
+%         % %         R = net_prefix.Layers{L}.reach(R, 'approx-star');
+%         % %     catch
+%         % %         R = net_prefix.Layers{L}.reach(R);
+%         % %     end
+%         % % end
+%         % % R0 = R;
+%         %     try
+%         %         R = layerObj.reach(R, 'approx-star');
+%         %         used = "approx-star";
+%         %     catch ME
+%         %         % To know why/where we are falling back
+%         %         fprintf("WARNING: layer %d did not accept approx-star. Falling back.\n", L);
+%         %         fprintf("Reason: %s\n, ME.messqge")
+%         %         R = layerObj.reach(R);
+%         %         used = "default";
+%         %     end
+%         %     fprintf(" method=%s | time=%.3f sec | numel(R)=%d | class=%s\n", ...
+%         %         used, toc(tL), nmel(R), class(R));
+%         % end
+%         % R0 = R;
+% 
+% 
+%         % Convert R0 to a simple feature-space interval [x_low, x_up]
+%         [x_low, x_up] = localGetBoxFromReachSet(R0, states);
+% 
+%         % ============================================================
+%         % Step 2) NODE_RA on the ODE block ONLY
+%         % ============================================================
+%         x0_feat = 0.5 * (x_low + x_up);
+%         r0_feat = 0.5 * (x_up  - x_low);
+%         r0_feat = max(r0_feat, 1e-8);
+% 
+%         % PJ wants a saved .mat file for these parameters
+%         params.system_choice  = 16;
+%         params.x0             = x0_feat;
+%         params.Initial_radius = r0_feat;
+%         params.t_final        = tfinal;
+%         params.timeStep       = reachStep;
+% 
+%         % --- Save NODE_RA.m parameters for this image i ---
+%         outDir = 'saved_params';
+%         if ~exist(outDir, 'dir')
+%         mkdir(outDir);
+%         end
+% 
+%         params_file = fullfile(outDir, sprintf('params_img_%04d.mat', i));
+% 
+%         % Optional: Extra context that maybe helpful as well
+%         meta = struct();
+%         meta.i = i;
+%         meta.trueLabel = YTest(i);
+%         meta.pix = pix;
+%         meta.noise = noise;
+%         meta.perturbation = perturbation;
+%         meta.pixels_attack = pixels_attack;
+%         meta.x_low = x_low;
+%         meta.x_up = x_up;
+% 
+%         save(params_file, 'params', 'meta');
+%         fprintf("Saved params to %s\n", params_file);
+% 
+% 
+%         t_start = tic;
+%         res_RA  = NODE_RA(params);
+%         time_ode(i) = toc(t_start);
+% 
+%         xT_low = res_RA.intersect_low;
+%         xT_up  = res_RA.intersect_up;
+% 
+%         % ============================================================
+%         % Step 3) Back to NNV for output layer reach
+%         % ============================================================
+%         S_T  = Star(xT_low, xT_up);
+%         Rout = net_out.reach(S_T);
+% 
+%         % Step 4) Robustness check
+%         rv = net_out.checkRobust(Rout, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     %% 7) Aggregate results
+%     rob  = sum(rob_ode == 1);
+%     unk  = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+% 
+%     disp(' ');
+%     disp('Robust images: '  + string(rob));
+%     disp('Unknown images: ' + string(unk));
+%     disp('Not robust images: ' + string(notr));
+%     disp('Total time = ' + string(timeT));
+% end
+% 
+% 
+% % ===== Helper: convert NNV reach set(s) to global [lb,ub] =====
+% function [x_low, x_up] = localGetBoxFromReachSet(R0, states)
+% 
+%     if isa(R0, 'ImageStar') || isa(R0, 'Star')
+%         [x_low, x_up] = R0.getRanges;
+%         x_low = x_low(:);
+%         x_up  = x_up(:);
+%         return;
+%     end
+% 
+%     % If R0 is an array (or cell) of sets, take global min/max
+%     x_low = inf(states,1);
+%     x_up  = -inf(states,1);
+% 
+%     if iscell(R0)
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0{k}.getRanges;
+%             lk = lk(:); uk = uk(:);
+%             x_low = min(x_low, lk);
+%             x_up  = max(x_up,  uk);
+%         end
+%     else
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0(k).getRanges;
+%             lk = lk(:); uk = uk(:);
+%             x_low = min(x_low, lk);
+%             x_up  = max(x_up,  uk);
+%         end
+%     end
+% end
+
+%% 13-01-2026
+
+%------------- BEGIN CODE reach_cnn_tiny_NODE_RA.m --------------
+
+% function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+% % Reachability analysis of tiny MNIST Neural ODE using NODE_RA.m
+% % Prefix CNN (layers 1-7) and output layer are handled by NNV.
+% % Only the ODE block is handled by NODE_RA.
+% 
+%     %% 0) Add Verifier repo to MATLAB path
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 1) Load weights
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path);  % loads Wb
+% 
+%     %% 2) Build prefix CNN: layers 1-7 (NNV)
+%     % layer 1: conv
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% 
+%     % layer 2: BN
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+%         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% 
+%     % layer 3: ReLU
+%     layer3 = ReluLayer;
+% 
+%     % layer 4: conv
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% 
+%     % layer 5: BN
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+%         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% 
+%     % layers 6-7: ReLU + Flatten
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% 
+%     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+%     net_prefix   = NN(prefixLayers);
+% 
+%     fprintf("Prefix network has %d layers\n", length(net_prefix.Layers));
+% 
+%     %% 3) Build ODE block dynamics for NODE_RA: dx/dt = Aout x + Bout
+%     states  = 676;
+% 
+%     w1_ode = Wb{9};
+%     b1_ode = Wb{10}';
+%     w2_ode = Wb{11};
+%     b2_ode = Wb{12}';
+% 
+%     Aout = w2_ode * w1_ode;            % 676 x 676
+%     Bout = w2_ode * b1_ode + b2_ode;   % 676 x 1
+% 
+%     % Make ODE visible to Jacobian/TIRA
+%     global Aout_global Bout_global system_choice
+%     Aout_global  = Aout;
+%     Bout_global  = Bout;
+%     system_choice = 16; % MNIST Code
+% 
+%     tfinal    = 1;
+%     % Note: numSteps is handled inside NODE_RA via TIRA or Diagonalization
+% 
+%     %% 4) Output layer (NNV)
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+%     net_out  = NN({layerout});
+% 
+%     %% 5) Attack parameters
+%     pixels_attack = randperm(784, pix);
+%     time_ode = zeros(numT,1);
+%     rob_ode  = zeros(numT,1);
+% 
+%     %% 6) Main loop over test images
+%     for i = 1:numT
+% 
+%         % --- Build L_inf box in pixel space, as ImageStar ---
+%         img_flat = XTest(:,:,:,i)';   % 784x1    
+% 
+%         if max(img_flat) <= 1.0
+%             imgMax = 1.0;
+%             noisePix = noise; 
+%         else
+%             imgMax = 255.0;
+%             noisePix = noise * 255;
+%         end    
+% 
+%         lb = img_flat;
+%         ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j = pixels_attack
+%                 ub(j) = min(imgMax, ub(j) + noisePix);
+%                 lb(j) = max(0, lb(j) - noisePix);
+%             end
+%         else
+%             error('Wrong perturbation type');
+%         end
+% 
+%         if imgMax == 255.0
+%             inpS = ImageStar(lb./255, ub./255);
+%         else
+%             inpS = ImageStar(lb, ub);
+%         end
+% 
+%         % ============================================================
+%         % Step 1) Prefix CNN reach (NNV)
+%         % ============================================================
+%         R = inpS;
+%         for L = 1:length(net_prefix.Layers)
+%             layerObj = net_prefix.Layers{L};
+%             try
+%                 R = layerObj.reach(R, 'approx-star');
+%             catch
+%                 R = layerObj.reach(R); % Fallback
+%             end
+%         end
+%         R0 = R; % This is the STAR set at the input of the ODE
+% 
+%         % ============================================================
+%         % Step 2) NODE_RA on the ODE block
+%         % ============================================================
+% 
+%         % Calculate approximate bounds just for x0 calculation
+%         [x_low, x_up] = localGetBoxFromReachSet(R0, states);
+% 
+%         x0_feat = 0.5 * (x_low + x_up);
+%         r0_feat = 0.5 * (x_up  - x_low);
+% 
+%         % Setup Params
+%         params.system_choice  = 16;
+%         params.x0             = x0_feat;
+%         params.Initial_radius = r0_feat;
+%         params.t_final        = tfinal;
+% 
+%         % --- CRITICAL: Pass the actual Star Object for Precision ---
+%         params.input_star     = R0; 
+% 
+%         % Call NODE_RA
+%         t_start = tic;
+%         res_RA  = NODE_RA(params);
+%         time_ode(i) = toc(t_start);
+% 
+%         % Extract the Resulting Star from NODE_RA
+%         if isfield(res_RA, 'star_set')
+%             S_T = res_RA.star_set;
+%         else
+%             % Fallback (Should not happen for System 16)
+%             S_T = Star(res_RA.intersect_low, res_RA.intersect_up);
+%         end
+% 
+%         % ============================================================
+%         % Step 3) Back to NNV for output layer reach
+%         % ============================================================
+%         Rout = net_out.reach(S_T);
+% 
+%         % Step 4) Robustness check
+%         rv = net_out.checkRobust(Rout, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     %% 7) Aggregate results
+%     rob  = sum(rob_ode == 1);
+%     unk  = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+% 
+%     disp(' ');
+%     disp('Robust images: '  + string(rob));
+%     disp('Unknown images: ' + string(unk));
+%     disp('Not robust images: ' + string(notr));
+%     disp('Total time = ' + string(timeT));
+% end
+% 
+% 
+% % ===== Helper: convert NNV reach set(s) to global [lb,ub] =====
+% function [x_low, x_up] = localGetBoxFromReachSet(R0, states)
+%     if isa(R0, 'ImageStar') || isa(R0, 'Star')
+%         [x_low, x_up] = R0.getRanges;
+%         x_low = x_low(:);
+%         x_up  = x_up(:);
+%         return;
+%     end
+%     % If R0 is an array (or cell)
+%     x_low = inf(states,1);
+%     x_up  = -inf(states,1);
+%     if iscell(R0)
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0{k}.getRanges;
+%             x_low = min(x_low, lk(:));
+%             x_up  = max(x_up,  uk(:));
+%         end
+%     else
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0(k).getRanges;
+%             x_low = min(x_low, lk(:));
+%             x_up  = max(x_up,  uk(:));
+%         end
+%     end
+% end
+%------------- END CODE reach_cnn_tiny_NODE_RA.m --------------
+
+
+
+% function reach_cnn_tiny_NODE_RA(pix, numT, noise, XTest, YTest, normType)
+% 
+% fprintf('\n=== MNIST Neural ODE Reachability (NODE_RA only) ===\n');
+% 
+% %% Load tiny CNN-ODE model
+% load odecnn_mnist_tiny.mat % must define Wb, net_layers, etc.
+% 
+% robust_cnt = 0;
+% unknown_cnt = 0;
+% 
+% for i = 1:numT
+% fprintf('\nImage %d / %d\n', i, numT);
+% 
+% %% Input perturbation
+% x = reshape(XTest(:,:,:,i), [], 1);
+% 
+% idx = randperm(784, pix);
+% r0 = zeros(784,1);
+% r0(idx) = noise;
+% 
+% x_low = x - r0;
+% x_up = x + r0;
+% 
+% %% Forward CNN layers (NNV interval propagation)
+% for L = 1:7
+% [x_low, x_up] = interval_propagate(net_layers{L}, x_low, x_up);
+% end
+% 
+% %% Neural ODE reachability (NODE_RA)
+% params = struct();
+% params.system_choice = 16;
+% params.x0 = 0.5*(x_low + x_up);
+% params.Initial_radius = 0.5*(x_up - x_low);
+% params.t_final = 1;
+% params.timeStep = 1;
+% 
+% RA = NODE_RA(params);
+% 
+% xT_low = RA.intersect_low;
+% xT_up = RA.intersect_up;
+% 
+% %% Output affine layer (exact interval propagation)
+% W = Wb{13};
+% b = Wb{14}';
+% 
+% n_class = size(W,1);
+% logit_lb = zeros(n_class,1);
+% logit_ub = zeros(n_class,1);
+% 
+% for k = 1:n_class
+% w = W(k,:)';
+% pos = w >= 0;
+% neg = ~pos;
+% 
+% logit_lb(k) = w(pos)' * xT_low(pos) + w(neg)' * xT_up(neg) + b(k);
+% logit_ub(k) = w(pos)' * xT_up(pos) + w(neg)' * xT_low(neg) + b(k);
+% end
+% 
+% %% Robustness check (interval-based)
+% rv = boxRobustnessCheck(logit_lb, logit_ub, YTest(i));
+% 
+% if rv == 1
+% robust_cnt = robust_cnt + 1;
+% else
+% unknown_cnt = unknown_cnt + 1;
+% end
+% end
+% 
+% fprintf('\n=== RESULTS ===\n');
+% fprintf('Robust images : %d\n', robust_cnt);
+% fprintf('Unknown images: %d\n', unknown_cnt);
+% fprintf('Total images : %d\n', numT);
+% 
+% end
+% 
+% %% Interval-based robustness checker
+% function rv = boxRobustnessCheck(lb, ub, trueLabel)
+% trueLabel = double(trueLabel) + 1;
+% 
+% lb_true = lb(trueLabel);
+% others = [1:trueLabel-1, trueLabel+1:length(lb)];
+% 
+% if lb_true > max(ub(others))
+% rv = 1; % provably robust
+% else
+% rv = 0; % unknown
+% end
+% end
+
+%------------- BEGIN CODE similar to NNV --------------
+function reach_cnn_tiny_NODE_RA(pix, numT, noise, XTest, YTest, perturbation)
+% Reachability analysis of tiny MNIST Neural ODE using NODE_RA.m
+% Integrated Version: Defines a single NN object with a custom ODE Layer.
+
+%   % Architecture:
+    % Layer 1: Conv
+    % Layer 2: BatchNorm
+    % Layer 3: RELU
+    % Layer 4: Conv
+    % Layer 5: BatchNorm
+    % Layer 6: RELU
+    % Layer 7: Flatten
+
+
+    %% 0) Add Verifier repo to MATLAB path
+    verifier_root = '/home/abs/Documents/nODE_Verifier/TNODEV';
+    addpath(genpath(verifier_root));
+
+    %% 1) Load weights
+    file_path = 'odecnn_mnist_tiny.mat';
+    load(file_path);  % loads Wb
+
+    %% 2) Build Layers 1-7 (CNN Prefix)
+    % Layer 1: Conv
+    w1 = permute(Wb{1},[4 3 2 1]);
+    b1 = reshape(Wb{2},[1,1,4]);
+    layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+
+    % Layer 2: BN
+    w2 = reshape(Wb{3},[1 1 4]);
+    b2 = reshape(Wb{4},[1 1 4]);
+    m2 = reshape(Wb{15},[1 1 4]);
+    v2 = reshape(Wb{16},[1 1 4]);
+    layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+        'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+
+    % Layer 3: ReLU
+    layer3 = ReluLayer;
+
+    % Layer 4: Conv
+    w4 = permute(Wb{5},[4 3 2 1]);
+    b4 = reshape(Wb{6},[1,1,4]);
+    layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+
+    % Layer 5: BN
+    w5 = reshape(Wb{7},[1 1 4]);
+    b5 = reshape(Wb{8},[1 1 4]);
+    m5 = reshape(Wb{18},[1 1 4]);
+    v5 = reshape(Wb{19},[1 1 4]);
+    layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+        'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+
+    % Layers 6-7: ReLU + Flatten
+    layer6 = ReluLayer;
+    layer7 = FlattenLayer;
+    layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+
+    %% 3) Build Layer 8: Custom NODE_RA Layer
+    % Calculate Dynamics
+    w1_ode = Wb{9};  b1_ode = Wb{10}';
+    w2_ode = Wb{11}; b2_ode = Wb{12}';
+    
+    Aout = w2_ode * w1_ode;
+    Bout = w2_ode * b1_ode + b2_ode;
+    
+    % Create the Custom Layer
+    % This object wraps your NODE_RA function
+    layer8_ode = ODELayer_TIRA(Aout, Bout, 1.0, 16); 
+
+    %% 4) Build Layer 9: Output FC
+    layer9_out = FullyConnectedLayer(Wb{13}, Wb{14}');
+
+    %% 5) Construct the FULL Network
+    % Combine all layers into one NNV Network
+    layers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7, layer8_ode, layer9_out};     %----> Architecture Definition
+    net = NN(layers);
+    
+    fprintf('Network Constructed with %d layers (Layer 8 is Custom TIRA ODE).\n', length(net.Layers));
+
+    %% 6) Attack parameters
+    pixels_attack = randperm(784, pix);
+    time_total = zeros(numT,1);
+    rob_results = zeros(numT,1);
+
+    %% 7) Main loop over test images
+    for i = 1:numT
+        fprintf('\nVerifying Image %d / %d ...\n', i, numT);
+        
+        % --- Build Input Set (ImageStar) ---
+        img_flat = XTest(:,:,:,i)'; 
+
+        if max(img_flat) <= 1.0
+            imgMax = 1.0; noisePix = noise; 
+        else
+            imgMax = 255.0; noisePix = noise * 255;
+        end    
+
+        lb = img_flat; ub = img_flat;
+        if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+            for j = pixels_attack
+                ub(j) = min(imgMax, ub(j) + noisePix);
+                lb(j) = max(0, lb(j) - noisePix);
+            end
+        else
+            error('Wrong perturbation type');
+        end
+
+        if imgMax == 255.0
+            inpS = ImageStar(lb./255, ub./255);
+        else
+            inpS = ImageStar(lb, ub);
+        end
+        
+        % ============================================================
+        % SINGLE REACHABILITY CALL (NNV Way)
+        % ============================================================
+        t_start = tic;
+        
+        % net.reach() automatically propagates through:
+        % CNN -> Flatten -> ODELayer_TIRA.reach() -> FC Output
+        Rout = net.reach(inpS);
+        
+        time_total(i) = toc(t_start);
+        
+        % Robustness Check
+        rv = net.checkRobust(Rout, YTest(i));
+        rob_results(i) = rv;
+        
+        fprintf('  Result: %d (1=Robust, 0=Unk, 2=NotRobust) | Time: %.2f s\n', rv, time_total(i));
+    end
+
+    %% 8) Aggregate Results
+    rob  = sum(rob_results == 1);
+    unk  = sum(rob_results == 0);
+    notr = sum(rob_results == 2);
+    total_t = sum(time_total);
+
+    disp(' ');
+    disp('=== FINAL SUMMARY ===');
+    disp('Robust images: '    + string(rob));
+    disp('Unknown images: '   + string(unk));
+    disp('Not robust images: '+ string(notr));
+    disp('Total time = '      + string(total_t) + ' sec');
+end
+%------------- END CODE similar to NNV --------------
+
+
+
+%% 09-01-2026 Version Expiremnts
+
+
+% %------------- BEGIN CODE V1.0 --------------
+% 
+% function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+% % Reachability analysis of tiny MNIST Neural ODE using NODE_RA.m
+% % Prefix CNN (layers 1–7) and output layer are handled by NNV.
+% % Only the ODE block is handled by NODE_RA.
+% 
+%     %% 0) Add Verifier repo to MATLAB path
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 1) Load weights
+%     file_path = 'odecnn_mnist_tiny.mat';
+%     load(file_path);  % loads Wb
+% 
+%     %% 2) Build prefix CNN: layers 1–7 (NNV)
+%     % layer 1: conv
+%     w1 = permute(Wb{1},[4 3 2 1]);
+%     b1 = reshape(Wb{2},[1,1,4]);
+%     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% 
+%     % layer 2: BN
+%     w2 = reshape(Wb{3},[1 1 4]);
+%     b2 = reshape(Wb{4},[1 1 4]);
+%     m2 = reshape(Wb{15},[1 1 4]);
+%     v2 = reshape(Wb{16},[1 1 4]);
+%     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+%         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% 
+%     % layer 3: ReLU
+%     layer3 = ReluLayer;
+% 
+%     % layer 4: conv
+%     w4 = permute(Wb{5},[4 3 2 1]);
+%     b4 = reshape(Wb{6},[1,1,4]);
+%     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% 
+%     % layer 5: BN
+%     w5 = reshape(Wb{7},[1 1 4]);
+%     b5 = reshape(Wb{8},[1 1 4]);
+%     m5 = reshape(Wb{18},[1 1 4]);
+%     v5 = reshape(Wb{19},[1 1 4]);
+%     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+%         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% 
+%     % layers 6–7: ReLU + Flatten
+%     layer6 = ReluLayer;
+%     layer7 = FlattenLayer;
+%     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% 
+%     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+%     net_prefix   = NN(prefixLayers);
+% 
+%     fprintf("Prefix network has %d layers\n", length(net_prefix.Layers));
+%     for L = 1:length(net_prefix.Layers)
+%         fprintf("%2d: %s\n", L, class(net_prefix.Layers{L}));
+%     end
+% 
+%     %% 3) Build ODE block dynamics for NODE_RA: dx/dt = Aout x + Bout
+%     states  = 676;
+% 
+%     w1_ode = Wb{9};
+%     b1_ode = Wb{10}';
+%     w2_ode = Wb{11};
+%     b2_ode = Wb{12}';
+% 
+%     Aout = w2_ode * w1_ode;           % 676 x 676
+%     Bout = w2_ode * b1_ode + b2_ode;  % 676 x 1
+% 
+%     % Make ODE visible to your System_description.m
+%     global Aout_global Bout_global system_choice
+%     Aout_global  = Aout;
+%     Bout_global  = Bout;
+%     system_choice = 16;
+% 
+%     tfinal    = 1;
+%     numSteps  = 20;
+%     reachStep = tfinal / numSteps;
+% 
+%     %% 4) Output layer (NNV)
+%     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+%     net_out  = NN({layerout});
+% 
+%     fprintf("Output network has %d layers\n", length(net_out.Layers));
+%     for L = 1:length(net_out.Layers)
+%         fprintf("%2d: %s\n", L, class(net_out.Layers{L}));
+%     end
+% 
+%     %% 5) Attack parameters
+%     % Keep your original convention:
+%     % noise = noise * 255; % old wrong way related to the incorrect scaling
+%     % I WAS DOING
+% 
+%     pixels_attack = randperm(784, pix);
+% 
+%     time_ode = zeros(numT,1);
+%     rob_ode  = zeros(numT,1);
+% 
+%     %% 6) Main loop over test images
+%     for i = 1:numT
+% 
+%         % --- Build L_inf box in pixel space, as ImageStar ---
+%         img_flat = XTest(:,:,:,i)';   % 784x1   
+% 
+%         % Detect data range (common: MNIST is [0,1] in many loaders)
+%         if max(img_flat) <= 1.0
+%         imgMax = 1.0;
+%         noisePix = noise; % noise already in [0,1] domain (e.g., 0.5/255)
+%         else
+%         imgMax = 255.0;
+%         noisePix = noise * 255; % noise given as 0.5/255 -> convert to 0.5 in [0,255]
+%         end    
+% 
+%         lb = img_flat;
+%         ub = img_flat;
+% 
+%         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+%             for j = pixels_attack
+%                 ub(j) = min(imgMax, ub(j) + noisePix);
+%                 lb(j) = max(0, lb(j) - noisePix);
+%             end
+%         else
+%             error('Wrong perturbation type');
+%         end
+% 
+%         % Create ImageStar in [0,1] domain for NNV
+%         if imgMax == 255.0
+%             inpS = ImageStar(lb./255, ub./255);
+%         else
+%             inpS = ImageStar(lb, ub);
+%         end
+% 
+%         % ============================================================
+%         % Step 1) Prefix CNN reach (NNV) -- LAYER BY LAYER (1..7)
+%         % ============================================================
+% 
+%         R = inpS;
+% 
+%         for L = 1:length(net_prefix.Layers)
+%             layerObj = net_prefix.Layers{L};
+%             fprintf("Reachability for layer %d/%d (%s)\n", ...
+%                 L, length(net_prefix.Layers), class(layerObj));
+% 
+%             tL = tic;
+%             try
+%                 R = layerObj.reach(R, 'approx-star');
+%                 used = "approx-star";
+%             catch ME
+%                 % IMPORTANT: you need to know when/why you are falling back
+%                 fprintf(" WARNING: layer %d did not accept approx-star. Falling back.\n", L);
+%                 fprintf(" Reason: %s\n", ME.message);
+%                 R = layerObj.reach(R);
+%                 used = "default";
+%             end
+%             fprintf(" method=%s | time=%.3f s | numel(R)=%d | class=%s\n", ...
+%                 used, toc(tL), numel(R), class(R));
+%         end
+% 
+%         R0 = R;
+% 
+%         % Convert R0 to a simple feature-space interval [x_low, x_up]
+%         [x_low, x_up] = localGetBoxFromReachSet(R0, states);
+% 
+%         % ============================================================
+%         % Step 2) NODE_RA on the ODE block ONLY
+%         % ============================================================
+%         x0_feat = 0.5 * (x_low + x_up);
+%         r0_feat = 0.5 * (x_up  - x_low);
+%         % r0_feat = max(r0_feat, 1e-8); %TIRA can handle 0 radius on some dimensions, and when the radius is equal to 0 this means that x_up=x_low 
+% 
+%         % PJ wants a saved .mat file for these parameters
+%         params.system_choice  = 16;
+%         params.x0             = x0_feat;
+%         params.Initial_radius = r0_feat;
+%         params.t_final        = tfinal;
+%         params.timeStep       = reachStep;
+% 
+%         % --- Save NODE_RA.m parameters for this image i ---
+%         outDir = 'saved_params';
+%         if ~exist(outDir, 'dir')
+%         mkdir(outDir);
+%         end
+% 
+%         params_file = fullfile(outDir, sprintf('params_img_%04d.mat', i));
+% 
+%         % Optional: Extra context that maybe helpful as well
+%         meta = struct();
+%         meta.i = i;
+%         meta.trueLabel = YTest(i);
+%         meta.pix = pix;
+%         meta.noise = noise;
+%         meta.perturbation = perturbation;
+%         meta.pixels_attack = pixels_attack;
+%         meta.x_low = x_low;
+%         meta.x_up = x_up;
+% 
+%         save(params_file, 'params', 'meta');
+%         fprintf("Saved params to %s\n", params_file);
+% 
+% 
+%         t_start = tic;
+%         res_RA  = NODE_RA(params);
+%         time_ode(i) = toc(t_start);
+% 
+%         xT_low = res_RA.intersect_low;
+%         xT_up  = res_RA.intersect_up;
+% 
+%         % ============================================================
+%         % Step 3) Back to NNV for output layer reach
+%         % ============================================================
+%         S_T  = Star(xT_low, xT_up);
+%         Rout = net_out.reach(S_T);
+% 
+%         % Step 4) Robustness check
+%         rv = net_out.checkRobust(Rout, YTest(i));
+%         rob_ode(i) = rv;
+%     end
+% 
+%     %% 7) Aggregate results
+%     rob  = sum(rob_ode == 1);
+%     unk  = sum(rob_ode == 0);
+%     notr = sum(rob_ode == 2);
+%     timeT = sum(time_ode);
+% 
+%     disp(' ');
+%     disp('Robust images: '  + string(rob));
+%     disp('Unknown images: ' + string(unk));
+%     disp('Not robust images: ' + string(notr));
+%     disp('Total time = ' + string(timeT));
+% end
+% 
+% 
+% % ===== Helper: convert NNV reach set(s) to global [lb,ub] =====
+% function [x_low, x_up] = localGetBoxFromReachSet(R0, states)
+% 
+%     if isa(R0, 'ImageStar') || isa(R0, 'Star')
+%         [x_low, x_up] = R0.getRanges;
+%         x_low = x_low(:);
+%         x_up  = x_up(:);
+%         return;
+%     end
+% 
+%     % If R0 is an array (or cell) of sets, take global min/max
+%     x_low = inf(states,1);
+%     x_up  = -inf(states,1);
+% 
+%     if iscell(R0)
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0{k}.getRanges;
+%             lk = lk(:); uk = uk(:);
+%             x_low = min(x_low, lk);
+%             x_up  = max(x_up,  uk);
+%         end
+%     else
+%         n_sets = numel(R0);
+%         for k = 1:n_sets
+%             [lk, uk] = R0(k).getRanges;
+%             lk = lk(:); uk = uk(:);
+%             x_low = min(x_low, lk);
+%             x_up  = max(x_up,  uk);
+%         end
+%     end
+% end
+% %------------- END CODE V1.0 --------------
+% 
+% 
+% % %------------- BEGIN CODE V1.1 --------------
+% % 
+% % function reach_cnn_tiny_NODE_RA(pix,numT,noise,XTest,YTest,perturbation)
+% % % Reachability analysis of tiny MNIST Neural ODE using NODE_RA.m
+% % % Prefix CNN (layers 1–7) and output layer are handled by NNV.
+% % % Only the ODE block is handled by NODE_RA.
+% % 
+% %     %% 0) Add Verifier repo to MATLAB path
+% %     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+% %     addpath(genpath(verifier_root));
+% % 
+% %     %% 1) Load weights
+% %     file_path = 'odecnn_mnist_tiny.mat';
+% %     load(file_path);  % loads Wb
+% % 
+% %     %% 2) Build prefix CNN: layers 1–7 (NNV)
+% %     % layer 1: conv
+% %     w1 = permute(Wb{1},[4 3 2 1]);
+% %     b1 = reshape(Wb{2},[1,1,4]);
+% %     layer1 = Conv2DLayer(w1,b1,[0,0,0,0],[1,1],[1,1]);
+% % 
+% %     % layer 2: BN
+% %     w2 = reshape(Wb{3},[1 1 4]);
+% %     b2 = reshape(Wb{4},[1 1 4]);
+% %     m2 = reshape(Wb{15},[1 1 4]);
+% %     v2 = reshape(Wb{16},[1 1 4]);
+% %     layer2 = BatchNormalizationLayer('Offset',b2,'Scale',w2,...
+% %         'TrainedMean',m2,'TrainedVariance',v2,'NumChannels',4,'Epsilon',4);
+% % 
+% %     % layer 3: ReLU
+% %     layer3 = ReluLayer;
+% % 
+% %     % layer 4: conv
+% %     w4 = permute(Wb{5},[4 3 2 1]);
+% %     b4 = reshape(Wb{6},[1,1,4]);
+% %     layer4 = Conv2DLayer(w4,b4,[1,1,1,1],[2,2],[1,1]);
+% % 
+% %     % layer 5: BN
+% %     w5 = reshape(Wb{7},[1 1 4]);
+% %     b5 = reshape(Wb{8},[1 1 4]);
+% %     m5 = reshape(Wb{18},[1 1 4]);
+% %     v5 = reshape(Wb{19},[1 1 4]);
+% %     layer5 = BatchNormalizationLayer('Offset',b5,'Scale',w5,...
+% %         'TrainedMean',m5,'TrainedVariance',v5,'NumChannels',4,'Epsilon',4);
+% % 
+% %     % layers 6–7: ReLU + Flatten
+% %     layer6 = ReluLayer;
+% %     layer7 = FlattenLayer;
+% %     layer7.Type = 'nnet.cnn.layer.FlattenLayer';
+% % 
+% %     prefixLayers = {layer1, layer2, layer3, layer4, layer5, layer6, layer7};
+% %     net_prefix   = NN(prefixLayers);
+% % 
+% %     fprintf("Prefix network has %d layers\n", length(net_prefix.Layers));
+% %     for L = 1:length(net_prefix.Layers)
+% %         fprintf("%2d: %s\n", L, class(net_prefix.Layers{L}));
+% %     end
+% % 
+% %     %% 3) Build ODE block dynamics for NODE_RA: dx/dt = Aout x + Bout
+% %     states  = 676;
+% % 
+% %     w1_ode = Wb{9};
+% %     b1_ode = Wb{10}';
+% %     w2_ode = Wb{11};
+% %     b2_ode = Wb{12}';
+% % 
+% %     Aout = w2_ode * w1_ode;           % 676 x 676
+% %     Bout = w2_ode * b1_ode + b2_ode;  % 676 x 1
+% % 
+% %     % Make ODE visible to your System_description.m
+% %     global Aout_global Bout_global system_choice
+% %     Aout_global  = Aout;
+% %     Bout_global  = Bout;
+% %     system_choice = 16;
+% % 
+% %     tfinal    = 1;
+% %     numSteps  = 20;
+% %     reachStep = tfinal / numSteps;
+% % 
+% %     %% 4) Output layer (NNV)
+% %     layerout = FullyConnectedLayer(Wb{13}, Wb{14}');
+% %     net_out  = NN({layerout});
+% % 
+% %     fprintf("Output network has %d layers\n", length(net_out.Layers));
+% %     for L = 1:length(net_out.Layers)
+% %         fprintf("%2d: %s\n", L, class(net_out.Layers{L}));
+% %     end
+% % 
+% %     %% 5) Attack parameters
+% %     % Keep your original convention:
+% %     % noise = noise * 255; % old wrong way related to the incorrect scaling
+% %     % I WAS DOING
+% % 
+% %     pixels_attack = randperm(784, pix);
+% % 
+% %     time_ode = zeros(numT,1);
+% %     rob_ode  = zeros(numT,1);
+% % 
+% %     %% 6) Main loop over test images
+% %     for i = 1:numT
+% % 
+% %         % --- Build L_inf box in pixel space, as ImageStar ---
+% %         img_flat = XTest(:,:,:,i)';   % 784x1   
+% % 
+% %         % Detect data range (common: MNIST is [0,1] in many loaders)
+% %         if max(img_flat) <= 1.0
+% %         imgMax = 1.0;
+% %         noisePix = noise; % noise already in [0,1] domain (e.g., 0.5/255)
+% %         else
+% %         imgMax = 255.0;
+% %         noisePix = noise * 255; % noise given as 0.5/255 -> convert to 0.5 in [0,255]
+% %         end    
+% % 
+% %         lb = img_flat;
+% %         ub = img_flat;
+% % 
+% %         if strcmp(perturbation,'random') || strcmp(perturbation,'inf')
+% %             for j = pixels_attack
+% %                 ub(j) = min(imgMax, ub(j) + noisePix);
+% %                 lb(j) = max(0, lb(j) - noisePix);
+% %             end
+% %         else
+% %             error('Wrong perturbation type');
+% %         end
+% % 
+% %         % Create ImageStar in [0,1] domain for NNV
+% %         if imgMax == 255.0
+% %             inpS = ImageStar(lb./255, ub./255);
+% %         else
+% %             inpS = ImageStar(lb, ub);
+% %         end
+% % 
+% %         % ============================================================
+% %         % Step 1) Prefix CNN reach (NNV) -- LAYER BY LAYER (1..7)
+% %         % ============================================================
+% % 
+% %         R = inpS;
+% % 
+% %         for L = 1:length(net_prefix.Layers)
+% %             layerObj = net_prefix.Layers{L};
+% %             fprintf("Reachability for layer %d/%d (%s)\n", ...
+% %                 L, length(net_prefix.Layers), class(layerObj));
+% % 
+% %             tL = tic;
+% %             try
+% %                 R = layerObj.reach(R, 'approx-star');
+% %                 used = "approx-star";
+% %             catch ME
+% %                 % IMPORTANT: you need to know when/why you are falling back
+% %                 fprintf(" WARNING: layer %d did not accept approx-star. Falling back.\n", L);
+% %                 fprintf(" Reason: %s\n", ME.message);
+% %                 R = layerObj.reach(R);
+% %                 used = "default";
+% %             end
+% %             fprintf(" method=%s | time=%.3f s | numel(R)=%d | class=%s\n", ...
+% %                 used, toc(tL), numel(R), class(R));
+% %         end
+% % 
+% %         R0 = R;
+% % 
+% %         % % Convert R0 to a simple feature-space interval [x_low, x_up]
+% %         % [x_low, x_up] = localGetBoxFromReachSet(R0, states);
+% % 
+% %         % ============================================================
+% %         % Step 2) NODE_RA on the ODE block ONLY
+% %         % ============================================================
+% % 
+% %         % x0_feat = 0.5 * (x_low + x_up);
+% %         % r0_feat = 0.5 * (x_up  - x_low);
+% %         % % r0_feat = max(r0_feat, 1e-8); %TIRA can handle 0 radius on some dimensions, and when the radius is equal to 0 this means that x_up=x_low 
+% %         % 
+% %         % % PJ wants a saved .mat file for these parameters
+% %         % params.system_choice  = 16;
+% %         % params.x0             = x0_feat;
+% %         % params.Initial_radius = r0_feat;
+% %         % params.t_final        = tfinal;
+% %         % params.timeStep       = reachStep;
+% %         % 
+% %         % % --- Save NODE_RA.m parameters for this image i ---
+% %         % outDir = 'saved_params';
+% %         % if ~exist(outDir, 'dir')
+% %         % mkdir(outDir);
+% %         % end
+% %         % 
+% %         % params_file = fullfile(outDir, sprintf('params_img_%04d.mat', i));
+% %         % 
+% %         % % Optional: Extra context that maybe helpful as well
+% %         % meta = struct();
+% %         % meta.i = i;
+% %         % meta.trueLabel = YTest(i);
+% %         % meta.pix = pix;
+% %         % meta.noise = noise;
+% %         % meta.perturbation = perturbation;
+% %         % meta.pixels_attack = pixels_attack;
+% %         % meta.x_low = x_low;
+% %         % meta.x_up = x_up;
+% %         % 
+% %         % save(params_file, 'params', 'meta');
+% %         % fprintf("Saved params to %s\n", params_file);
+% %         % 
+% %         % 
+% %         % t_start = tic;
+% %         % res_RA  = NODE_RA(params);
+% %         % time_ode(i) = toc(t_start);
+% %         % 
+% %         % xT_low = res_RA.intersect_low;
+% %         % xT_up  = res_RA.intersect_up;
+% % 
+% %         % Retrieve Global Bounds just for metadata/logging (optional)
+% %         [x_low, x_up] = localGetBoxFromReachSet(R0, states);
+% % 
+% %         % Setup Params with the STAR object
+% %         params.system_choice = 16;
+% %         params.input_star = R0; % <--- CRITICAL FIX: Pass the Star!
+% %         params.t_final = tfinal;
+% % 
+% %         % Dummy values for compatibility
+% %         params.x0 = (x_low + x_up)/2;
+% %         params.Initial_radius = (x_up - x_low)/2;
+% % 
+% %         % Call NODE_RA
+% %         t_start = tic;
+% %         res_RA = NODE_RA(params);
+% %         time_ode(i) = toc(t_start);
+% % 
+% %         % Extract the Resulting Star
+% %         if isfield(res_RA, 'star_set')
+% %             S_T = res_RA.star_set;
+% %         else
+% %             % Fallback for old method (should not happen with V1.8)
+% %             S_T = Star(res_RA.intersect_low, res_RA.intersect_up);
+% %         end
+% % 
+% %         % ============================================================
+% %         % Step 3) Back to NNV for output layer reach
+% %         % ============================================================
+% %         % S_T  = Star(xT_low, xT_up);
+% %         Rout = net_out.reach(S_T);
+% % 
+% %         % Step 4) Robustness check
+% %         rv = net_out.checkRobust(Rout, YTest(i));
+% %         rob_ode(i) = rv;
+% %     end
+% % 
+% %     %% 7) Aggregate results
+% %     rob  = sum(rob_ode == 1);
+% %     unk  = sum(rob_ode == 0);
+% %     notr = sum(rob_ode == 2);
+% %     timeT = sum(time_ode);
+% % 
+% %     disp(' ');
+% %     disp('Robust images: '  + string(rob));
+% %     disp('Unknown images: ' + string(unk));
+% %     disp('Not robust images: ' + string(notr));
+% %     disp('Total time = ' + string(timeT));
+% % end
+% % 
+% % 
+% % % ===== Helper: convert NNV reach set(s) to global [lb,ub] =====
+% % function [x_low, x_up] = localGetBoxFromReachSet(R0, states)
+% % 
+% %     if isa(R0, 'ImageStar') || isa(R0, 'Star')
+% %         [x_low, x_up] = R0.getRanges;
+% %         x_low = x_low(:);
+% %         x_up  = x_up(:);
+% %         return;
+% %     end
+% % 
+% %     % If R0 is an array (or cell) of sets, take global min/max
+% %     x_low = inf(states,1);
+% %     x_up  = -inf(states,1);
+% % 
+% %     if iscell(R0)
+% %         n_sets = numel(R0);
+% %         for k = 1:n_sets
+% %             [lk, uk] = R0{k}.getRanges;
+% %             lk = lk(:); uk = uk(:);
+% %             x_low = min(x_low, lk);
+% %             x_up  = max(x_up,  uk);
+% %         end
+% %     else
+% %         n_sets = numel(R0);
+% %         for k = 1:n_sets
+% %             [lk, uk] = R0(k).getRanges;
+% %             lk = lk(:); uk = uk(:);
+% %             x_low = min(x_low, lk);
+% %             x_up  = max(x_up,  uk);
+% %         end
+% %     end
+% % end
+% %------------- END CODE V1.1 --------------

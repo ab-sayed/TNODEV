@@ -1,0 +1,163 @@
+% classdef ODELayer_TIRA < handle
+%     % ODELayer_TIRA: A Custom NNV Layer that wraps NODE_RA.
+%     % This allows you to insert your TIRA-based ODE solver into a standard
+%     % NNV network sequence.
+% 
+%     properties
+%         Aout    % Linear Dynamics Matrix A (for System 16)
+%         Bout    % Linear Dynamics Bias B
+%         t_final % Integration Time
+%         timestep % Step size for the solver
+%         sys_id  % System Choice (16 for MNIST)
+%     end
+% 
+%     methods
+%         % Constructor
+%         function obj = ODELayer_TIRA(A, B, t, id)
+%             obj.Aout = A;
+%             obj.Bout = B;
+%             obj.t_final = t;
+%             obj.sys_id = id;
+% 
+%             % Set a default time step (e.g. 0.1s ot t_final/10)
+%             % TIRA needs this even if using diagonal matrix exponential
+%             obj.timestep = t / 10; % Set default timestep based on t_final
+%         end
+% 
+%         % Reachability Method (Called automatically by NNV's net.reach)
+%         function S_out = reach(obj, S_in, varargin)
+%             % 1. Setup Globals required by NODE_RA.m/Jacob_bounds
+%             % Since NODE_RA.m relies on these globals, we must set them here
+%             % before execution.
+%             global Aout_global Bout_global system_choice
+%             Aout_global = obj.Aout;
+%             Bout_global = obj.Bout;
+%             system_choice = obj.sys_id;
+% 
+%             % 2. Prepare NODE_RA Parameters
+%             % Get bounds for metadata (x0, radius)
+%             [lb, ub] = S_in.getRanges(); 
+%             x0 = 0.5 * (lb + ub);
+%             r0 = 0.5 * (ub - lb);
+% 
+%             % Flatten x0/r0 if they came from an ImageStar (sanity check)
+%             params.x0 = x0(:);
+%             params.Initial_radius = r0(:);
+% 
+%             params.system_choice = obj.sys_id;
+%             params.t_final = obj.t_final;
+% 
+%             % --- FIX: Pass the timeStep parameter ---
+%             params.timestep = obj.timestep; % Pass the timestep parameter
+%             % ----------------------------------------
+% 
+%             % --- CRITICAL: Pass the Star object to NODE_RA ---
+%             % This allows your V2.7 (Diagonalized) NODE_RA to use the
+%             % precise Star geometry instead of a loose box.
+%             params.input_star = S_in; 
+% 
+%             % 3. Execute NODE_RA
+%             res = NODE_RA(params);
+% 
+%             % 4. Extract Result for the Next Layer
+%             if isfield(res, 'star_set')
+%                 % If NODE_RA V2.7 returned a Star (Diagonalized result)
+%                 S_out = res.star_set;
+%             else
+%                 % Fallback: If using standard TIRA intervals
+%                 S_out = Star(res.intersect_low, res.intersect_up);
+%             end
+%         end
+%     end
+% end
+
+%% Optimized to pre-compute the eigen-decomposition and inverse matrices only once instead of everytime `NODE_RA.m` is called
+
+classdef ODELayer_TIRA < handle
+    % ODELayer_TIRA: A Custom NNV Layer that wraps NODE_RA.
+    % This allows you to insert your TIRA-based ODE solver into a standard
+    % NNV network sequence.
+
+    properties
+        Aout    % Linear Dynamics Matrix A (for System 16)
+        Bout    % Linear Dynamics Bias B
+        t_final % Integration Time
+        timestep % Step size for the solver
+        sys_id  % System Choice (16 for MNIST)
+        
+        % New properties for pre-computed matrices
+        V_real, V_inv, D_real, B_tilde
+    end
+    
+    methods
+        % Constructor
+        function obj = ODELayer_TIRA(A, B, t, id)
+            obj.Aout = A;
+            obj.Bout = B;
+            obj.t_final = t;
+            obj.sys_id = id;
+
+            % --- PRE-COMPUTATION (Run once) ---
+            if id == 16
+                fprintf('Pre-computing Eigen-decomposition for TIRA layer...\n');
+                [V, D] = eig(A);
+                [obj.V_real, obj.D_real] = cdf2rdf(V, D);
+                obj.V_inv = inv(obj.V_real);
+                obj.B_tilde = obj.V_inv * B;
+            end
+        end
+        
+        % Reachability Method (Called automatically by NNV's net.reach)
+        function S_out = reach(obj, S_in, varargin)
+            % 1. Setup Globals required by NODE_RA.m/Jacob_bounds
+            % Since NODE_RA.m relies on these globals, we must set them here
+            % before execution.
+            global Aout_global Bout_global system_choice
+            Aout_global = obj.Aout;
+            Bout_global = obj.Bout;
+            system_choice = obj.sys_id;
+            
+            % 2. Prepare NODE_RA Parameters
+            % Get bounds for metadata (x0, radius)
+            [lb, ub] = S_in.getRanges(); 
+            x0 = 0.5 * (lb + ub);
+            r0 = 0.5 * (ub - lb);
+            
+            % Flatten x0/r0 if they came from an ImageStar (sanity check)
+            params.x0 = x0(:);
+            params.Initial_radius = r0(:);
+            
+            params.system_choice = obj.sys_id;
+            params.t_final = obj.t_final;
+            
+            % --- FIX: Pass the timeStep parameter ---
+            params.timestep = obj.timestep; % Pass the timestep parameter
+            % ----------------------------------------
+
+            % --- CRITICAL: Pass the Star object to NODE_RA ---
+            % This allows your V2.7 (Diagonalized) NODE_RA to use the
+            % precise Star geometry instead of a loose box.
+            params.input_star = S_in; 
+            
+            % --- Pass Pre-COMPUTED Matrices ---
+            if obj.sys_id == 16
+                params.V_real = obj.V_real;
+                params.V_inv = obj.V_inv;
+                params.D_real = obj.D_real;
+                params.B_tilde = obj.B_tilde;
+            end
+
+            % 3. Execute NODE_RA
+            res = NODE_RA(params);
+            
+            % 4. Extract Result for the Next Layer
+            if isfield(res, 'star_set')
+                % If NODE_RA V2.7 returned a Star (Diagonalized result)
+                S_out = res.star_set;
+            else
+                % Fallback: If using standard TIRA intervals
+                S_out = Star(res.intersect_low, res.intersect_up);
+            end
+        end
+    end
+end

@@ -1,0 +1,5262 @@
+% Tool Paper:
+%   "Add Title here"
+%
+% Authors:  
+%   Abdelrahman Sayed Sayed, <abdelrahman.ibrahim -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Pierre-Jean Meyer, <pierre-jean.meyer -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%   Mohamed Ghazel, <mohamed.ghazel -AT- univ-eiffel.fr>, COSYS-ESTAS, Univ Gustave Eiffel
+%
+% Date: 22 October 2025
+% Last update: 20 November 2025
+% Last revision: October 2025
+
+% %------------- BEGIN CODE --------------
+% 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODEs using TIRA
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice      : 14 or 15
+% %       .x0                 : initial center
+% %       .Initial_radius     : radius of initial set
+% %       .t_final            : final time
+% %       .timeStep           : discretization step
+% %       .plot_last_only     : true/false
+% %       .sample_succ_number : number of random samples
+% % Output:
+% %   reachability_results - struct containing all reachable sets, plots, etc.
+% 
+% %% Initialization
+% close all
+% bool_discrete_time = 0;
+% addpath('../OA_methods')
+% addpath('../Utilities')    
+% 
+% %% User-defined parameters (override defaults with input)
+% plot_last_only = true;
+% if isfield(params, 'plot_last_only'), plot_last_only = params.plot_last_only; end
+% 
+% sample_succ_number = 1000;
+% if isfield(params, 'sample_succ_number'), sample_succ_number = params.sample_succ_number; end
+% 
+% %% Choice of the example system
+% global system_choice
+% system_choice = params.system_choice;
+% 
+% % Map system choice to system name
+% system_names = containers.Map({14, 15}, {'fpa', 'spiral_non'});
+% if ~isKey(system_names, system_choice)
+%     error('Unknown system_choice %d.', system_choice);
+% end
+% system_name = system_names(system_choice);
+% 
+% %% Optional submethod choice
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Definition of the reachability problem
+% global u
+% switch system_choice
+%     case 14
+%         Initial_radius = 0.01;
+%         x0 = [0, -0.58587, 0.8, 0.52323, 0.7]';
+%         t_final = 2;
+%         steps = 0.05;
+%     case 15
+%         Initial_radius = params.Initial_radius;
+%         x0 = params.x0;
+%         t_final = params.t_final;
+%         steps = params.timeStep;
+% end
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% t_points = t_init:steps:t_final;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% n_p = length(p_low);
+% n_t = length(t_points);
+% 
+% % Verify dimensions
+% if system_choice == 14 && (n_x ~= 5 || n_p ~= 5)
+%     error('FPA expects 5D state/parameter.');
+% elseif system_choice == 15 && (n_x ~= 2 || n_p ~= 2)
+%     error('Spiral_non expects 2D state/parameter.');
+% end
+% 
+% % Define methods
+% methods = [3, 4]; 
+% n_methods = length(methods);
+% succ_low_all_methods = NaN(n_x, n_t, n_methods);
+% succ_up_all_methods  = NaN(n_x, n_t, n_methods);
+% 
+% %% Boundary splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% boundary_times = zeros(num_splits, n_methods);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main reachability computation
+% try
+%     time_initial = zeros(1, n_methods);
+%     time_boundary = zeros(num_splits, n_methods);
+% 
+%     % Single-step (initial approach)
+%     for m = 1:n_methods
+%         tStart = tic;
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         time_initial(m) = toc(tStart);
+%         succ_low_all_methods(:, :, m) = repmat(succ_low, 1, n_t);
+%         succ_up_all_methods(:, :, m)  = repmat(succ_up,  1, n_t);
+%     end
+% 
+%     % Boundary approach
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, n_t, n_methods);
+%         succ_up_boundary{i}  = NaN(n_x, n_t, n_methods);
+%         for m = 1:n_methods
+%             if plot_last_only
+%                 tStart = tic;
+%                 [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                     Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%                 time_boundary(i, m) = toc(tStart);
+%                 succ_low_boundary{i}(:, end, m) = succ_low;
+%                 succ_up_boundary{i}(:, end, m)  = succ_up;
+%             else
+%                 for k = 1:n_t
+%                     t_final_k = t_points(k);
+%                     tStart = tic;
+%                     [succ_low, succ_up] = TIRA([t_init, t_final_k], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%                     time_boundary(i, m) = time_boundary(i, m) + toc(tStart);
+%                     succ_low_boundary{i}(:, k, m) = succ_low;
+%                     succ_up_boundary{i}(:, k, m)  = succ_up;
+%                 end
+%             end
+%         end
+%     end
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% Random successors
+% try
+%     run('Solver_parameters.m');
+%     ode_solver = parameters.ode_solver;
+%     ode_options = parameters.ode_options;
+% 
+%     rand_succ = NaN(n_x, sample_succ_number);
+%     for i = 1:sample_succ_number
+%         x0_rand = x_low + rand(n_x,1).*(x_up - x_low);
+%         p_rand  = p_low + rand(n_p,1).*(p_up - p_low);
+%         [~, x_traj] = ode_solver(@(t,x) System_description(t,x,p_rand), [t_init t_final], x0_rand, ode_options);
+%         rand_succ(:,i) = x_traj(end,:)';
+%     end
+% catch e
+%     rethrow(e);
+% end
+% 
+% 
+% %% Plot the reachable set and over-approximations
+% try
+%     % Create timestamped directory for all outputs
+%     timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
+%     save_dir = fullfile(pwd, sprintf('results_%s_%s', system_name, timestamp));
+%     if ~exist(save_dir, 'dir')
+%         [status, msg] = mkdir(save_dir);
+%         if status ~= 1
+%             warning('Failed to create directory %s: %s', save_dir, msg);
+%         else
+%             fprintf('Created directory: %s\n', save_dir);
+%         end
+%     end
+% 
+%     % Define plot pairs based on system choice
+%     plot_pairs = [];
+%     if system_choice == 14
+%         plot_pairs = [1 2; 3 4; 4 5]; % For 5D FPA system: x1 vs x2, x3 vs x4, x4 vs x5
+%     elseif system_choice == 15
+%         plot_pairs = [1 2]; % For 2D Spiral system: x1 vs x2
+%     end
+%     colors = [0 0 1; 1 0 0]; % Dark Blue, Red
+%     method_names = {'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'};
+% 
+%     for p = 1:size(plot_pairs, 1)
+%         figure('Name', sprintf('Reachability Plot - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+%         idx1 = plot_pairs(p, 1);
+%         idx2 = plot_pairs(p, 2);
+% 
+%         % Plot the successors from random initial states
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Calculate minimum bounding box for black dots
+%         x_min_actual = min(rand_succ(idx1, :));
+%         x_max_actual = max(rand_succ(idx1, :));
+%         y_min_actual = min(rand_succ(idx2, :));
+%         y_max_actual = max(rand_succ(idx2, :));
+%         area_actual = abs((x_max_actual - x_min_actual) * (y_max_actual - y_min_actual));
+% 
+%         % Plot over-approximation rectangles
+%         handles = [];
+%         proxy_handles = [];
+%         tightness_metrics = zeros(1, 4); % For 4 approaches (Single-step and Boundary only)
+% 
+%         if plot_last_only
+%             k = size(succ_low_all_methods, 2); % Last time step
+% 
+%             % 1: Mixed-Monotonicity (Boundary) - Dashed Magenta
+%             all_x_min_bound = [];
+%             all_x_max_bound = [];
+%             all_y_min_bound = [];
+%             all_y_max_bound = [];
+%             for i = 1:num_splits
+%                 % fprintf('Boundary data m=1, split %d: low=[%f %f], up=[%f %f]\n', i, ...
+%                 %         succ_low_boundary{i}(idx1, k, 1), succ_low_boundary{i}(idx2, k, 1), ...
+%                 %         succ_up_boundary{i}(idx1, k, 1), succ_up_boundary{i}(idx2, k, 1));
+%                 all_x_min_bound = [all_x_min_bound, succ_low_boundary{i}(idx1, k, 1)];
+%                 all_x_max_bound = [all_x_max_bound, succ_up_boundary{i}(idx1, k, 1)];
+%                 all_y_min_bound = [all_y_min_bound, succ_low_boundary{i}(idx2, k, 1)];
+%                 all_y_max_bound = [all_y_max_bound, succ_up_boundary{i}(idx2, k, 1)];
+%             end
+%             x_min_bound = min(all_x_min_bound);
+%             x_max_bound = max(all_x_max_bound);
+%             y_min_bound = min(all_y_min_bound);
+%             y_max_bound = max(all_y_max_bound);
+%             width_bound = x_max_bound - x_min_bound;
+%             height_bound = y_max_bound - y_min_bound;
+%             fprintf('Mixed-Monotonicity (Boundary) computed bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                     x_min_bound, y_min_bound, width_bound, height_bound);
+%             if all(isfinite([x_min_bound, y_min_bound, width_bound, height_bound])) && width_bound >= 0 && height_bound >= 0
+%                 h_bound1 = rectangle('Position', [x_min_bound, y_min_bound, max(width_bound, 0.001), max(height_bound, 0.001)], ...
+%                                     'EdgeColor', 'm', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1);
+%                 h_proxy_bound1 = plot(NaN, NaN, 'm--', 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_bound1];
+%                 proxy_handles = [proxy_handles, h_proxy_bound1];
+%                 tightness_metrics(1) = (width_bound * height_bound) / area_actual;
+%             else
+%                 warning('Mixed-Monotonicity (Boundary) has invalid bounds. Using actual range.');
+%                 h_bound1 = rectangle('Position', [x_min_actual, y_min_actual, x_max_actual - x_min_actual, y_max_actual - y_min_actual], ...
+%                                    'EdgeColor', 'm', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1, 'LineStyle', ':');
+%                 h_proxy_bound1 = plot(NaN, NaN, 'm:', 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_bound1];
+%                 proxy_handles = [proxy_handles, h_proxy_bound1];
+%                 tightness_metrics(1) = 1.0;
+%             end
+% 
+%             % 2: Sampled-Data Mixed-Monotonicity (Boundary) - Dashed Green
+%             all_x_min_bound = [];
+%             all_x_max_bound = [];
+%             all_y_min_bound = [];
+%             all_y_max_bound = [];
+%             for i = 1:num_splits
+%                 % fprintf('Boundary data m=2, split %d: low=[%f %f], up=[%f %f]\n', i, ...
+%                 %         succ_low_boundary{i}(idx1, k, 2), succ_low_boundary{i}(idx2, k, 2), ...
+%                 %         succ_up_boundary{i}(idx1, k, 2), succ_up_boundary{i}(idx2, k, 2));
+%                 all_x_min_bound = [all_x_min_bound, succ_low_boundary{i}(idx1, k, 2)];
+%                 all_x_max_bound = [all_x_max_bound, succ_up_boundary{i}(idx1, k, 2)];
+%                 all_y_min_bound = [all_y_min_bound, succ_low_boundary{i}(idx2, k, 2)];
+%                 all_y_max_bound = [all_y_max_bound, succ_up_boundary{i}(idx2, k, 2)];
+%             end
+%             x_min_bound = min(all_x_min_bound);
+%             x_max_bound = max(all_x_max_bound);
+%             y_min_bound = min(all_y_min_bound);
+%             y_max_bound = max(all_y_max_bound);
+%             width_bound = x_max_bound - x_min_bound;
+%             height_bound = y_max_bound - y_min_bound;
+%             fprintf('Sampled-Data Mixed-Monotonicity (Boundary) bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                     x_min_bound, y_min_bound, width_bound, height_bound);
+%             if all(isfinite([x_min_bound, y_min_bound, width_bound, height_bound])) && width_bound >= 0 && height_bound >= 0
+%                 h_bound2 = rectangle('Position', [x_min_bound, y_min_bound, max(width_bound, 0.001), max(height_bound, 0.001)], ...
+%                                     'EdgeColor', 'g', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1);
+%                 h_proxy_bound2 = plot(NaN, NaN, 'g--', 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_bound2];
+%                 proxy_handles = [proxy_handles, h_proxy_bound2];
+%                 tightness_metrics(2) = (width_bound * height_bound) / area_actual;
+%             else
+%                 warning('Skipping Sampled-Data Mixed-Monotonicity (Boundary) due to invalid parameters');
+%             end
+% 
+%             % 3: Mixed-Monotonicity (Single-step) - Dark Blue Solid
+%             x_min_single = succ_low_all_methods(idx1, k, 1); % Method 1
+%             y_min_single = succ_low_all_methods(idx2, k, 1);
+%             width_single = succ_up_all_methods(idx1, k, 1) - x_min_single;
+%             height_single = succ_up_all_methods(idx2, k, 1) - y_min_single;
+%             fprintf('Mixed-Monotonicity (Single-step) computed bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                     x_min_single, y_min_single, width_single, height_single);
+%             if all(isfinite([x_min_single, y_min_single, width_single, height_single])) && width_single >= 0 && height_single >= 0
+%                 h_single1 = rectangle('Position', [x_min_single, y_min_single, max(width_single, 0.001), max(height_single, 0.001)], ...
+%                                     'EdgeColor', colors(1,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%                 h_proxy_single1 = plot(NaN, NaN, '-', 'Color', colors(1,:), 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_single1];
+%                 proxy_handles = [proxy_handles, h_proxy_single1];
+%                 tightness_metrics(3) = (width_single * height_single) / area_actual;
+%             else
+%                 warning('Mixed-Monotonicity (Single-step) has invalid bounds. Using actual range.');
+%                 h_single1 = rectangle('Position', [x_min_actual, y_min_actual, x_max_actual - x_min_actual, y_max_actual - y_min_actual], ...
+%                                    'EdgeColor', colors(1,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1, 'LineStyle', ':');
+%                 h_proxy_single1 = plot(NaN, NaN, ':', 'Color', colors(1,:), 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_single1];
+%                 proxy_handles = [proxy_handles, h_proxy_single1];
+%                 tightness_metrics(3) = 1.0;
+%             end
+% 
+%             % 4: Sampled-Data Mixed-Monotonicity (Single-step) - Red Solid
+%             x_min_single = succ_low_all_methods(idx1, k, 2); % Method 2
+%             y_min_single = succ_low_all_methods(idx2, k, 2);
+%             width_single = succ_up_all_methods(idx1, k, 2) - x_min_single;
+%             height_single = succ_up_all_methods(idx2, k, 2) - y_min_single;
+%             fprintf('Sampled-Data Mixed-Monotonicity (Single-step) bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                     x_min_single, y_min_single, width_single, height_single);
+%             if all(isfinite([x_min_single, y_min_single, width_single, height_single])) && width_single >= 0 && height_single >= 0
+%                 h_single2 = rectangle('Position', [x_min_single, y_min_single, max(width_single, 0.001), max(height_single, 0.001)], ...
+%                                     'EdgeColor', colors(2,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%                 h_proxy_single2 = plot(NaN, NaN, '-', 'Color', colors(2,:), 'LineWidth', 1.5, 'Visible', 'off');
+%                 handles = [handles, h_single2];
+%                 proxy_handles = [proxy_handles, h_proxy_single2];
+%                 tightness_metrics(4) = (width_single * height_single) / area_actual;
+%             else
+%                 warning('Skipping Sampled-Data Mixed-Monotonicity (Single-step) due to invalid parameters');
+%             end
+%         end
+% 
+%         % Adjust axis to include all bounds
+%         x_min_all = min([x_min_actual, x_min_bound, x_min_single]);
+%         x_max_all = max([x_max_actual, x_max_bound + width_bound, x_min_single + width_single]);
+%         y_min_all = min([y_min_actual, y_min_bound, y_min_single]);
+%         y_max_all = max([y_max_actual, y_max_bound + height_bound, y_min_single + height_single]);
+%         x_range = x_max_all - x_min_all;
+%         y_range = y_max_all - y_min_all;
+%         buffer = 0.3; % 10% padding
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['$x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+% 
+%         % <<< SAFE-SET: Green Thick Rectangle (drawn with plot to support legend) >>>
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup')
+%             safe_inf = params.safe_inf;
+%             safe_sup = params.safe_sup;
+% 
+%             % === Only draw if valid 2D bounds ===
+%             if numel(safe_inf) == 2 && numel(safe_sup) == 2 && ...
+%                all(isfinite(safe_inf)) && all(isfinite(safe_sup)) && ...
+%                safe_sup(1) > safe_inf(1) && safe_sup(2) > safe_inf(2)
+% 
+%                 x1 = safe_inf(1); y1 = safe_inf(2);
+%                 x2 = safe_sup(1); y2 = safe_sup(2);
+% 
+%                 % Draw using plot (legend-safe)
+%                 h_safe = plot([x1 x2 x2 x1 x1], [y1 y1 y2 y2 y1], ...
+%                               'Color', [0 0.8 0], 'LineWidth', 2.5, 'DisplayName', 'Safe Set');
+% 
+%                 % Add to legend
+%                 proxy_handles = [proxy_handles, h_safe];
+%             else
+%                 warning('Safe set invalid or not 2D — not plotted, but still returned for verification.');
+%             end
+%         end
+% 
+% 
+%         % Build legend: sampled points + all proxy handles in correct order
+%         legend_entries = [plot(NaN, NaN, 'k.', 'MarkerSize', 5)];
+%         legend_labels  = {'Sampled points'};
+% 
+%         % Add in the EXACT order they were pushed to proxy_handles
+%         label_counter = 1;
+% 
+%         % 1. Mixed-Monotonicity (Boundary) - Magenta dashed
+%         if exist('h_proxy_bound1', 'var')
+%             legend_entries(end+1) = h_proxy_bound1;
+%             legend_labels{end+1}  = 'Mixed-Monotonicity (Boundary)';
+%         end
+% 
+%         % 2. Sampled-Data MM (Boundary) - Green dashed
+%         if exist('h_proxy_bound2', 'var')
+%             legend_entries(end+1) = h_proxy_bound2;
+%             legend_labels{end+1}  = 'Sampled-Data Mixed-Monotonicity (Boundary)';
+%         end
+% 
+%         % 3. Mixed-Monotonicity (Single-step) - Blue solid
+%         if exist('h_proxy_single1', 'var')
+%             legend_entries(end+1) = h_proxy_single1;
+%             legend_labels{end+1}  = 'Mixed-Monotonicity (Single-step)';
+%         end
+% 
+%         % 4. Sampled-Data MM (Single-step) - Red solid
+%         if exist('h_proxy_single2', 'var')
+%             legend_entries(end+1) = h_proxy_single2;
+%             legend_labels{end+1}  = 'Sampled-Data Mixed-Monotonicity (Single-step)';
+%         end
+% 
+%         % 5. Safe Set - Thick Green
+%         if exist('h_safe', 'var')
+%             legend_entries(end+1) = h_safe;
+%             legend_labels{end+1}  = 'Safe Set';
+%         end
+% 
+%         % Create legend
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold');
+% 
+%         % Save the reachability plot
+%         if exist(save_dir, 'dir')
+%             try
+%                 filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%                 fprintf('Reachability plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+%                 fprintf('Reachability plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
+%             catch e
+%                 warning('Failed to save reachability plot: %s', e.message);
+%             end
+%         else
+%             warning('Directory %s does not exist. Skipping reachability plot save.', save_dir);
+%         end
+% 
+%         %% Tightness
+%         fprintf('Tightness Metrics (Area Ratio) for x_%d vs x_%d plane:\n', idx1, idx2);
+%         fprintf('(Single-step) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(3));
+%         fprintf('(Boundary) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(1));
+%         fprintf('(Single-step) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(4));
+%         fprintf('(Boundary) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(2));
+%     end
+% catch e
+%     fprintf('Error in plotting: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% %% Plot the Boundary reachability splits (10~5D or 4~2D)
+% try
+%     % Define plot pairs based on system choice
+%     plot_pairs = [];
+%     if system_choice == 14
+%         plot_pairs = [1 2; 3 4; 4 5]; % For 5D FPA system: x1 vs x2, x3 vs x4, x4 vs x5
+%     elseif system_choice == 15
+%         plot_pairs = [1 2]; % For 2D Spiral system: x1 vs x2
+%     end
+%     colors = jet(num_splits); % Generate a range of colors for boundary splits
+%     method_names = {'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'};
+% 
+%     for p = 1:size(plot_pairs, 1)
+%         % Plot boundary points and union interval hull
+%         figure('Name', sprintf('Boundary Points - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+%         idx1 = plot_pairs(p, 1);
+%         idx2 = plot_pairs(p, 2);
+% 
+%         % Plot the successors from random initial states
+%         h_random = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Proxy for legend
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Calculate initial axis limits with padding
+%         x_min = min(rand_succ(idx1, :));
+%         x_max = max(rand_succ(idx1, :));
+%         y_min = min(rand_succ(idx2, :));
+%         y_max = max(rand_succ(idx2, :));
+% 
+%         if plot_last_only
+%             k = size(succ_low_boundary{1}, 2); % Use actual size of second dimension
+%         else
+%             k = n_t; % Use all time steps
+%         end
+% 
+%         % Debug: Check the size of the boundary arrays
+%         fprintf('Size of succ_low_boundary{1}: %s\n', mat2str(size(succ_low_boundary{1})));
+% 
+%         % Plot boundary points (vertices of boundary splits) with unified colors
+%         handles = [];
+%         for i = 1:num_splits
+%             for m = 1:n_methods
+%                 x_min_bound = succ_low_boundary{i}(idx1, k, m);
+%                 x_max_bound = succ_up_boundary{i}(idx1, k, m);
+%                 y_min_bound = succ_low_boundary{i}(idx2, k, m);
+%                 y_max_bound = succ_up_boundary{i}(idx2, k, m);
+%                 % Plot vertices of the boundary rectangle
+%                 vertices_x = [x_min_bound, x_max_bound, x_max_bound, x_min_bound];
+%                 vertices_y = [y_min_bound, y_min_bound, y_max_bound, y_max_bound];
+%                 if all(isfinite([vertices_x, vertices_y]))
+%                     if m == 1
+%                         plot_color = 'b';
+%                         method_label = 'CT Mixed-Monotonicity';
+%                     else
+%                         plot_color = 'r';
+%                         method_label = 'CT Sampled-Data Mixed-Monotonicity';
+%                     end
+%                     h = plot(vertices_x, vertices_y, 'o', 'Color', plot_color, 'MarkerSize', 5, ...
+%                              'MarkerFaceColor', plot_color, 'DisplayName', method_label);
+%                     rectangle('Position', [x_min_bound, y_min_bound, x_max_bound - x_min_bound, y_max_bound - y_min_bound]);
+%                     if i == 1
+%                         handles = [handles, h(1)];
+%                     end
+%                 else
+%                     fprintf('Warning: Invalid bounds for split %d, method %d: skipping points\n', i, m);
+%                 end
+%                 x_min = min(x_min, x_min_bound);
+%                 x_max = max(x_max, x_max_bound);
+%                 y_min = min(y_min, y_min_bound);
+%                 y_max = max(y_max, y_max_bound);
+%             end
+%         end
+% 
+%         % Adjust axis with larger padding
+%         x_range = x_max - x_min;
+%         y_range = y_max - y_min;
+%         buffer = 0.4; % Increased to 50% padding for better zoom out
+%         axis([x_min - buffer*x_range, x_max + buffer*x_range, y_min - buffer*y_range, y_max + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['Boundary Points - $x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+%         % Add legend
+%         if ~isempty(handles)
+%             legend([h_random, handles], {'Random Successors', 'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'}, 'Location', 'southeast');
+%         else
+%             fprintf('Warning: No valid handles for legend, skipping legend.\n');
+%         end
+% 
+%         % Save the boundary points plot
+%         if exist(save_dir, 'dir')
+%             try
+%                 filename_base = sprintf('boundary_points_%d_%d_%s', idx1, idx2, timestamp);
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%                 fprintf('Boundary points plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+%                 fprintf('Boundary points plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
+%             catch e
+%                 warning('Failed to save boundary points plot: %s', e.message);
+%             end
+%         else
+%             warning('Directory %s does not exist. Skipping boundary points plot save.', save_dir);
+%         end
+% 
+%         % Plot Interval Hulls for each OA method
+%         figure('Name', sprintf('Interval Hull - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+% 
+%         % Plot random successors again
+%         h_random = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Proxy for legend
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Plot per-method interval hulls
+%         x_min = min(rand_succ(idx1, :));
+%         x_max = max(rand_succ(idx1, :));
+%         y_min = min(rand_succ(idx2, :));
+%         y_max = max(rand_succ(idx2, :));
+%         handles = [];
+%         for m = 1:n_methods
+%             x_min_hull_m = Inf;
+%             x_max_hull_m = -Inf;
+%             y_min_hull_m = Inf;
+%             y_max_hull_m = -Inf;
+%             for i = 1:num_splits
+%                 x_min_hull_m = min(x_min_hull_m, succ_low_boundary{i}(idx1, k, m));
+%                 x_max_hull_m = max(x_max_hull_m, succ_up_boundary{i}(idx1, k, m));
+%                 y_min_hull_m = min(y_min_hull_m, succ_low_boundary{i}(idx2, k, m));
+%                 y_max_hull_m = max(y_max_hull_m, succ_up_boundary{i}(idx2, k, m));
+%             end
+%             width_hull_m = x_max_hull_m - x_min_hull_m;
+%             height_hull_m = y_max_hull_m - y_min_hull_m;
+%             if all(isfinite([x_min_hull_m, y_min_hull_m, width_hull_m, height_hull_m])) && width_hull_m >= 0 && height_hull_m >= 0
+%                 if m == 1
+%                     plot_color = 'b';
+%                 else
+%                     plot_color = 'r';
+%                 end
+%                 h_method = rectangle('Position', [x_min_hull_m, y_min_hull_m, width_hull_m, height_hull_m], ...
+%                                     'EdgeColor', plot_color, 'LineWidth', 2, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%                 % Create proxy for legend
+%                 h_method_proxy = plot(NaN, NaN, plot_color, 'LineWidth', 2);
+%                 handles = [handles, h_method_proxy];
+%             else
+%                 fprintf('Warning: Invalid bounds for interval hull, method %d: skipping rectangle\n', m);
+%             end
+%             x_min = min(x_min, x_min_hull_m);
+%             x_max = max(x_max, x_max_hull_m);
+%             y_min = min(y_min, y_min_hull_m);
+%             y_max = max(y_max, y_max_hull_m);
+%         end
+% 
+%         % Adjust axis
+%         x_range = x_max - x_min;
+%         y_range = y_max - y_min;
+%         axis([x_min - buffer*x_range, x_max + buffer*x_range, y_min - buffer*y_range, y_max + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['Interval Hull - $x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+%         % Add legend
+%         if ~isempty(handles)
+%             legend([h_random, handles], {'Random Successors', method_names{:}}, 'Location', 'southeast');
+%         else
+%             fprintf('Warning: No valid handles for legend, skipping legend.\n');
+%         end
+% 
+%         % Save the figure
+%         saveas(gcf, fullfile(save_dir, sprintf('interval_hull_%d_%d_%s.png', idx1, idx2, timestamp)), 'png');
+%     end
+% catch e
+%     fprintf('Error in plotting: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Display timing results
+% fprintf('Computation Times (seconds) for all plots:\n');
+% for m = 1:n_methods
+%     fprintf('(Single-step) %s: %.6f\n', method_names{m}, time_initial(m));
+%     fprintf('(Boundary) %s: %.6f\n', method_names{m}, sum(time_boundary(:, m)));
+% end
+% 
+% %% Save the reachable sets and random successors
+% try
+%     timestamp = datestr(now, 'yyyy-mm-dd');
+%     filename_base = sprintf('reachability_data_sys_TIRA%d_all_%s', system_choice, timestamp);
+%     save(fullfile(save_dir, [filename_base '.mat']), 'succ_low_all_methods', 'succ_up_all_methods', ...
+%          'succ_low_boundary', 'succ_up_boundary', 'rand_succ', 't_points', 'methods', 'n_x', 'n_methods', ...
+%          'time_initial', 'time_boundary');
+%     disp(['Data saved to ' fullfile(save_dir, [filename_base '.mat'])]);
+% catch e
+%     fprintf('Error in saving data: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% 
+% %% === RETURN ALL reachability_results ===
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.rand_succ            = rand_succ;
+% reachability_results.t_points             = t_points;
+% reachability_results.time_initial         = time_initial;
+% reachability_results.time_boundary        = time_boundary;
+% reachability_results.save_dir             = save_dir;
+% reachability_results.plot_pairs           = [1 2];  % Spiral: only x1 vs x2
+% if system_choice == 14
+%     reachability_results.plot_pairs = [1 2; 3 4; 4 5];
+% end
+% reachability_results.plot_last_only       = plot_last_only;
+% reachability_results.n_x                  = n_x;
+% reachability_results.n_methods            = n_methods;
+% reachability_results.methods              = methods;
+% reachability_results.system_choice        = system_choice;
+% reachability_results.num_splits           = num_splits;
+% reachability_results.plot_pairs = plot_pairs;  % Already set correctly
+% 
+% 
+% % =========================================================================
+% % === ENSURE safe_inf and safe_sup are ALWAYS returned to Verifier.m ===
+% % =========================================================================
+% if isfield(params, 'safe_inf') && isfield(params, 'safe_sup')
+%     reachability_results.safe_inf = params.safe_inf;
+%     reachability_results.safe_sup = params.safe_sup;
+% else
+%     reachability_results.safe_inf = [];
+%     reachability_results.safe_sup = [];
+% end
+% 
+% end
+% 
+% 
+% %------------- END OF CODE --------------
+
+%********************************************************************************************************************
+
+% %------------- BEGIN CODE with Correct Fix to verifiy the 4 OAs--------------
+% 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODEs using TIRA
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice      : 14 or 15
+% %       .x0                 : initial center
+% %       .Initial_radius     : radius of initial set
+% %       .t_final            : final time
+% %       .timeStep           : discretization step
+% %       .plot_last_only     : true/false
+% %       .sample_succ_number : number of random samples
+% % Output:
+% %   reachability_results - struct containing all reachable sets, plots, etc.
+% 
+% %% Initialization
+% close all
+% bool_discrete_time = 0;
+% addpath('../OA_methods')
+% addpath('../Utilities')    
+% 
+% %% === PLOTTING CONTROL DEFAULTS (NEW) ===
+% default_plot_control.show_figures               = true;
+% default_plot_control.save_each_iteration        = false;
+% default_plot_control.save_final_only_if_verified = true;
+% default_plot_control.save_reachability          = true;
+% default_plot_control.save_boundary              = true;
+% default_plot_control.save_interval_hull         = true;
+% 
+% if isfield(params, 'plot_control')
+%     pc = params.plot_control;
+% 
+%     % ---- NEW SAFE ACCESS -------------------------------------------------
+%     plot_control.show_figures               = getOrDefault(pc,'show_figures', default_plot_control.show_figures);
+%     plot_control.save_each_iteration        = getOrDefault(pc,'save_each_iteration', default_plot_control.save_each_iteration);
+%     plot_control.save_final_only_if_verified = getOrDefault(pc,'save_final_only_if_verified', default_plot_control.save_final_only_if_verified);
+%     plot_control.save_reachability          = getOrDefault(pc,'save_reachability', default_plot_control.save_reachability);
+%     plot_control.save_boundary              = getOrDefault(pc,'save_boundary', default_plot_control.save_boundary);
+%     plot_control.save_interval_hull         = getOrDefault(pc,'save_interval_hull', default_plot_control.save_interval_hull);
+%     % --------------------------------------------------------------------
+% else
+%     plot_control = default_plot_control;
+% end
+% 
+% % -----------------------------------------------------------------------
+% % Helper that works even if the field does not exist
+% function val = getOrDefault(s, field, default)
+%     if isfield(s, field)
+%         val = s.(field);
+%     else
+%         val = default;
+%     end
+% end
+% % -----------------------------------------------------------------------
+% 
+% %% User-defined parameters (override defaults with input)
+% plot_last_only = true;      % Default
+% if isfield(params, 'plot_last_only')
+%     plot_last_only = params.plot_last_only;
+% end
+% 
+% sample_succ_number = 1000;  % Default
+% if isfield(params, 'sample_succ_number')
+%     sample_succ_number = params.sample_succ_number;
+% end
+% 
+% %% Choice of the example system
+% global system_choice
+% system_choice = params.system_choice;
+% 
+% % Map system choice to system name
+% system_names = containers.Map({14, 15}, {'fpa', 'spiral_non'});
+% if ~isKey(system_names, system_choice)
+%     error('Unknown system_choice %d.', system_choice);
+% end
+% system_name = system_names(system_choice);
+% 
+% %% Optional submethod choice
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Definition of the reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% % Verify dimensions
+% if system_choice == 14 && (n_x ~= 5 || n_p ~= 5)
+%     error('FPA expects 5D state/parameter.');
+% elseif system_choice == 15 && (n_x ~= 2 || n_p ~= 2)
+%     error('Spiral_non expects 2D state/parameter.');
+% end
+% 
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% boundary_times = zeros(num_splits, n_methods_single_step);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main reachability computation
+% try
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % Single-step (initial approach)
+%     for m = 1:n_methods_single_step
+%         tStart = tic;
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         time_initial(m) = toc(tStart);
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % Boundary approach
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             tStart = tic;
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             time_boundary(i, m) = toc(tStart);
+%             succ_low_boundary{i}(:, 1, m) = succ_low;  % Only final time
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% 
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% Random successors
+% try
+%     % === CALL CONFIG FUNCTION ===
+%     global g_sensitivity_bounds_method
+%     parameters = get_solver_parameters(n_x, n_p, g_sensitivity_bounds_method);
+% 
+%     % Now use it
+%     ode_solver = parameters.ode_solver;
+%     ode_options = parameters.ode_options;
+% 
+%     rand_succ = NaN(n_x, sample_succ_number);
+%     for i = 1:sample_succ_number
+%         x0_rand = x_low + rand(n_x,1).*(x_up - x_low);
+%         p_rand  = p_low + rand(n_p,1).*(p_up - p_low);
+%         [~, x_traj] = ode_solver(@(t,x) System_description(t,x,p_rand), [t_init t_final], x0_rand, ode_options);
+%         rand_succ(:,i) = x_traj(end,:)';
+%     end
+% catch e
+%     rethrow(e);
+% end
+% 
+% 
+% %% === CREATE SAVE DIRECTORY ONLY IF SAVING ===
+% save_anything = plot_control.save_each_iteration || ...
+%     (isfield(params, 'is_final_call') && params.is_final_call && ...
+%      (~plot_control.save_final_only_if_verified || (isfield(params, 'fully_verified') && params.fully_verified)));
+% 
+% if save_anything
+%     timestamp = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
+%     save_dir = fullfile(pwd, sprintf('results_%s_%s', system_name, timestamp));
+%     if ~exist(save_dir, 'dir')
+%         [status, msg] = mkdir(save_dir);
+%         if status ~= 1
+%             warning('Failed to create directory %s: %s', save_dir, msg);
+%             save_dir = '';
+%         else
+%             fprintf('Created directory: %s\n', save_dir);
+%         end
+%     end
+% else
+%     save_dir = '';
+% end
+% 
+% 
+% %% Plot the reachable set and over-approximations
+% try
+%     % Define plot pairs based on system choice
+%     plot_pairs = [];
+%     if system_choice == 14
+%         plot_pairs = [1 2; 3 4; 4 5]; % For 5D FPA system: x1 vs x2, x3 vs x4, x4 vs x5
+%     elseif system_choice == 15
+%         plot_pairs = [1 2]; % For 2D Spiral system: x1 vs x2
+%     end
+%     colors = [0 0 1; 1 0 0]; % Dark Blue, Red
+%     method_names = {'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'};
+% 
+%     for p = 1:size(plot_pairs, 1)
+%         figure('Name', sprintf('Reachability Plot - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+%         idx1 = plot_pairs(p, 1);
+%         idx2 = plot_pairs(p, 2);
+% 
+%         % Plot the successors from random initial states
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Calculate minimum bounding box for black dots
+%         x_min_actual = min(rand_succ(idx1, :));
+%         x_max_actual = max(rand_succ(idx1, :));
+%         y_min_actual = min(rand_succ(idx2, :));
+%         y_max_actual = max(rand_succ(idx2, :));
+%         area_actual = abs((x_max_actual - x_min_actual) * (y_max_actual - y_min_actual));
+% 
+%         % Plot over-approximation rectangles
+%         handles = [];
+%         proxy_handles = [];
+%         tightness_metrics = zeros(1, 4); % For 4 approaches (Single-step and Boundary only)
+% 
+% 
+%         % === FINAL TIME INDEX: ALWAYS 1 ===
+%         k = 1;
+% 
+%         % 1: Mixed-Monotonicity (Boundary) - Dashed Magenta
+%         all_x_min_bound = [];
+%         all_x_max_bound = [];
+%         all_y_min_bound = [];
+%         all_y_max_bound = [];
+%         for i = 1:num_splits
+%             % fprintf('Boundary data m=1, split %d: low=[%f %f], up=[%f %f]\n', i, ...
+%             %         succ_low_boundary{i}(idx1, k, 1), succ_low_boundary{i}(idx2, k, 1), ...
+%             %         succ_up_boundary{i}(idx1, k, 1), succ_up_boundary{i}(idx2, k, 1));
+%             all_x_min_bound = [all_x_min_bound, succ_low_boundary{i}(idx1, k, 1)];
+%             all_x_max_bound = [all_x_max_bound, succ_up_boundary{i}(idx1, k, 1)];
+%             all_y_min_bound = [all_y_min_bound, succ_low_boundary{i}(idx2, k, 1)];
+%             all_y_max_bound = [all_y_max_bound, succ_up_boundary{i}(idx2, k, 1)];
+%         end
+%         x_min_bound = min(all_x_min_bound);
+%         x_max_bound = max(all_x_max_bound);
+%         y_min_bound = min(all_y_min_bound);
+%         y_max_bound = max(all_y_max_bound);
+%         width_bound = x_max_bound - x_min_bound;
+%         height_bound = y_max_bound - y_min_bound;
+%         fprintf('Mixed-Monotonicity (Boundary) computed bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                 x_min_bound, y_min_bound, width_bound, height_bound);
+%         if all(isfinite([x_min_bound, y_min_bound, width_bound, height_bound])) && width_bound >= 0 && height_bound >= 0
+%             h_bound1 = rectangle('Position', [x_min_bound, y_min_bound, max(width_bound, 0.001), max(height_bound, 0.001)], ...
+%                                 'EdgeColor', 'm', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1);
+%             h_proxy_bound1 = plot(NaN, NaN, 'm--', 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_bound1];
+%             proxy_handles = [proxy_handles, h_proxy_bound1];
+%             tightness_metrics(1) = (width_bound * height_bound) / area_actual;
+%         else
+%             warning('Mixed-Monotonicity (Boundary) has invalid bounds. Using actual range.');
+%             h_bound1 = rectangle('Position', [x_min_actual, y_min_actual, x_max_actual - x_min_actual, y_max_actual - y_min_actual], ...
+%                                'EdgeColor', 'm', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1, 'LineStyle', ':');
+%             h_proxy_bound1 = plot(NaN, NaN, 'm:', 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_bound1];
+%             proxy_handles = [proxy_handles, h_proxy_bound1];
+%             tightness_metrics(1) = 1.0;
+%         end
+% 
+%         % 2: Sampled-Data Mixed-Monotonicity (Boundary) - Dashed Green
+%         all_x_min_bound = [];
+%         all_x_max_bound = [];
+%         all_y_min_bound = [];
+%         all_y_max_bound = [];
+%         for i = 1:num_splits
+%             % fprintf('Boundary data m=2, split %d: low=[%f %f], up=[%f %f]\n', i, ...
+%             %         succ_low_boundary{i}(idx1, k, 2), succ_low_boundary{i}(idx2, k, 2), ...
+%             %         succ_up_boundary{i}(idx1, k, 2), succ_up_boundary{i}(idx2, k, 2));
+%             all_x_min_bound = [all_x_min_bound, succ_low_boundary{i}(idx1, k, 2)];
+%             all_x_max_bound = [all_x_max_bound, succ_up_boundary{i}(idx1, k, 2)];
+%             all_y_min_bound = [all_y_min_bound, succ_low_boundary{i}(idx2, k, 2)];
+%             all_y_max_bound = [all_y_max_bound, succ_up_boundary{i}(idx2, k, 2)];
+%         end
+%         x_min_bound = min(all_x_min_bound);
+%         x_max_bound = max(all_x_max_bound);
+%         y_min_bound = min(all_y_min_bound);
+%         y_max_bound = max(all_y_max_bound);
+%         width_bound = x_max_bound - x_min_bound;
+%         height_bound = y_max_bound - y_min_bound;
+%         fprintf('Sampled-Data Mixed-Monotonicity (Boundary) bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                 x_min_bound, y_min_bound, width_bound, height_bound);
+%         if all(isfinite([x_min_bound, y_min_bound, width_bound, height_bound])) && width_bound >= 0 && height_bound >= 0
+%             h_bound2 = rectangle('Position', [x_min_bound, y_min_bound, max(width_bound, 0.001), max(height_bound, 0.001)], ...
+%                                 'EdgeColor', 'g', 'LineWidth', 1.5, 'LineStyle', '--', 'FaceAlpha', 0.1);
+%             h_proxy_bound2 = plot(NaN, NaN, 'g--', 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_bound2];
+%             proxy_handles = [proxy_handles, h_proxy_bound2];
+%             tightness_metrics(2) = (width_bound * height_bound) / area_actual;
+%         else
+%             warning('Skipping Sampled-Data Mixed-Monotonicity (Boundary) due to invalid parameters');
+%         end
+% 
+%         % 3: Mixed-Monotonicity (Single-step) - Dark Blue Solid
+%         x_min_single = succ_low_all_methods(idx1, k, 1); % Method 1
+%         y_min_single = succ_low_all_methods(idx2, k, 1);
+%         width_single = succ_up_all_methods(idx1, k, 1) - x_min_single;
+%         height_single = succ_up_all_methods(idx2, k, 1) - y_min_single;
+%         fprintf('Mixed-Monotonicity (Single-step) computed bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                 x_min_single, y_min_single, width_single, height_single);
+%         if all(isfinite([x_min_single, y_min_single, width_single, height_single])) && width_single >= 0 && height_single >= 0
+%             h_single1 = rectangle('Position', [x_min_single, y_min_single, max(width_single, 0.001), max(height_single, 0.001)], ...
+%                                 'EdgeColor', colors(1,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%             h_proxy_single1 = plot(NaN, NaN, '-', 'Color', colors(1,:), 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_single1];
+%             proxy_handles = [proxy_handles, h_proxy_single1];
+%             tightness_metrics(3) = (width_single * height_single) / area_actual;
+%         else
+%             warning('Mixed-Monotonicity (Single-step) has invalid bounds. Using actual range.');
+%             h_single1 = rectangle('Position', [x_min_actual, y_min_actual, x_max_actual - x_min_actual, y_max_actual - y_min_actual], ...
+%                                'EdgeColor', colors(1,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1, 'LineStyle', ':');
+%             h_proxy_single1 = plot(NaN, NaN, ':', 'Color', colors(1,:), 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_single1];
+%             proxy_handles = [proxy_handles, h_proxy_single1];
+%             tightness_metrics(3) = 1.0;
+%         end
+% 
+%         % 4: Sampled-Data Mixed-Monotonicity (Single-step) - Red Solid
+%         x_min_single = succ_low_all_methods(idx1, k, 2); % Method 2
+%         y_min_single = succ_low_all_methods(idx2, k, 2);
+%         width_single = succ_up_all_methods(idx1, k, 2) - x_min_single;
+%         height_single = succ_up_all_methods(idx2, k, 2) - y_min_single;
+%         fprintf('Sampled-Data Mixed-Monotonicity (Single-step) bounds: x_min=%f, y_min=%f, width=%f, height=%f\n', ...
+%                 x_min_single, y_min_single, width_single, height_single);
+%         if all(isfinite([x_min_single, y_min_single, width_single, height_single])) && width_single >= 0 && height_single >= 0
+%             h_single2 = rectangle('Position', [x_min_single, y_min_single, max(width_single, 0.001), max(height_single, 0.001)], ...
+%                                 'EdgeColor', colors(2,:), 'LineWidth', 1.5, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%             h_proxy_single2 = plot(NaN, NaN, '-', 'Color', colors(2,:), 'LineWidth', 1.5, 'Visible', 'off');
+%             handles = [handles, h_single2];
+%             proxy_handles = [proxy_handles, h_proxy_single2];
+%             tightness_metrics(4) = (width_single * height_single) / area_actual;
+%         else
+%             warning('Skipping Sampled-Data Mixed-Monotonicity (Single-step) due to invalid parameters');
+%         end
+%     end
+% 
+%         % Adjust axis to include all bounds
+%         x_min_all = min([x_min_actual, x_min_bound, x_min_single]);
+%         x_max_all = max([x_max_actual, x_max_bound + width_bound, x_min_single + width_single]);
+%         y_min_all = min([y_min_actual, y_min_bound, y_min_single]);
+%         y_max_all = max([y_max_actual, y_max_bound + height_bound, y_min_single + height_single]);
+%         x_range = x_max_all - x_min_all;
+%         y_range = y_max_all - y_min_all;
+%         buffer = 0.3; % 10% padding
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['$x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+% 
+%         % <<< SAFE-SET: Green Thick Rectangle (drawn with plot to support legend) >>>
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup')
+%             safe_inf = params.safe_inf;
+%             safe_sup = params.safe_sup;
+% 
+%             % === Only draw if valid 2D bounds ===
+%             if numel(safe_inf) == 2 && numel(safe_sup) == 2 && ...
+%                all(isfinite(safe_inf)) && all(isfinite(safe_sup)) && ...
+%                safe_sup(1) > safe_inf(1) && safe_sup(2) > safe_inf(2)
+% 
+%                 x1 = safe_inf(1); y1 = safe_inf(2);
+%                 x2 = safe_sup(1); y2 = safe_sup(2);
+% 
+%                 % Draw using plot (legend-safe)
+%                 h_safe = plot([x1 x2 x2 x1 x1], [y1 y1 y2 y2 y1], ...
+%                               'Color', [0 0.8 0], 'LineWidth', 2.5, 'DisplayName', 'Safe Set');
+% 
+%                 % Add to legend
+%                 proxy_handles = [proxy_handles, h_safe];
+%             else
+%                 warning('Safe set invalid or not 2D — not plotted, but still returned for verification.');
+%             end
+%         end
+% 
+% 
+%         % Build legend: sampled points + all proxy handles in correct order
+%         legend_entries = [plot(NaN, NaN, 'k.', 'MarkerSize', 5)];
+%         legend_labels  = {'Sampled points'};
+% 
+%         % Add in the EXACT order they were pushed to proxy_handles
+%         label_counter = 1;
+% 
+%         % 1. Mixed-Monotonicity (Boundary) - Magenta dashed
+%         if exist('h_proxy_bound1', 'var')
+%             legend_entries(end+1) = h_proxy_bound1;
+%             legend_labels{end+1}  = 'Mixed-Monotonicity (Boundary)';
+%         end
+% 
+%         % 2. Sampled-Data MM (Boundary) - Green dashed
+%         if exist('h_proxy_bound2', 'var')
+%             legend_entries(end+1) = h_proxy_bound2;
+%             legend_labels{end+1}  = 'Sampled-Data Mixed-Monotonicity (Boundary)';
+%         end
+% 
+%         % 3. Mixed-Monotonicity (Single-step) - Blue solid
+%         if exist('h_proxy_single1', 'var')
+%             legend_entries(end+1) = h_proxy_single1;
+%             legend_labels{end+1}  = 'Mixed-Monotonicity (Single-step)';
+%         end
+% 
+%         % 4. Sampled-Data MM (Single-step) - Red solid
+%         if exist('h_proxy_single2', 'var')
+%             legend_entries(end+1) = h_proxy_single2;
+%             legend_labels{end+1}  = 'Sampled-Data Mixed-Monotonicity (Single-step)';
+%         end
+% 
+%         % 5. Safe Set - Thick Green
+%         if exist('h_safe', 'var')
+%             legend_entries(end+1) = h_safe;
+%             legend_labels{end+1}  = 'Safe Set';
+%         end
+% 
+%         % Create legend
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold');
+% 
+% 
+%         % Save the reachability plot
+%         if plot_control.save_reachability && ~isempty(save_dir) && ...
+%            (plot_control.save_each_iteration || (isfield(params, 'is_final_call') && params.is_final_call))
+%             try
+%                 filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%                 fprintf('Reachability plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+%                 fprintf('Reachability plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
+%             catch e
+%                 warning('Failed to save reachability plot: %s', e.message);
+%             end
+%         end
+% 
+%         if ~plot_control.show_figures
+%             close(gcf);
+%         end
+% 
+% catch e
+%     fprintf('Error in plotting: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% 
+%         % Save the reachability plot
+%         if exist(save_dir, 'dir')
+%             try
+%                 filename_base = sprintf('reachability_plot_%d_%d_%s', idx1, idx2, timestamp);
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%                 fprintf('Reachability plot saved as PNG: %s\n', fullfile(save_dir, [filename_base '.png']));
+%                 saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+%                 fprintf('Reachability plot saved as EPS: %s\n', fullfile(save_dir, [filename_base '.eps']));
+%             catch e
+%                 warning('Failed to save reachability plot: %s', e.message);
+%             end
+%         else
+%             warning('Directory %s does not exist. Skipping reachability plot save.', save_dir);
+%         end
+% 
+%         %% Tightness
+%         fprintf('Tightness Metrics (Area Ratio) for x_%d vs x_%d plane:\n', idx1, idx2);
+%         fprintf('(Single-step) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(3));
+%         fprintf('(Boundary) CT Mixed-Monotonicity: %.2f\n', tightness_metrics(1));
+%         fprintf('(Single-step) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(4));
+%         fprintf('(Boundary) CT Sampled-Data Mixed-Monotonicity: %.2f\n', tightness_metrics(2));
+% 
+% %% Plot the Boundary reachability splits (10~5D or 4~2D)
+% try
+%     % Define plot pairs based on system choice
+%     plot_pairs = [];
+%     if system_choice == 14
+%         plot_pairs = [1 2; 3 4; 4 5]; % For 5D FPA system: x1 vs x2, x3 vs x4, x4 vs x5
+%     elseif system_choice == 15
+%         plot_pairs = [1 2]; % For 2D Spiral system: x1 vs x2
+%     end
+%     colors = jet(num_splits); % Generate a range of colors for boundary splits
+%     method_names = {'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'};
+% 
+%     for p = 1:size(plot_pairs, 1)
+%         % Plot boundary points and union interval hull
+%         figure('Name', sprintf('Boundary Points - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+%         idx1 = plot_pairs(p, 1);
+%         idx2 = plot_pairs(p, 2);
+% 
+%         % Plot the successors from random initial states
+%         h_random = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Proxy for legend
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Calculate initial axis limits with padding
+%         x_min = min(rand_succ(idx1, :));
+%         x_max = max(rand_succ(idx1, :));
+%         y_min = min(rand_succ(idx2, :));
+%         y_max = max(rand_succ(idx2, :));
+% 
+%         % Method 3: Mixed-Monotonicity (Boundary) — union of all boundary splits
+%         all_low_m3 = arrayfun(@(i) succ_low_boundary{i}(:, 1, 1), 1:num_splits, 'UniformOutput', false);
+%         all_up_m3  = arrayfun(@(i) succ_up_boundary{i}(:, 1, 1), 1:num_splits, 'UniformOutput', false);
+%         succ_low_all_methods(:, 1, 3) = min(cat(2, all_low_m3{:}), [], 2);
+%         succ_up_all_methods(:, 1, 3)  = max(cat(2, all_up_m3{:}), [], 2);
+% 
+%         % Method 4: Sampled-Data Mixed-Monotonicity (Boundary)
+%         all_low_m4 = arrayfun(@(i) succ_low_boundary{i}(:, 1, 2), 1:num_splits, 'UniformOutput', false);
+%         all_up_m4  = arrayfun(@(i) succ_up_boundary{i}(:, 1, 2), 1:num_splits, 'UniformOutput', false);
+%         succ_low_all_methods(:, 1, 4) = min(cat(2, all_low_m4{:}), [], 2);
+%         succ_up_all_methods(:, 1, 4)  = max(cat(2, all_up_m4{:}), [], 2);
+% 
+%         % Fill earlier time steps with final bounds (for consistency)
+%         for m = 3:4
+%             succ_low_all_methods(:, 1:k-1, m) = repmat(succ_low_all_methods(:, k, m), 1, k-1);
+%             succ_up_all_methods(:, 1:k-1, m)  = repmat(succ_up_all_methods(:, k, m), 1, k-1);
+%         end
+% 
+% 
+% 
+%         % Debug: Check the size of the boundary arrays
+%         fprintf('Size of succ_low_boundary{1}: %s\n', mat2str(size(succ_low_boundary{1})));
+% 
+%         % Plot boundary points (vertices of boundary splits) with unified colors
+%         handles = [];
+%         for i = 1:num_splits
+%             for m = 1:n_methods_single_step
+%                 x_min_bound = succ_low_boundary{i}(idx1, 1, m);
+%                 x_max_bound = succ_up_boundary{i}(idx1, 1, m);
+%                 y_min_bound = succ_low_boundary{i}(idx2, 1, m);
+%                 y_max_bound = succ_up_boundary{i}(idx2, 1, m);
+%                 % Plot vertices of the boundary rectangle
+%                 vertices_x = [x_min_bound, x_max_bound, x_max_bound, x_min_bound];
+%                 vertices_y = [y_min_bound, y_min_bound, y_max_bound, y_max_bound];
+%                 if all(isfinite([vertices_x, vertices_y]))
+%                     if m == 1
+%                         plot_color = 'b';
+%                         method_label = 'CT Mixed-Monotonicity';
+%                     else
+%                         plot_color = 'r';
+%                         method_label = 'CT Sampled-Data Mixed-Monotonicity';
+%                     end
+%                     h = plot(vertices_x, vertices_y, 'o', 'Color', plot_color, 'MarkerSize', 5, ...
+%                              'MarkerFaceColor', plot_color, 'DisplayName', method_label);
+%                     rectangle('Position', [x_min_bound, y_min_bound, x_max_bound - x_min_bound, y_max_bound - y_min_bound]);
+%                     if i == 1
+%                         handles = [handles, h(1)];
+%                     end
+%                 else
+%                     fprintf('Warning: Invalid bounds for split %d, method %d: skipping points\n', i, m);
+%                 end
+%                 x_min = min(x_min, x_min_bound);
+%                 x_max = max(x_max, x_max_bound);
+%                 y_min = min(y_min, y_min_bound);
+%                 y_max = max(y_max, y_max_bound);
+%             end
+%         end
+% 
+%         % Adjust axis with larger padding
+%         x_range = x_max - x_min;
+%         y_range = y_max - y_min;
+%         buffer = 0.4; % Increased to 50% padding for better zoom out
+%         axis([x_min - buffer*x_range, x_max + buffer*x_range, y_min - buffer*y_range, y_max + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['Boundary Points - $x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+%         % Add legend
+%         if ~isempty(handles)
+%             legend([h_random, handles], {'Random Successors', 'CT Mixed-Monotonicity', 'CT Sampled-Data Mixed-Monotonicity'}, 'Location', 'southeast');
+%         else
+%             fprintf('Warning: No valid handles for legend, skipping legend.\n');
+%         end
+% 
+%         % Save the boundary points plot
+%         if plot_control.save_boundary && ~isempty(save_dir) && ...
+%        (plot_control.save_each_iteration || (isfield(params, 'is_final_call') && params.is_final_call))
+%         filename_base = sprintf('boundary_points_%d_%d_%s', idx1, idx2, timestamp);
+%         saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%         saveas(gcf, fullfile(save_dir, [filename_base '.eps']), 'epsc');
+%     end
+% 
+%     if ~plot_control.show_figures
+%         close(gcf);
+%     end
+% end
+% 
+%         % Plot Interval Hulls for each OA method
+%         figure('Name', sprintf('Interval Hull - x%d vs x%d', plot_pairs(p,1), plot_pairs(p,2)));
+%         hold on;
+%         grid on;
+% 
+%         % Plot random successors again
+%         h_random = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Proxy for legend
+%         for j = 1:sample_succ_number
+%             plot(rand_succ(idx1, j), rand_succ(idx2, j), 'k.', 'MarkerSize', 5);
+%         end
+% 
+%         % Plot per-method interval hulls
+%         x_min = min(rand_succ(idx1, :));
+%         x_max = max(rand_succ(idx1, :));
+%         y_min = min(rand_succ(idx2, :));
+%         y_max = max(rand_succ(idx2, :));
+%         handles = [];
+%         for m = 1:n_methods_single_step
+%             x_min_hull_m = Inf;
+%             x_max_hull_m = -Inf;
+%             y_min_hull_m = Inf;
+%             y_max_hull_m = -Inf;
+%             for i = 1:num_splits
+%                 x_min_hull_m = min(x_min_hull_m, succ_low_boundary{i}(idx1, k, m));
+%                 x_max_hull_m = max(x_max_hull_m, succ_up_boundary{i}(idx1, k, m));
+%                 y_min_hull_m = min(y_min_hull_m, succ_low_boundary{i}(idx2, k, m));
+%                 y_max_hull_m = max(y_max_hull_m, succ_up_boundary{i}(idx2, k, m));
+%             end
+%             width_hull_m = x_max_hull_m - x_min_hull_m;
+%             height_hull_m = y_max_hull_m - y_min_hull_m;
+%             if all(isfinite([x_min_hull_m, y_min_hull_m, width_hull_m, height_hull_m])) && width_hull_m >= 0 && height_hull_m >= 0
+%                 if m == 1
+%                     plot_color = 'b';
+%                 else
+%                     plot_color = 'r';
+%                 end
+%                 h_method = rectangle('Position', [x_min_hull_m, y_min_hull_m, width_hull_m, height_hull_m], ...
+%                                     'EdgeColor', plot_color, 'LineWidth', 2, 'LineStyle', '-', 'FaceAlpha', 0.1);
+%                 % Create proxy for legend
+%                 h_method_proxy = plot(NaN, NaN, plot_color, 'LineWidth', 2);
+%                 handles = [handles, h_method_proxy];
+%             else
+%                 fprintf('Warning: Invalid bounds for interval hull, method %d: skipping rectangle\n', m);
+%             end
+%             x_min = min(x_min, x_min_hull_m);
+%             x_max = max(x_max, x_max_hull_m);
+%             y_min = min(y_min, y_min_hull_m);
+%             y_max = max(y_max, y_max_hull_m);
+%         end
+% 
+%         % Adjust axis
+%         x_range = x_max - x_min;
+%         y_range = y_max - y_min;
+%         axis([x_min - buffer*x_range, x_max + buffer*x_range, y_min - buffer*y_range, y_max + buffer*y_range]);
+% 
+%         % Add labels
+%         xlabel(['$x_', num2str(idx1), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         ylabel(['$x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 20);
+%         title(['Interval Hull - $x_', num2str(idx1), '$ vs. $x_', num2str(idx2), '$'], 'Interpreter', 'Latex', 'FontSize', 16);
+% 
+%         % Add legend
+%         if ~isempty(handles)
+%             legend([h_random, handles], {'Random Successors', method_names{:}}, 'Location', 'southeast');
+%         else
+%             fprintf('Warning: No valid handles for legend, skipping legend.\n');
+%         end
+% 
+% 
+%         % save Interval Hull
+%         if plot_control.save_interval_hull && ~isempty(save_dir) && ...
+%        (plot_control.save_each_iteration || (isfield(params, 'is_final_call') && params.is_final_call))
+%         filename_base = sprintf('interval_hull_%d_%d_%s', idx1, idx2, timestamp);
+%         saveas(gcf, fullfile(save_dir, [filename_base '.png']), 'png');
+%          end
+% 
+%     if ~plot_control.show_figures
+%         close(gcf);
+%     end
+% end
+% 
+% % Display timing results
+% fprintf('Computation Times (seconds) for all plots:\n');
+% for m = 1:n_methods_single_step
+%     fprintf('(Single-step) %s: %.6f\n', method_names{m}, time_initial(m));
+%     fprintf('(Boundary) %s: %.6f\n', method_names{m}, sum(time_boundary(:, m)));
+% end
+% 
+% %% Save the reachable sets and random successors
+% try
+%     timestamp = datestr(now, 'yyyy-mm-dd');
+%     filename_base = sprintf('reachability_data_sys_TIRA%d_all_%s', system_choice, timestamp);
+%     save(fullfile(save_dir, [filename_base '.mat']), 'succ_low_all_methods', 'succ_up_all_methods', ...
+%          'succ_low_boundary', 'succ_up_boundary', 'rand_succ', 'methods', 'n_x', 'n_methods_total', ...
+%          'time_initial', 'time_boundary');
+%     disp(['Data saved to ' fullfile(save_dir, [filename_base '.mat'])]);
+% catch e
+%     fprintf('Error in saving data: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% 
+% %% === RETURN ALL reachability_results ===
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.rand_succ            = rand_succ;
+% reachability_results.time_initial         = time_initial;
+% reachability_results.time_boundary        = time_boundary;
+% reachability_results.save_dir             = save_dir;
+% reachability_results.plot_pairs           = [1 2];  % Spiral: only x1 vs x2
+% if system_choice == 14
+%     reachability_results.plot_pairs = [1 2; 3 4; 4 5];
+% end
+% reachability_results.n_x                  = n_x;
+% reachability_results.n_methods            = n_methods_total; % 4 OAs
+% reachability_results.methods              = methods;
+% reachability_results.system_choice        = system_choice;
+% reachability_results.num_splits           = num_splits;
+% reachability_results.plot_pairs = plot_pairs;  % Already set correctly
+% 
+% 
+% % =========================================================================
+% % === ENSURE safe_inf and safe_sup are ALWAYS returned to Verifier.m ===
+% % =========================================================================
+% if isfield(params, 'safe_inf') && isfield(params, 'safe_sup')
+%     reachability_results.safe_inf = params.safe_inf;
+%     reachability_results.safe_sup = params.safe_sup;
+% else
+%     reachability_results.safe_inf = [];
+%     reachability_results.safe_sup = [];
+% end
+% 
+% end
+% 
+% % =========================================================================
+% % === Helper Functions==
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract field from params struct
+%     % Throws clear error if missing
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s". Must be set in Verifier_FINAL.m', field);
+%     end
+% end
+% 
+% 
+% %------------- END OF CODE with Correct Fix to verifiy the 4 OAs --------------
+
+
+%**************************************************************************************************************************
+%% V1.1 --> Last Version shared with PJ on 18/11/2025
+
+% %------------- BEGIN CODE  --------------
+% 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODEs using TIRA
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice      : 14 or 15
+% %       .x0                 : initial center
+% %       .Initial_radius     : radius of initial set
+% %       .t_final            : final time
+% %       .timeStep           : discretization step
+% %       .plot_last_only     : true/false
+% %       .sample_succ_number : number of random samples
+% % Output:
+% %   reachability_results - struct containing all reachable sets, plots, etc.
+% 
+% %% Initialization
+% close all
+% bool_discrete_time = 0;
+% addpath('../OA_methods')
+% addpath('../Utilities')    
+% 
+% %% === PLOTTING CONTROL DEFAULTS (NEW) ===
+% default_plot_control.show_figures               = true;
+% default_plot_control.save_each_iteration        = false;
+% default_plot_control.save_final_only_if_verified = true;
+% default_plot_control.save_reachability          = true;
+% default_plot_control.save_boundary              = true;
+% default_plot_control.save_interval_hull         = true;
+% 
+% if isfield(params, 'plot_control')
+%     pc = params.plot_control;
+% 
+%     % ---- NEW SAFE ACCESS -------------------------------------------------
+%     plot_control.show_figures               = getOrDefault(pc,'show_figures', default_plot_control.show_figures);
+%     plot_control.save_each_iteration        = getOrDefault(pc,'save_each_iteration', default_plot_control.save_each_iteration);
+%     plot_control.save_final_only_if_verified = getOrDefault(pc,'save_final_only_if_verified', default_plot_control.save_final_only_if_verified);
+%     plot_control.save_reachability          = getOrDefault(pc,'save_reachability', default_plot_control.save_reachability);
+%     plot_control.save_boundary              = getOrDefault(pc,'save_boundary', default_plot_control.save_boundary);
+%     plot_control.save_interval_hull         = getOrDefault(pc,'save_interval_hull', default_plot_control.save_interval_hull);
+%     % --------------------------------------------------------------------
+% else
+%     plot_control = default_plot_control;
+% end
+% 
+% % -----------------------------------------------------------------------
+% % Helper that works even if the field does not exist
+% % -----------------------------------------------------------------------
+% 
+% function val = getOrDefault(s, field, default)
+%     if isfield(s, field)
+%         val = s.(field);
+%     else
+%         val = default;
+%     end
+% end
+% % -----------------------------------------------------------------------
+% 
+% %% User-defined parameters (override defaults with input)
+% plot_last_only = true;      % Default
+% if isfield(params, 'plot_last_only')
+%     plot_last_only = params.plot_last_only;
+% end
+% 
+% sample_succ_number = 1000;  % Default
+% if isfield(params, 'sample_succ_number')
+%     sample_succ_number = params.sample_succ_number;
+% end
+% 
+% %% Choice of the example system
+% global system_choice
+% system_choice = params.system_choice;
+% 
+% % Map system choice to system name
+% system_names = containers.Map({14, 15}, {'fpa', 'spiral_non'});
+% if ~isKey(system_names, system_choice)
+%     error('Unknown system_choice %d.', system_choice);
+% end
+% system_name = system_names(system_choice);
+% 
+% %% Optional submethod choice
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Definition of the reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% n_p = length(p_low);
+% 
+% % Verify dimensions
+% if system_choice == 14 && (n_x ~= 5 || n_p ~= 5)
+%     error('FPA expects 5D state/parameter.');
+% elseif system_choice == 15 && (n_x ~= 2 || n_p ~= 2)
+%     error('Spiral_non expects 2D state/parameter.');
+% end
+% 
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% boundary_times = zeros(num_splits, n_methods_single_step);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main reachability computation
+% try
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % Single-step (initial approach)
+%     for m = 1:n_methods_single_step
+%         tStart = tic;
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         time_initial(m) = toc(tStart);
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % Boundary approach
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             tStart = tic;
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             time_boundary(i, m) = toc(tStart);
+%             succ_low_boundary{i}(:, 1, m) = succ_low;  % Only final time
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% 
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% Random successors
+% try
+%     % === CALL CONFIG FUNCTION ===
+%     global g_sensitivity_bounds_method
+%     parameters = get_solver_parameters(n_x, n_p, g_sensitivity_bounds_method);
+% 
+%     % Now use it
+%     ode_solver = parameters.ode_solver;
+%     ode_options = parameters.ode_options;
+% 
+%     rand_succ = NaN(n_x, sample_succ_number);
+%     for i = 1:sample_succ_number
+%         x0_rand = x_low + rand(n_x,1).*(x_up - x_low);
+%         p_rand  = p_low + rand(n_p,1).*(p_up - p_low);
+%         [~, x_traj] = ode_solver(@(t,x) System_description(t,x,p_rand), [t_init t_final], x0_rand, ode_options);
+%         rand_succ(:,i) = x_traj(end,:)';
+%     end
+% catch e
+%     rethrow(e);
+% end
+% 
+% %% === UNIFIED SAVING: ONLY ONE FOLDER, ONLY ON FINAL CALL ===
+% % No folders during refinement → no clutter
+% % One beautiful folder on final verified call → contains plots + data
+% 
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     % Create ONE top-level folder with timestamp
+%     folder_name = sprintf('FINAL_VERIFIED_%s_%s', system_name, datestr(now, 'yyyy-mm-dd_HH-MM-SS'));
+%     save_dir = fullfile(pwd, folder_name);
+% 
+%     if ~exist(save_dir, 'dir')
+%         mkdir(save_dir);
+%         fprintf('Created a single results folder:\n   %s\n', save_dir);
+%     end
+% 
+%     % Update reachability_results so Verifier.m knows the path
+%     reachability_results.save_dir = save_dir;
+% 
+% else
+%     % During bisection/refinement: NO saving, NO folder
+%     save_dir = '';
+%     reachability_results.save_dir = '';
+% end
+% 
+% %%
+% % =====================================================================
+% % FINAL PLOTTING — ONLY ON is_final_call = true
+% % =====================================================================
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     fig = figure('Color', 'w');
+%     hold on;
+%     grid on;
+%     box on;
+%     set(gca, 'FontSize', 18, 'TickLabelInterpreter', 'latex');
+%     k = 1; % final time index
+% 
+%     % Black sampled points
+%     plot(rand_succ(1,:), rand_succ(2,:), 'k.', 'MarkerSize', 5, 'DisplayName', 'Sampled trajectories');
+% 
+%     % -----------------------------------------------------------------
+%     % Choose plot mode
+%     % -----------------------------------------------------------------
+%     plot_mode = 'full';
+%     if isfield(params.plot_control, 'final_plot_mode')
+%         plot_mode = params.plot_control.final_plot_mode;
+%     end
+% 
+%     if strcmp(plot_mode, 'intersection_only')
+%         % ───── ONLY INTERSECTION + SAFE SET (CLEAN & PUBLICATION-GRADE) ─────
+%         % 1. Intersection of all 4 OAs (thick purple)
+%         intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%         intersect_up = min([succ_up_all_methods(1:2,k,1), succ_up_all_methods(1:2,k,2)], [], 2);
+%         for m = 1:2
+%             Ls = inf(2,num_splits); Us = -inf(2,num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
+%                 Us(:,i) = succ_up_boundary{i}(1:2,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up = min(intersect_up, max(Us,[],2));
+%         end
+%         rect_int = [intersect_low(1), intersect_low(2), ...
+%                     intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+%         rectangle('Position', rect_int, 'EdgeColor', [0.4940 0.1840 0.5560], 'LineWidth', 2);
+%         h_int = plot(NaN,NaN,'-','Color',[0.4940 0.1840 0.5560],'LineWidth',2,...
+%                      'DisplayName','Proved Reachable Set (Intersection of 4 OAs)');
+% 
+%         % 2. Safe set (thick green)
+%         h_safe = []; % initialize in case safe set is missing
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
+%             numel(params.safe_inf)==2 && numel(params.safe_sup)==2 && ...
+%             all(isfinite(params.safe_inf)) && all(isfinite(params.safe_sup))
+%             safe_x = [params.safe_inf(1), params.safe_sup(1), params.safe_sup(1), params.safe_inf(1), params.safe_inf(1)];
+%             safe_y = [params.safe_inf(2), params.safe_inf(2), params.safe_sup(2), params.safe_sup(2), params.safe_inf(2)];
+%             h_safe = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2, 'DisplayName','Safe Set');
+%         end
+% 
+%         % Collect bounds only from what actually exists in this mode
+%         x_min_all = min(rand_succ(1,:));
+%         x_max_all = max(rand_succ(1,:));
+%         y_min_all = min(rand_succ(2,:));
+%         y_max_all = max(rand_succ(2,:));
+%         % Add intersection rectangle
+%         x_min_all = min(x_min_all, rect_int(1));
+%         x_max_all = max(x_max_all, rect_int(1) + rect_int(3));
+%         y_min_all = min(y_min_all, rect_int(2));
+%         y_max_all = max(y_max_all, rect_int(2) + rect_int(4));
+%         % Add safe set (if exists)
+%         if ~isempty(h_safe)
+%             x_min_all = min(x_min_all, min(safe_x));
+%             x_max_all = max(x_max_all, max(safe_x));
+%             y_min_all = min(y_min_all, min(safe_y));
+%             y_max_all = max(y_max_all, max(safe_y));
+%         end
+%         x_range = max(x_max_all - x_min_all, 0.1);
+%         y_range = max(y_max_all - y_min_all, 0.1);
+%         buffer = 0.25;
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
+%               y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+%         axis equal;
+% 
+%         % Legend: only the two important ones
+%         xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%         ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%         title('Intersection of 4 OAs vs Safe set','Interpreter','latex','FontSize',20);
+%         % Build legend entries and labels in exact desired order
+%         legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5); % Sampled points
+%         legend_labels = {'Sampled trajectories'};
+%         % Always add intersection
+%         legend_entries(end+1) = h_int;
+%         legend_labels{end+1} = 'Intersection of 4 OAs';
+%         % Add Safe Set only if it exists
+%         if ~isempty(h_safe)
+%             legend_entries(end+1) = h_safe;
+%             legend_labels{end+1} = 'Safe Set';
+%         end
+% 
+%         % Create compact legend
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
+%                      'Interpreter', 'latex');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
+% 
+%         % Save in multiple formats
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.png'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.pdf'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.fig'));
+%         print(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set.eps'), '-depsc');
+%         print(gcf, fullfile(save_dir, 'Final_Proved_Reachable_Set_highres'), '-dpng', '-r600');
+%         fprintf('Final proved reachable set saved in:\n %s\n', save_dir);
+% 
+%     else
+%         % ───── FULL PLOTS (ALL OAs + Intersections + Safe set) ─────
+% 
+%         % -----------------------------------------------------------------
+%         % 1. Single-step CT Mixed-Monotonicity (solid blue)
+%         % -----------------------------------------------------------------
+%         rect1 = [succ_low_all_methods(1,k,1), succ_low_all_methods(2,k,1), ...
+%                  succ_up_all_methods(1,k,1)-succ_low_all_methods(1,k,1), ...
+%                  succ_up_all_methods(2,k,1)-succ_low_all_methods(2,k,1)];
+%         rectangle('Position', rect1, 'EdgeColor',[0 0.4470 0.7410], 'LineWidth',1.4);
+%         h1 = plot(NaN, NaN, '-', 'Color', [0 0.4470 0.7410], 'LineWidth', 1.4, ...
+%               'DisplayName','CT Mixed-Monotonicity (Single-step)');
+% 
+%         % -----------------------------------------------------------------
+%         % 2. Single-step Sampled-Data MM (solid orange)
+%         % -----------------------------------------------------------------
+%         rect2 = [succ_low_all_methods(1,k,2), succ_low_all_methods(2,k,2), ...
+%                  succ_up_all_methods(1,k,2)-succ_low_all_methods(1,k,2), ...
+%                  succ_up_all_methods(2,k,2)-succ_low_all_methods(2,k,2)];
+%         rectangle('Position', rect2, 'EdgeColor',[0.8500 0.3250 0.0980], 'LineWidth',1.4);
+%         h2 = plot(NaN, NaN, '-', 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 1.4, ...
+%             'DisplayName','SD Mixed-Monotonicity (Single-step)');
+% 
+% 
+%         % -----------------------------------------------------------------
+%         % 3. Boundary CT MM (dashed cyan)
+%         % -----------------------------------------------------------------
+%         L = Inf(2,1); U = -Inf(2,1);
+%         for i = 1:num_splits
+%             L = min(L, [succ_low_boundary{i}(1,k,1); succ_low_boundary{i}(2,k,1)]);
+%             U = max(U, [succ_up_boundary{i}(1,k,1);  succ_up_boundary{i}(2,k,1)]);
+%         end
+%         rect3 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
+%         rectangle('Position', rect3, 'EdgeColor',[0.3010 0.7450 0.9330], 'LineWidth',1.4);
+%         h3 = plot(NaN, NaN, '--', 'Color', [0.3010 0.7450 0.9330], 'LineWidth', 1.4, ...
+%             'DisplayName','CT Mixed-Monotonicity (Boundary)');
+% 
+%         % -----------------------------------------------------------------
+%         % 4. Boundary SD MM (dashed gold)
+%         % -----------------------------------------------------------------
+%         L = Inf(2,1); U = -Inf(2,1);
+%         for i = 1:num_splits
+%             L = min(L, [succ_low_boundary{i}(1,k,2); succ_low_boundary{i}(2,k,2)]);
+%             U = max(U, [succ_up_boundary{i}(1,k,2);  succ_up_boundary{i}(2,k,2)]);
+%         end
+%         rect4 = [L(1), L(2), U(1)-L(1), U(2)-L(2)];
+%         rectangle('Position', rect4, 'EdgeColor',[0.9290 0.6940 0.1250], 'LineWidth',1.4);
+%         h4 = plot(NaN, NaN, '--', 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 1.4, ...
+%             'DisplayName','SD Mixed-Monotonicity (Boundary)');
+% 
+%         % -----------------------------------------------------------------
+%         % 5. INTERSECTION OF ALL 4 (thick purple) 
+%         % -----------------------------------------------------------------
+%         intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%         intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
+%         for m = 1:2
+%             Ls = Inf(2,num_splits); Us = -Inf(2,num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = [succ_low_boundary{i}(1,k,m); succ_low_boundary{i}(2,k,m)];
+%                 Us(:,i) = [succ_up_boundary{i}(1,k,m);  succ_up_boundary{i}(2,k,m)];
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+%         rect_intersect = [intersect_low(1), intersect_low(2), ...
+%                           intersect_up(1)-intersect_low(1), intersect_up(2)-intersect_low(2)];
+%         rectangle('Position', rect_intersect, 'EdgeColor',[0.4940 0.1840 0.5560], 'LineWidth',2.5);
+%         h5 = plot(NaN, NaN, '-', 'Color', [0.4940 0.1840 0.5560], 'LineWidth', 2.5, ...
+%             'DisplayName','Intersection of 4 OAs');
+% 
+%         % -----------------------------------------------------------------
+%         % 6. SAFE SET (thick green)
+%         % -----------------------------------------------------------------
+%         if isfield(params,'safe_inf') && isfield(params,'safe_sup') && ...
+%            numel(params.safe_inf)==2 && numel(params.safe_sup)==2
+%             safe_x = [params.safe_inf(1), params.safe_sup(1), params.safe_sup(1), params.safe_inf(1), params.safe_inf(1)];
+%             safe_y = [params.safe_inf(2), params.safe_inf(2), params.safe_sup(2), params.safe_sup(2), params.safe_inf(2)];
+%             h6 = plot(safe_x, safe_y, 'Color',[0 0.8 0], 'LineWidth',2.5, 'DisplayName','Safe set');
+%         end
+%         % =================================================================
+%         % AUTOMATIC AXIS LIMITS — smart, adaptive, beautiful padding
+%         % =================================================================
+%         % Collect all corners from rectangles and sampled points
+%         x_min_actual = min(rand_succ(1,:));
+%         x_max_actual = max(rand_succ(1,:));
+%         y_min_actual = min(rand_succ(2,:));
+%         y_max_actual = max(rand_succ(2,:));
+% 
+%         % Single-step bounds
+%         x_min_single = min([rect1(1), rect2(1)]);
+%         x_max_single = max([rect1(1)+rect1(3), rect2(1)+rect2(3)]);
+%         y_min_single = min([rect1(2), rect2(2)]);
+%         y_max_single = max([rect1(2)+rect1(4), rect2(2)+rect2(4)]);
+%         width_single  = x_max_single - x_min_single;
+%         height_single = y_max_single - y_min_single;
+% 
+%         % Boundary bounds
+%         x_min_bound = min([rect3(1), rect4(1)]);
+%         x_max_bound = max([rect3(1)+rect3(3), rect4(1)+rect4(3)]);
+%         y_min_bound = min([rect3(2), rect4(2)]);
+%         y_max_bound = max([rect3(2)+rect3(4), rect4(2)+rect4(4)]);
+%         width_bound  = x_max_bound - x_min_bound;
+%         height_bound = y_max_bound - y_min_bound;
+% 
+%         % Intersection bound
+%         x_min_inter = rect_intersect(1);
+%         x_max_inter = rect_intersect(1) + rect_intersect(3);
+%         y_min_inter = rect_intersect(2);
+%         y_max_inter = rect_intersect(2) + rect_intersect(4);
+% 
+%         % Safe set (if exists)
+%         if exist('safe_x','var')
+%             x_min_safe = min(safe_x);
+%             x_max_safe = max(safe_x);
+%             y_min_safe = min(safe_y);
+%             y_max_safe = max(safe_y);
+%         else
+%             x_min_safe = 0; x_max_safe = 0; y_min_safe = 0; y_max_safe = 0;
+%         end
+% 
+%         % Final min/max including everything
+%         x_min_all = min([x_min_actual, x_min_single, x_min_bound, x_min_inter, x_min_safe]);
+%         x_max_all = max([x_max_actual, x_max_single + width_single, x_max_bound + width_bound, x_max_inter, x_max_safe]);
+%         y_min_all = min([y_min_actual, y_min_single, y_min_bound, y_min_inter, y_min_safe]);
+%         y_max_all = max([y_max_actual, y_max_single + height_single, y_max_bound + height_bound, y_max_inter, y_max_safe]);
+% 
+%         x_range = x_max_all - x_min_all;
+%         y_range = y_max_all - y_min_all;
+% 
+%         if x_range == 0, x_range = 1; end
+%         if y_range == 0, y_range = 1; end
+% 
+%         buffer = 0.25;  % perfect padding
+%         axis([x_min_all - buffer*x_range, x_max_all + buffer*x_range, ...
+%               y_min_all - buffer*y_range, y_max_all + buffer*y_range]);
+% 
+%         axis equal;  % Keep this — critical for rectangles
+% 
+%         % -----------------------------------------------------------------
+%         % Labels & Legend
+%         % -----------------------------------------------------------------
+%         xlabel('$x_1$','Interpreter','latex','FontSize',20);
+%         ylabel('$x_2$','Interpreter','latex','FontSize',20);
+%         title('Final Reachable Set Over-Approximations','Interpreter','latex','FontSize',20);
+% 
+%         % Build legend entries and labels in exact desired order
+%         legend_entries = plot(NaN, NaN, 'k.', 'MarkerSize', 5);   % Sampled points
+%         legend_labels  = {'Sampled trajectories'};
+% 
+%         % Proxy handles (already created above: h1, h2, h3, h4, h5, h6)
+%         proxy_handles = [h1, h2, h3, h4, h5];
+%         label_names   = {...
+%             'CT Mixed-Monotonicity (Single-step)', ...
+%             'SD Mixed-Monotonicity (Single-step)', ...
+%             'CT Mixed-Monotonicity (Boundary)', ...
+%             'SD Mixed-Monotonicity (Boundary)', ...
+%             'Intersection of 4 OAs'};
+% 
+%         for i = 1:length(proxy_handles)
+%             legend_entries(end+1) = proxy_handles(i);
+%             legend_labels{end+1}  = label_names{i};
+%         end
+% 
+%         % Add Safe Set only if it exists
+%         if exist('h6', 'var')
+%             legend_entries(end+1) = h6;
+%             legend_labels{end+1}  = 'Safe set';
+%         end
+% 
+%         % Create compact legend 
+%         lgd = legend(legend_entries, legend_labels, 'Location', 'southeast', ...
+%                      'Interpreter', 'latex');
+%         set(lgd, 'FontSize', 5, 'FontWeight', 'bold', 'Box', 'on');
+% 
+% 
+%         % Make dashed lines visible in legend
+%         leg = findobj(lgd, 'type', 'line');
+%         set(leg, 'LineWidth', 1.5);
+% 
+%         % Final layout tweak
+%         set(gca, 'LooseInset', get(gca,'TightInset') + [0.01 0.01 0.05 0.01]);
+%         drawnow;
+% 
+% 
+%         % Save in multiple formats
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.png'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.pdf'));
+%         saveas(gcf, fullfile(save_dir, 'Final_Reachability_Plot.fig'));
+%         print(gcf, fullfile(save_dir, 'Final_Reachability_Plot.eps'), '-depsc');          % Vector EPS for LaTeX
+%         print(gcf, fullfile(save_dir, 'Final_Reachability_Plot_highres'), '-dpng', '-r600'); % 600 DPI PNG
+%         fprintf('Final plots saved as(PNG, PDF, FIG, EPS, high-res PNG) in:\n %s\n', save_dir);
+%     end 
+% end
+% 
+% % -------------------------------------------------------------------
+% % 4. TIGHTNESS METRICS & TIMING SUMMARY
+% % -------------------------------------------------------------------
+% if isfield(params, 'is_final_call') && params.is_final_call
+%     k = 1;
+%     % === Compute areas of single-step methods ===
+%     area_CTMM_singlestep  = prod(succ_up_all_methods(1:2,k,1)  - succ_low_all_methods(1:2,k,1));
+%     area_SDMM_singlestep  = prod(succ_up_all_methods(1:2,k,2)  - succ_low_all_methods(1:2,k,2));
+% 
+%     % === Compute areas of boundary methods ===
+%     % Boundary CTMM
+%     L = Inf(2,1); 
+%     U = -Inf(2,1);
+%     for i = 1:num_splits, 
+%         L = min(L, succ_low_boundary{i}(1:2,k,1));
+%         U = max(U, succ_up_boundary{i}(1:2,k,1)); 
+%     end
+%     area_CTMM_boundary = prod(U - L);
+% 
+%     % Boundary SDMM
+%     L = Inf(2,1);
+%     U = -Inf(2,1);
+%     for i = 1:num_splits, 
+%         L = min(L, succ_low_boundary{i}(1:2,k,2)); 
+%         U = max(U, succ_up_boundary{i}(1:2,k,2)); 
+%     end
+%     area_SDMM_boundary = prod(U - L);
+% 
+%     % === Compute Intersection of all 4 OA methods ===
+%     tic_intersect = tic;
+% 
+%     intersect_low = max([succ_low_all_methods(1:2,k,1), succ_low_all_methods(1:2,k,2)], [], 2);
+%     intersect_up  = min([succ_up_all_methods(1:2,k,1) , succ_up_all_methods(1:2,k,2)], [], 2);
+%     for m = 1:2
+%         Ls = Inf(2,num_splits); 
+%         Us = -Inf(2,num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = succ_low_boundary{i}(1:2,k,m);
+%             Us(:,i) = succ_up_boundary{i}(1:2,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+%     area_intersection_4OAs = prod(intersect_up - intersect_low);
+%     time_intersect = toc(tic_intersect);
+% 
+%     % === SAFE SET AREA ===
+%     safe_area = prod(params.safe_sup - params.safe_inf);
+% 
+%     % === PRINT TIGHTNESS METRICS (w.r.t. Safe set) ===
+%     fprintf('\n=== TIGHTNESS METRICS (Area Ratio w.r.t. Safe set) ===\n');
+%     fprintf(' Safe set area                           : %.6e\n', safe_area);
+%     fprintf(' CT Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_singlestep,  area_CTMM_singlestep  / safe_area);
+%     fprintf(' SD Mixed-Monotonicity (Single-step)     : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_singlestep,  area_SDMM_singlestep  / safe_area);
+%     fprintf(' CT Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_CTMM_boundary, area_CTMM_boundary / safe_area);
+%     fprintf(' SD Mixed-Monotonicity (Boundary)        : Area = %.3e  → Ratio = %6.2f\n', area_SDMM_boundary, area_SDMM_boundary / safe_area);
+%     fprintf(' Intersection of 4 OA methods            : %.3e → Ratio = %6.2f\n', area_intersection_4OAs, area_intersection_4OAs / safe_area);
+% 
+%     % === PRINT FINAL COMPUTATION TIMES ===
+%     fprintf('\n=== FINAL COMPUTATION TIMES ===\n');
+%     fprintf(' (Single-step) CT Mixed-Monotonicity               : %.6f s\n', time_initial(1));
+%     fprintf(' (Boundary)     CT Mixed-Monotonicity              : %.6f s\n', sum(time_boundary(:,1)));
+%     fprintf(' (Single-step) CT Sampled-Data Mixed-Monotonicity  : %.6f s\n', time_initial(2));
+%     fprintf(' (Boundary)     CT Sampled-Data Mixed-Monotonicity : %.6f s\n', sum(time_boundary(:,2)));
+%     fprintf(' Intersection of 4 OA methods                      : %.6f s\n', time_intersect);
+% end
+% 
+% %% === RETURN ALL reachability_results === --> ## check the only needed ones and remove the rest
+% 
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods   = succ_up_all_methods;
+% reachability_results.succ_low_boundary     = succ_low_boundary;
+% reachability_results.succ_up_boundary      = succ_up_boundary;
+% reachability_results.rand_succ             = rand_succ;
+% reachability_results.time_initial          = time_initial;
+% reachability_results.time_boundary         = time_boundary;
+% reachability_results.save_dir              = save_dir;
+% reachability_results.n_x                   = n_x;
+% reachability_results.system_choice         = system_choice;
+% reachability_results.num_splits            = num_splits;
+% 
+% % =========================================================================
+% % === ENSURE safe_inf and safe_sup are ALWAYS returned to Verifier.m ===
+% % =========================================================================
+% if isfield(params,'safe_inf') && isfield(params,'safe_sup')
+%     reachability_results.safe_inf = params.safe_inf;
+%     reachability_results.safe_sup = params.safe_sup;
+% else
+%     reachability_results.safe_inf = []; 
+%     reachability_results.safe_sup = [];
+% end
+% 
+% % Save full struct only on final verified call
+% if isfield(params,'is_final_call') && params.is_final_call && ~isempty(save_dir)
+%     save(fullfile(save_dir,'reachability_data.mat'), 'reachability_results', '-v7.3');
+% end
+% 
+% %% === SAVE DATA ONLY ON FINAL CALL (into the ONE folder) ===
+% if isfield(params, 'is_final_call') && params.is_final_call && ~isempty(save_dir)
+%     filename_base = sprintf('reachability_data_sys_TIRA%d_all_%s', system_choice, datestr(now, 'yyyy-mm-dd'));
+%     save(fullfile(save_dir, [filename_base '.mat']), ...
+%         'succ_low_all_methods', 'succ_up_all_methods', ...
+%         'succ_low_boundary', 'succ_up_boundary', ...
+%         'rand_succ', 'methods', 'n_x', 'n_methods_total', ...
+%         'time_initial', 'time_boundary', '-v7.3');
+%     save(fullfile(save_dir, 'reachability_data.mat'), 'reachability_results', '-v7.3');
+% end
+% 
+% 
+% % =========================================================================
+% % === Helper Functions==
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract field from params struct
+%     % Throws clear error if missing
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s". Must be set in Verifier_FINAL.m', field);
+%     end
+% end
+% end
+% %------------- END OF CODE  --------------
+
+
+% %% V1.2
+% 
+% %------------- BEGIN CODE V1.2  --------------
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % This is a pure computational function that returns reachability bounds.
+% %
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice  : 14 (FPA) or 15 (Spiral_non)
+% %       .x0             : Initial center of the set
+% %       .Initial_radius : Radius of the initial set
+% %       .t_final        : Final time for analysis
+% %       .timeStep       : Discretization step (not used by TIRA but good practice)
+% %
+% % Output:
+% %   reachability_results - struct containing the computed over-approximations.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')  
+% 
+% % Initialize the global sensitivity method choice to a scalar NaN.
+% % This ensures that when TIRA's sub-functions check this global variable,
+% % they will always find a valid scalar value, preventing the '||' operator error.
+% %
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% 
+% %% Definition of the systems and reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% % n_p = length(p_low);      % Delter it if there's no use for it
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary Splits
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% 
+% for i = 1:n_x
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main Reachability Computation
+% try
+%     % Initialize the timing variables before the loops.
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % 1. Single-step methods
+%     for m = 1:n_methods_single_step
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2. Boundary methods
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             succ_low_boundary{i}(:, 1, m) = succ_low;
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package Results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.time_initial         = time_initial; % Added
+% reachability_results.time_boundary        = time_boundary;% Added
+% reachability_results.num_splits           = num_splits;
+% reachability_results.system_choice        = system_choice;
+% reachability_results.n_x                  = n_x;
+% 
+% end
+% 
+% % =========================================================================
+% % === Helper Function ===
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract a field from the params struct.
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END OF CODE V1.2  --------------
+
+
+% %% V1.3
+% 
+% %------------- BEGIN CODE V1.3  --------------
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % This is a pure computational function that returns reachability bounds.
+% %
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice  : 14 (FPA) or 15 (Spiral_non)
+% %       .x0             : Initial center of the set
+% %       .Initial_radius : Radius of the initial set
+% %       .t_final        : Final time for analysis
+% %       .timeStep       : Discretization step (not used by TIRA but good practice)
+% %
+% % Output:
+% %   reachability_results - struct containing the computed over-approximations.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')  
+% 
+% % Initialize the global sensitivity method choice to a scalar NaN.
+% % This ensures that when TIRA's sub-functions check this global variable,
+% % they will always find a valid scalar value, preventing the '||' operator error.
+% %
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% 
+% %% Definition of the systems and reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% % n_p = length(p_low);      % Delter it if there's no use for it
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary Decompositions
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% 
+% % Define the boundary sets for TIRA input
+% for i = 1:n_x
+%     % Low bounds
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     % Upper bounds
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main Reachability Computation
+% try
+%     % Initialize the timing variables before the loops.
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % 1. Single-step methods
+%     for m = 1:n_methods_single_step
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2. Boundary methods
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             succ_low_boundary{i}(:, 1, m) = succ_low;
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package Results --> # Commented for now the ones that aren't used but left incase we will need some of these O/Ps later
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% % reachability_results.time_initial         = time_initial; 
+% % reachability_results.time_boundary        = time_boundary;
+% reachability_results.num_splits           = num_splits;
+% % reachability_results.system_choice        = system_choice;
+% % reachability_results.n_x                  = n_x;
+% 
+% 
+% %% Compute Intersection of All 4 Over-Approximations (NEW) 
+% 
+% % k = size(reachability_results.succ_low_all_methods, 2);
+% k = 1; % Index for the final time step
+% 
+% check_dims = n_x; 
+% % check_dims = size(reachability_results.succ_low_all_methods, 1); % Or determined from n_x
+% 
+% intersect_low = -Inf(check_dims,1);
+% intersect_up  =  Inf(check_dims,1);
+% 
+% % Single-step methods (m=1 and m=2)
+% for m = 1:2 
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
+% end
+% 
+% % Boundary methods (m=1 and m=2 of succ_low_boundary/succ_up_boundary)
+% for m = 1:2 
+%     % Ls and Us capture the lower/upper bounds across all splits for method m
+%     Ls = Inf(check_dims, reachability_results.num_splits); 
+%     Us = -Inf(check_dims, reachability_results.num_splits);
+%     for i = 1:reachability_results.num_splits
+%         Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
+%         Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
+%     end
+%     % The bound of the union is min(Ls) and max(Us). 
+%     % The intersection of the *union* bounds is taken with the overall intersection.
+%     intersect_low = max(intersect_low, min(Ls,[],2));
+%     intersect_up  = min(intersect_up,  max(Us,[],2));
+% end
+% 
+% % Store the intersection in the output structure --> The main Package Results
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up = intersect_up;
+% 
+% end
+% 
+% % =========================================================================
+% % === Helper Function ===
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract a field from the params struct.
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END OF CODE V1.3  --------------
+
+%% V1.4 MNIST example 
+
+% %------------- BEGIN CODE V1.4  --------------
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % This is a pure computational function that returns reachability bounds.
+% %
+% % Input:
+% %   params - struct with fields:
+% %       .system_choice  : 14 (FPA) or 15 (Spiral_non)
+% %       .x0             : Initial center of the set
+% %       .Initial_radius : Radius of the initial set
+% %       .t_final        : Final time for analysis
+% %       .timeStep       : Discretization step (not used by TIRA but good practice)
+% %
+% % Output:
+% %   reachability_results - struct containing the computed over-approximations.
+% 
+% %% Initialization
+% % addpath('../OA_methods')
+% % addpath('../Utilities')  
+% 
+% % === Make paths robust === i.e. it does not matter where we call `NODE_RA.m`
+% % from
+% this_file = mfilename('fullpath');          % full path to NODE_RA.m
+% this_dir  = fileparts(this_file);          % directory containing NODE_RA.m
+% 
+% addpath(fullfile(this_dir, '../OA_methods'));
+% addpath(fullfile(this_dir, '../Utilities'));
+% 
+% 
+% % Initialize the global sensitivity method choice to a scalar NaN.
+% % This ensures that when TIRA's sub-functions check this global variable,
+% % they will always find a valid scalar value, preventing the '||' operator error.
+% %
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% 
+% %% Definition of the systems and reachability problem
+% 
+% global u system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% % === Unified Parameter Loading(both systems) ===
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% steps          = get_from_params(params, 'timeStep');
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% t_init = 0;
+% 
+% p_low = zeros(length(x_low),1); 
+% p_up  = zeros(length(x_low),1);
+% 
+% % Dimensions
+% n_x = length(x_low);
+% % n_p = length(p_low);      % Delter it if there's no use for it
+% 
+% % === DEFINE 4 METHODS (Single-step + Boundary) ===
+% methods = [3, 4];  % TIRA codes: 3 = CT MMM, 4 = SD MM
+% n_methods_single_step = length(methods);  % 2
+% n_methods_total = 4;  % 2 Single-step OAs + 2 Boundary OAs
+% 
+% % Preallocate for all 4 methods
+% succ_low_all_methods = NaN(n_x, 1, n_methods_total); % 1: RA @ Final time
+% succ_up_all_methods = NaN(n_x, 1, n_methods_total);
+% 
+% %% Boundary Decompositions
+% num_splits = 2*n_x;
+% Initial_set_boundaries = cell(num_splits, 1);
+% succ_low_boundary = cell(num_splits, 1);
+% succ_up_boundary  = cell(num_splits, 1);
+% 
+% % Define the boundary sets for TIRA input
+% for i = 1:n_x
+%     % Low bounds
+%     temp_low = x_low; temp_up = x_up; temp_low(i) = x_up(i);
+%     Initial_set_boundaries{2*i-1} = interval(temp_low(:), temp_up(:));
+%     % Upper bounds
+%     temp_low = x_low; temp_up = x_up; temp_up(i) = x_low(i);
+%     Initial_set_boundaries{2*i} = interval(temp_low(:), temp_up(:));
+% end
+% 
+% %% Main Reachability Computation
+% try
+%     % Initialize the timing variables before the loops.
+%     time_initial = zeros(1, n_methods_single_step);
+%     time_boundary = zeros(num_splits, n_methods_single_step);
+% 
+%     % 1. Single-step methods
+%     for m = 1:n_methods_single_step
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2. Boundary methods
+%     for i = 1:num_splits
+%         succ_low_boundary{i} = NaN(n_x, 1, n_methods_single_step);  
+%         succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single_step);
+%         for m = 1:n_methods_single_step
+%             [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                 Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, p_low, p_up, methods(m));
+%             succ_low_boundary{i}(:, 1, m) = succ_low;
+%             succ_up_boundary{i}(:, 1, m)  = succ_up;
+%          end
+%      end
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package Results --> # Commented for now the ones that aren't used but left incase we will need some of these O/Ps later
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% % reachability_results.time_initial         = time_initial; 
+% % reachability_results.time_boundary        = time_boundary;
+% reachability_results.num_splits           = num_splits;
+% % reachability_results.system_choice        = system_choice;
+% % reachability_results.n_x                  = n_x;
+% 
+% 
+% %% Compute Intersection of All 4 Over-Approximations (NEW) 
+% 
+% % k = size(reachability_results.succ_low_all_methods, 2);
+% k = 1; % Index for the final time step
+% 
+% check_dims = n_x; 
+% % check_dims = size(reachability_results.succ_low_all_methods, 1); % Or determined from n_x
+% 
+% intersect_low = -Inf(check_dims,1);
+% intersect_up  =  Inf(check_dims,1);
+% 
+% % Single-step methods (m=1 and m=2)
+% for m = 1:2 
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(1:check_dims,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(1:check_dims,k,m));
+% end
+% 
+% % Boundary methods (m=1 and m=2 of succ_low_boundary/succ_up_boundary)
+% for m = 1:2 
+%     % Ls and Us capture the lower/upper bounds across all splits for method m
+%     Ls = Inf(check_dims, reachability_results.num_splits); 
+%     Us = -Inf(check_dims, reachability_results.num_splits);
+%     for i = 1:reachability_results.num_splits
+%         Ls(:,i) = reachability_results.succ_low_boundary{i}(1:check_dims,k,m);
+%         Us(:,i) = reachability_results.succ_up_boundary{i}(1:check_dims,k,m);
+%     end
+%     % The bound of the union is min(Ls) and max(Us). 
+%     % The intersection of the *union* bounds is taken with the overall intersection.
+%     intersect_low = max(intersect_low, min(Ls,[],2));
+%     intersect_up  = min(intersect_up,  max(Us,[],2));
+% end
+% 
+% % Store the intersection in the output structure --> The main Package Results
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up = intersect_up;
+% 
+% end
+% 
+% % =========================================================================
+% % === Helper Function ===
+% % =========================================================================
+% function val = get_from_params(params, field)
+%     % Safely extract a field from the params struct.
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END OF CODE V1.4  --------------
+
+
+%% 16-12-2025 Version  |--> Last working version
+
+% %------------- BEGIN CODE V1.5 (Option A for MNIST) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % Option A: for MNIST (system_choice == 16), DISABLE boundary decomposition.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Read params
+% global system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% timeStep       = get_from_params(params, 'timeStep'); 
+% 
+% % Ensure column vectors
+% x0 = x0(:);
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% 
+% % Dimensions
+% n_x = length(x_low);
+% 
+% % === IMPORTANT FOR MNIST ===
+% % MNIST ODE is autonomous: we do NOT want a fake "input" of dimension 676.
+% % Setting n_p = 0 reduces memory and avoids unnecessary Jacobian/Sensitivity work.
+% if system_choice == 16
+%     % p_low = [];   % n_p = 0
+%     % p_up  = [];
+%     p_low = zeros(n_x,1);   % n_p = 0
+%     p_up  = zeros(n_x,1);
+% else
+%     % Keep your previous convention for other toy systems
+%     p_low = zeros(n_x,1);
+%     p_up  = zeros(n_x,1);
+% end
+% 
+% n_p = length(p_low);
+% 
+% % === Define methods ===
+% methods = [3, 4];            % 3 = CT Mixed-Monotonicity, 4 = SD Mixed-Monotonicity
+% n_methods_single = length(methods);
+% 
+% % === Option A: disable boundary methods for MNIST only ===
+% do_boundary = (system_choice ~= 16);
+% 
+% if ~do_boundary
+%     fprintf('[NODE_RA] MNIST mode: boundary decomposition disabled (n_x=%d).\n', n_x);
+% end
+% 
+% % Preallocate single-step results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% % Boundary containers
+% if do_boundary
+%     num_splits = 2*n_x;
+%     Initial_set_boundaries = cell(num_splits, 1);
+%     succ_low_boundary = cell(num_splits, 1);
+%     succ_up_boundary  = cell(num_splits, 1);
+% 
+%     % Define boundary sets
+%     for i = 1:n_x
+%         % Fix i-th dimension to upper bound (low-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%         Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+% 
+%         % Fix i-th dimension to lower bound (up-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%         Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%     end
+% else
+%     num_splits = 0;
+%     Initial_set_boundaries = {};
+%     succ_low_boundary = {};
+%     succ_up_boundary  = {};
+% end
+% 
+% %% Main reachability computation
+% try
+%     % 1) Single-step methods
+%     for m = 1:n_methods_single
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2) Boundary methods (SKIPPED for MNIST)
+%     if do_boundary
+%         for i = 1:num_splits
+%             succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%             succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+% 
+%             for m = 1:n_methods_single
+%                 [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                     Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                     p_low, p_up, methods(m));
+% 
+%                 succ_low_boundary{i}(:, 1, m) = succ_low;
+%                 succ_up_boundary{i}(:, 1, m)  = succ_up;
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.num_splits           = num_splits;
+% 
+% %% Compute intersection (robust check object used by Verifier_FINAL)
+% k = 1;  % final time index (your code stores only final)
+% 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% % Intersection of single-step OAs
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% % If boundary is enabled, intersect with the union-bounds of boundary faces
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits);
+%         Us = -Inf(n_x, num_splits);
+% 
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+% 
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END CODE V1.5 --------------
+
+
+%% 13-01-2026
+
+% %------------- BEGIN CODE V1.5 (Option A for MNIST) CTMM only -------------- 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % system choice = 14,15 "Spiral", "FPA"
+% % % RA methods: 3:CTMM - 4:SDMM - Boundary decomposition
+% % system choice = 16 "MNIST"
+% % % RA methods: 3:CTMM only 
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Read params
+% global system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% timeStep       = get_from_params(params, 'timeStep'); 
+% 
+% % Ensure column vectors for initial conditions and radius
+% x0 = x0(:); 
+% Initial_radius = Initial_radius(:);
+% 
+% % Define lower and upper bounds for the state variables
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% % Initialize time parameters
+% t_init = 0;
+% % Dimensions
+% n_x = length(x_low);
+% 
+% % === IMPORTANT FOR MNIST ===
+% % MNIST ODE is autonomous: we do NOT want a fake "input" of dimension 676.
+% % Setting n_p = 0 reduces memory and avoids unnecessary Jacobian/Sensitivity work.
+% p_low = zeros(n_x,1);
+% p_up  = zeros(n_x,1);
+% n_p = length(p_low);
+% 
+% % === Define methods ===
+% % methods = [3, 4];            % 3 = CT Mixed-Monotonicity, 4 = SD Mixed-Monotonicity
+% % n_methods_single = length(methods);
+% 
+% % Method selection
+% if system_choice == 16
+%     methods = 3;
+%     do_boundary = false;
+% else
+%     methods = [3, 4];            % 3 = CT Mixed-Monotonicity, 4 = SD Mixed-Monotonicity
+%     do_boundary = true;
+% end
+% 
+% n_methods_single = length(methods);
+% 
+% % Preallocate single-step results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% 
+% succ_low_boundary = {};
+% succ_up_boundary  = {};
+% num_splits = 0;
+% 
+% % Boundary containers (Spiral and FPA only) --> RE-CHECK IF I need to keep
+% % the old way for this by accomoditing for the previous 3 lines here as
+% % IF-ELSE !!!!!!!!!
+% if do_boundary
+%     num_splits = 2*n_x;
+%     Initial_set_boundaries = cell(num_splits, 1);
+%     succ_low_boundary = cell(num_splits, 1);
+%     succ_up_boundary  = cell(num_splits, 1);
+% 
+%     % Define boundary sets
+%     for i = 1:n_x
+%         % Fix i-th dimension to upper bound (low-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; 
+%         tmp_low(i) = x_up(i);
+%         Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+% 
+%         % Fix i-th dimension to lower bound (up-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; 
+%         tmp_up(i) = x_low(i);
+%         Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%     end
+% end
+% 
+% %% Main reachability computation
+% try
+%     % 1) Single-step methods
+%     for m = 1:n_methods_single
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2) Boundary methods (SKIPPED for MNIST)
+%     if do_boundary
+%         for i = 1:num_splits
+%             succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%             succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+% 
+%             for m = 1:n_methods_single
+%                 [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                     Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                     p_low, p_up, methods(m));
+% 
+%                 succ_low_boundary{i}(:, 1, m) = succ_low;
+%                 succ_up_boundary{i}(:, 1, m)  = succ_up;
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.num_splits           = num_splits;
+% 
+% %% Compute intersection (robust check object used by Verifier_FINAL)
+% k = 1;  % final time index (your code stores only final)
+% 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% % Intersection of single-step OAs
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% % If boundary is enabled, intersect with the union-bounds of boundary faces
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits);
+%         Us = -Inf(n_x, num_splits);
+% 
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+% 
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+
+%% 30 Jan 2026
+
+% %------------- BEGIN CODE NODE_RA.m (V2.7 - Robustness Fix) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V2.7: Uses Real Jordan Form (cdf2rdf) to handle complex eigenvalues 
+% % without crashing linprog. Fixes wrapping effect for MNIST.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read Standard Parameters
+% system_choice  = get_from_params(params, 'system_choice');
+% x0             = get_from_params(params, 'x0');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% t_final        = get_from_params(params, 't_final');
+% 
+% % Ensure column vectors
+% x0 = x0(:); 
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % Setup Inputs (Disturbance)
+% p_low = zeros(n_x,1); 
+% p_up  = zeros(n_x,1);
+% 
+% % === Method Selection Logic ===
+% if system_choice == 16
+%     methods = 3;         % MNIST: CT Mixed-Monotonicity
+%     do_boundary = false; 
+% else
+%     methods = [3, 4];    % FPA/Spiral
+%     do_boundary = true;  
+% end
+% n_methods_single = length(methods);
+% 
+% % Preallocate Results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> REAL BLOCK DIAGONALIZATION
+%     % =====================================================================
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global), error('Aout_global not defined.'); end
+% 
+%         fprintf('[NODE_RA] Running Real-Block Diagonalized TIRA (Method 3)...\n');
+% 
+%         % 1. Eigen-Decomposition
+%         [V, D] = eig(Aout_global);
+% 
+%         % --- CRITICAL FIX: Convert to Real Jordan Form ---
+%         % This ensures V_real and D_real are purely REAL matrices.
+%         % D_real will be block-diagonal (1x1 for real eigs, 2x2 for complex).
+%         [V_real, D_real] = cdf2rdf(V, D);
+% 
+%         V_inv = inv(V_real);
+% 
+%         % 2. Transform Input to Z-space (Real)
+%         if isfield(params, 'input_star')
+%             S_in = params.input_star;
+% 
+%             % Flatten ImageStar to Star (Vector) if needed
+%             if isa(S_in, 'ImageStar')
+%                 S_in = S_in.toStar();
+%             end
+% 
+%             % Map Star to Z-space: Z = V_inv * X
+%             % affineMap now works because V_inv is REAL
+%             S_z = S_in.affineMap(V_inv, []);
+% 
+%             % Now getRanges will calculate Real bounds (No linprog crash)
+%             [z_low_0, z_up_0] = S_z.getRanges();
+%         else
+%             % Fallback
+%             z_center_0 = V_inv * x0;
+%             z_rad_0    = abs(V_inv) * Initial_radius;
+%             z_low_0    = z_center_0 - z_rad_0;
+%             z_up_0     = z_center_0 + z_rad_0;
+%         end
+% 
+%         % 3. Transform Dynamics
+%         % z_dot = D_real * z + (V_inv * B)
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System
+%         % We hack the globals so TIRA sees the Block-Diagonal Jacobian
+%         A_orig = Aout_global; Bout_orig = Bout_global;
+%         Aout_global = D_real; Bout_global = B_tilde; 
+% 
+%         % Jacobian is exactly D_real
+%         Jacobian_x_low = D_real; 
+%         Jacobian_x_up  = D_real;
+% 
+%         % Call TIRA (Method 3)
+%         [z_low_f, z_up_f] = TIRA([t_init, t_final], z_low_0, z_up_0, p_low, p_up, 3);
+% 
+%         % Restore Globals immediately
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+% 
+%         % 5. Reconstruct Resulting Star (in X-space)
+%         z_center_f = (z_low_f + z_up_f) / 2;
+%         z_rad_f    = (z_up_f  - z_low_f) / 2;
+% 
+%         % Map Center back: x_c = V_real * z_c
+%         x_center_f = V_real * z_center_f;
+% 
+%         % Map Generators: Basis = V_real * diag(z_radius)
+%         basis_matrix = V_real .* z_rad_f'; 
+% 
+%         % Create Star safely
+%         n_pred = size(basis_matrix, 2);
+% 
+%         % Dummy constraints to avoid NNV strict constructor errors
+%         C = zeros(1, n_pred); 
+%         d = 0; 
+%         pred_lb = -ones(n_pred, 1);
+%         pred_ub =  ones(n_pred, 1);
+% 
+%         S_out = Star(x_center_f, basis_matrix, C, d, pred_lb, pred_ub);
+% 
+%         % 6. Store Results
+%         reachability_results = struct();
+%         reachability_results.star_set = S_out;
+% 
+%         [lb, ub] = S_out.getRanges();
+%         succ_low_all_methods(:,1,1) = lb;
+%         succ_up_all_methods(:,1,1)  = ub;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (FPA/Spiral)
+%     % =====================================================================
+%     else
+%         % 1. Single-step methods
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+% 
+%         % 2. Boundary methods
+%         if do_boundary
+%              num_splits = 2*n_x;
+%              Initial_set_boundaries = cell(num_splits, 1);
+%              succ_low_boundary = cell(num_splits, 1);
+%              succ_up_boundary  = cell(num_splits, 1);
+% 
+%              for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%              end
+% 
+%              for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%              end
+%              reachability_results.succ_low_boundary = succ_low_boundary;
+%              reachability_results.succ_up_boundary  = succ_up_boundary;
+%              reachability_results.num_splits        = num_splits;
+%         else
+%              reachability_results.num_splits        = 0;
+%         end
+%     end
+% 
+% catch e
+%     % Restore globals in case of crash
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+%     end
+%     fprintf('Error in NODE_RA: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Final Packaging
+% if ~exist('reachability_results', 'var') || ~isfield(reachability_results, 'intersect_low')
+%     k = 1; 
+%     intersect_low = -Inf(n_x, 1);
+%     intersect_up  =  Inf(n_x, 1);
+% 
+%     for m = 1:n_methods_single
+%         intersect_low = max(intersect_low, succ_low_all_methods(:,k,m));
+%         intersect_up  = min(intersect_up,  succ_up_all_methods(:,k,m));
+%     end
+% 
+%     if do_boundary && isfield(reachability_results, 'succ_low_boundary')
+%         for m = 1:n_methods_single
+%             Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%                 Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+%     end
+% 
+%     reachability_results.intersect_low = intersect_low;
+%     reachability_results.intersect_up  = intersect_up;
+% end
+% 
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% 
+% % Debug Print
+% max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing %s', field);
+%     end
+% end
+% %------------- END CODE V2.7 --------------
+
+
+% %------------- BEGIN CODE NODE_RA.m (V2.8 - Fix Constructor Error) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V2.8: Fixes "Outer zonotope" error by merging Center/Basis into V
+% % and using the standard 5-arg Star constructor.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read Standard Parameters
+% system_choice  = get_from_params(params, 'system_choice');
+% x0             = get_from_params(params, 'x0');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% t_final        = get_from_params(params, 't_final');
+% 
+% % Ensure column vectors
+% x0 = x0(:); 
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % Setup Inputs
+% p_low = zeros(n_x,1); 
+% p_up  = zeros(n_x,1);
+% 
+% % === Method Selection Logic ===
+% if system_choice == 16
+%     methods = 3;         % MNIST: CT Mixed-Monotonicity
+%     do_boundary = false; 
+% else
+%     methods = [3, 4];    % FPA/Spiral
+%     do_boundary = true;  
+% end
+% n_methods_single = length(methods);
+% 
+% % Preallocate Results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> REAL BLOCK DIAGONALIZATION
+%     % =====================================================================
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global), error('Aout_global not defined.'); end
+% 
+%         fprintf('[NODE_RA] Running Real-Block Diagonalized TIRA (Method 3)...\n');
+% 
+%         % 1. Eigen-Decomposition (Real Jordan Form)
+%         [V, D] = eig(Aout_global);
+%         [V_real, D_real] = cdf2rdf(V, D);
+%         V_inv = inv(V_real);
+% 
+%         % 2. Transform Input to Z-space (Real)
+%         if isfield(params, 'input_star')
+%             S_in = params.input_star;
+%             if isa(S_in, 'ImageStar')
+%                 S_in = S_in.toStar();
+%             end
+%             % Map Star to Z-space: Z = V_inv * X
+%             S_z = S_in.affineMap(V_inv, []);
+%             [z_low_0, z_up_0] = S_z.getRanges();
+%         else
+%             % Fallback
+%             z_center_0 = V_inv * x0;
+%             z_rad_0    = abs(V_inv) * Initial_radius;
+%             z_low_0    = z_center_0 - z_rad_0;
+%             z_up_0     = z_center_0 + z_rad_0;
+%         end
+% 
+%         % 3. Transform Dynamics
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System
+%         A_orig = Aout_global; Bout_orig = Bout_global;
+%         Aout_global = D_real; Bout_global = B_tilde; 
+% 
+%         Jacobian_x_low = D_real; 
+%         Jacobian_x_up  = D_real;
+% 
+%         [z_low_f, z_up_f] = TIRA([t_init, t_final], z_low_0, z_up_0, p_low, p_up, 3);
+% 
+%         % Restore Globals
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+% 
+%         % 5. Reconstruct Resulting Star (in X-space)
+%         z_center_f = (z_low_f + z_up_f) / 2;
+%         z_rad_f    = (z_up_f  - z_low_f) / 2;
+% 
+%         % Map Center: x_c = V_real * z_c
+%         x_center_f = V_real * z_center_f;
+% 
+%         % Map Generators: Basis = V_real * diag(z_radius)
+%         basis_matrix = V_real .* z_rad_f'; 
+% 
+%         % --- FIX V2.8: Use 5-Argument Constructor ---
+%         n_pred = size(basis_matrix, 2);
+% 
+%         % Merge Center and Basis into one matrix V = [c v1 v2 ...]
+%         V_star = [x_center_f, basis_matrix];
+% 
+%         % Dummy constraints
+%         C = zeros(1, n_pred); 
+%         d = 0; 
+%         pred_lb = -ones(n_pred, 1);
+%         pred_ub =  ones(n_pred, 1);
+% 
+%         % Correct Constructor: Star(V, C, d, pred_lb, pred_ub)
+%         S_out = Star(V_star, C, d, pred_lb, pred_ub);
+%         % --------------------------------------------
+% 
+%         % 6. Store Results
+%         reachability_results = struct();
+%         reachability_results.star_set = S_out;
+% 
+%         [lb, ub] = S_out.getRanges();
+%         succ_low_all_methods(:,1,1) = lb;
+%         succ_up_all_methods(:,1,1)  = ub;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (FPA/Spiral)
+%     % =====================================================================
+%     else
+%         % 1. Single-step methods
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+% 
+%         % 2. Boundary methods
+%         if do_boundary
+%              num_splits = 2*n_x;
+%              Initial_set_boundaries = cell(num_splits, 1);
+%              succ_low_boundary = cell(num_splits, 1);
+%              succ_up_boundary  = cell(num_splits, 1);
+% 
+%              for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%              end
+% 
+%              for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%              end
+%              reachability_results.succ_low_boundary = succ_low_boundary;
+%              reachability_results.succ_up_boundary  = succ_up_boundary;
+%              reachability_results.num_splits        = num_splits;
+%         else
+%              reachability_results.num_splits        = 0;
+%         end
+%     end
+% 
+% catch e
+%     % Restore globals in case of crash
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+%     end
+%     fprintf('Error in NODE_RA: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Final Packaging
+% if ~exist('reachability_results', 'var') || ~isfield(reachability_results, 'intersect_low')
+%     k = 1; 
+%     intersect_low = -Inf(n_x, 1);
+%     intersect_up  =  Inf(n_x, 1);
+% 
+%     for m = 1:n_methods_single
+%         intersect_low = max(intersect_low, succ_low_all_methods(:,k,m));
+%         intersect_up  = min(intersect_up,  succ_up_all_methods(:,k,m));
+%     end
+% 
+%     if do_boundary && isfield(reachability_results, 'succ_low_boundary')
+%         for m = 1:n_methods_single
+%             Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%                 Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+%     end
+% 
+%     reachability_results.intersect_low = intersect_low;
+%     reachability_results.intersect_up  = intersect_up;
+% end
+% 
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% 
+% % Debug Print
+% max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing %s', field);
+%     end
+% end
+% 
+% %------------- END CODE V2.8 --------------
+
+
+%------------- BEGIN CODE NODE_RA.m (V2.8.1 - OPTIMIZED Fix Constructor Error) -------------- 
+
+function reachability_results = NODE_RA(params)
+% NODE_RA - Reachability analysis for neural ODE using TIRA.
+% V2.8: Fixes "Outer zonotope" error by merging Center/Basis into V
+% and using the standard 5-arg Star constructor.
+
+%% Initialization
+addpath('../OA_methods')
+addpath('../Utilities')
+
+global g_sensitivity_bounds_method
+g_sensitivity_bounds_method = nan;
+
+% Globals for TIRA communication
+global Jacobian_x_low Jacobian_x_up system_choice
+
+%% Read Standard Parameters
+system_choice  = get_from_params(params, 'system_choice');
+x0             = get_from_params(params, 'x0');
+Initial_radius = get_from_params(params, 'Initial_radius');
+t_final        = get_from_params(params, 't_final');
+
+% Ensure column vectors
+x0 = x0(:); 
+Initial_radius = Initial_radius(:);
+
+x_low = x0 - Initial_radius;
+x_up  = x0 + Initial_radius;
+
+t_init = 0;
+n_x = length(x_low);
+
+% Setup Inputs
+p_low = zeros(n_x,1); 
+p_up  = zeros(n_x,1);
+
+% === Method Selection Logic ===
+if system_choice == 16
+    methods = 3;         % MNIST: CT Mixed-Monotonicity
+    do_boundary = false; 
+else
+    methods = [3, 4];    % FPA/Spiral
+    do_boundary = true;  
+end
+n_methods_single = length(methods);
+
+% Preallocate Results
+succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+
+try
+    % =====================================================================
+    % CASE 1: MNIST (System 16) -> REAL BLOCK DIAGONALIZATION
+    % =====================================================================
+    if system_choice == 16
+        global Aout_global Bout_global
+        if isempty(Aout_global), error('Aout_global not defined.'); end
+        
+        % Check if pre-computed matrices exist
+        if isfield(params, 'V_real')
+            V_real = params.V_real;
+            V_inv = params.V_inv;
+            D_real = params.D_real;
+            B_tilde = params.B_tilde;
+        else
+            % Fallback (Slow way)
+            % fprintf('[NODE_RA] Running Real-Block Diagonalized TIRA (Method 3)...\n');
+            fprintf('[NODE_RA] Warning: Computing Eig. on the fly each time (Slow)...\n');
+            % 1. Eigen-Decomposition (Real Jordan Form)
+            [V, D] = eig(Aout_global);
+            [V_real, D_real] = cdf2rdf(V, D);
+            V_inv = inv(V_real);
+            B_tilde = V_inv * Bout_global;
+        end
+        
+        % 2. Transform Input to Z-space (Real)
+        if isfield(params, 'input_star')
+            S_in = params.input_star;
+            if isa(S_in, 'ImageStar')
+                S_in = S_in.toStar();
+            end
+            % Map Star to Z-space: Z = V_inv * X
+            S_z = S_in.affineMap(V_inv, []);
+            [z_low_0, z_up_0] = S_z.getRanges();
+        else
+            % Fallback
+            z_center_0 = V_inv * x0;
+            z_rad_0    = abs(V_inv) * Initial_radius;
+            z_low_0    = z_center_0 - z_rad_0;
+            z_up_0     = z_center_0 + z_rad_0;
+        end
+        
+        % 3. Transform Dynamics
+        B_tilde = V_inv * Bout_global;
+        
+        % 4. Run TIRA on Diagonal System
+        A_orig = Aout_global; Bout_orig = Bout_global;
+        Aout_global = D_real; Bout_global = B_tilde; 
+        
+        Jacobian_x_low = D_real; 
+        Jacobian_x_up  = D_real;
+        
+        [z_low_f, z_up_f] = TIRA([t_init, t_final], z_low_0, z_up_0, p_low, p_up, 3);
+        
+        % Restore Globals
+        Aout_global = A_orig; Bout_global = Bout_orig;
+        
+        % 5. Reconstruct Resulting Star (in X-space)
+        z_center_f = (z_low_f + z_up_f) / 2;
+        z_rad_f    = (z_up_f  - z_low_f) / 2;
+        
+        % Map Center: x_c = V_real * z_c
+        x_center_f = V_real * z_center_f;
+        
+        % Map Generators: Basis = V_real * diag(z_radius)
+        basis_matrix = V_real .* z_rad_f'; 
+        
+        % --- FIX V2.8: Use 5-Argument Constructor ---
+        n_pred = size(basis_matrix, 2);
+        
+        % Merge Center and Basis into one matrix V = [c v1 v2 ...]
+        V_star = [x_center_f, basis_matrix];
+        
+        % Dummy constraints
+        C = zeros(1, n_pred); 
+        d = 0; 
+        pred_lb = -ones(n_pred, 1);
+        pred_ub =  ones(n_pred, 1);
+        
+        % Correct Constructor: Star(V, C, d, pred_lb, pred_ub)
+        S_out = Star(V_star, C, d, pred_lb, pred_ub);
+        % --------------------------------------------
+        
+        % 6. Store Results
+        reachability_results = struct();
+        reachability_results.star_set = S_out;
+        
+        [lb, ub] = S_out.getRanges();
+        succ_low_all_methods(:,1,1) = lb;
+        succ_up_all_methods(:,1,1)  = ub;
+
+    % =====================================================================
+    % CASE 2: Low-Dim Systems (FPA/Spiral)
+    % =====================================================================
+    else
+        % 1. Single-step methods
+        for m = 1:n_methods_single
+            [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+            succ_low_all_methods(:, 1, m) = succ_low;
+            succ_up_all_methods(:, 1, m)  = succ_up;
+        end
+        
+        % 2. Boundary methods
+        if do_boundary
+             num_splits = 2*n_x;
+             Initial_set_boundaries = cell(num_splits, 1);
+             succ_low_boundary = cell(num_splits, 1);
+             succ_up_boundary  = cell(num_splits, 1);
+             
+             for i = 1:n_x
+                tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+                Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+                tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+                Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+             end
+             
+             for i = 1:num_splits
+                succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+                succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+                for m = 1:n_methods_single
+                    [sl, su] = TIRA([t_init, t_final], ...
+                        Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+                        p_low, p_up, methods(m));
+                    succ_low_boundary{i}(:, 1, m) = sl;
+                    succ_up_boundary{i}(:, 1, m)  = su;
+                end
+             end
+             reachability_results.succ_low_boundary = succ_low_boundary;
+             reachability_results.succ_up_boundary  = succ_up_boundary;
+             reachability_results.num_splits        = num_splits;
+        else
+             reachability_results.num_splits        = 0;
+        end
+    end
+
+catch e
+    % Restore globals in case of crash
+    if system_choice == 16 && exist('A_orig','var')
+        Aout_global = A_orig; Bout_global = Bout_orig;
+    end
+    fprintf('Error in NODE_RA: %s\n', e.message);
+    rethrow(e);
+end
+
+% Final Packaging
+if ~exist('reachability_results', 'var') || ~isfield(reachability_results, 'intersect_low')
+    k = 1; 
+    intersect_low = -Inf(n_x, 1);
+    intersect_up  =  Inf(n_x, 1);
+
+    for m = 1:n_methods_single
+        intersect_low = max(intersect_low, succ_low_all_methods(:,k,m));
+        intersect_up  = min(intersect_up,  succ_up_all_methods(:,k,m));
+    end
+
+    if do_boundary && isfield(reachability_results, 'succ_low_boundary')
+        for m = 1:n_methods_single
+            Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+            for i = 1:num_splits
+                Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+                Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+            end
+            intersect_low = max(intersect_low, min(Ls,[],2));
+            intersect_up  = min(intersect_up,  max(Us,[],2));
+        end
+    end
+    
+    reachability_results.intersect_low = intersect_low;
+    reachability_results.intersect_up  = intersect_up;
+end
+
+reachability_results.succ_low_all_methods = succ_low_all_methods;
+reachability_results.succ_up_all_methods  = succ_up_all_methods;
+
+% Debug Print
+max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+
+end
+
+function val = get_from_params(params, field)
+    if isfield(params, field) && ~isempty(params.(field))
+        val = params.(field);
+    else
+        error('NODE_RA: Missing %s', field);
+    end
+end
+
+%------------- END CODE V2.8.1 --------------
+
+
+
+%%
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V2.6: Fixes ImageStar affineMap error by forcing conversion to Star (Vector).
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read Standard Parameters
+% system_choice  = get_from_params(params, 'system_choice');
+% x0             = get_from_params(params, 'x0');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% t_final        = get_from_params(params, 't_final');
+% 
+% % Ensure column vectors
+% x0 = x0(:); 
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % Setup Inputs (Disturbance)
+% p_low = zeros(n_x,1); 
+% p_up  = zeros(n_x,1);
+% 
+% % === Method Selection Logic ===
+% if system_choice == 16
+%     methods = 3;         % MNIST: CT Mixed-Monotonicity only
+%     do_boundary = false; 
+% else
+%     methods = [3, 4];    % FPA/Spiral: CT + SD MM
+%     do_boundary = true;  
+% end
+% n_methods_single = length(methods);
+% 
+% % Preallocate Results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> DIAGONALIZED TIRA
+%     % =====================================================================
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global), error('Aout_global not defined. Run reach_cnn_tiny_NODE_RA first.'); end
+% 
+%         fprintf('[NODE_RA] Running Diagonalized TIRA (Method 3)...\n');
+% 
+%         % 1. Eigen-Decomposition
+%         [V, D] = eig(Aout_global);
+%         V_inv = inv(V);
+% 
+%         % 2. Transform Input to Z-space
+%         if isfield(params, 'input_star')
+%             S_in = params.input_star;
+% 
+%             % --- CRITICAL FIX START ---
+%             % If input is ImageStar, flatten it to a Star (Vector) first.
+%             % affineMap on ImageStar expects channel-wise scaling, but we
+%             % need full matrix multiplication (V_inv * x).
+%             if isa(S_in, 'ImageStar')
+%                 S_in = S_in.toStar();
+%             end
+%             % --- CRITICAL FIX END ---
+% 
+%             % Map Star to Z-space: Z = V_inv * X
+%             S_z = S_in.affineMap(V_inv, []);
+%             [z_low_0, z_up_0] = S_z.getRanges();
+%         else
+%             % Fallback: Transform the Box
+%             z_center_0 = V_inv * x0;
+%             z_rad_0    = abs(V_inv) * Initial_radius;
+%             z_low_0    = z_center_0 - z_rad_0;
+%             z_up_0     = z_center_0 + z_rad_0;
+%         end
+% 
+%         % 3. Transform Dynamics
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System
+%         A_orig = Aout_global; Bout_orig = Bout_global;
+%         Aout_global = D; Bout_global = B_tilde; 
+% 
+%         Jacobian_x_low = real(D); 
+%         Jacobian_x_up  = real(D);
+% 
+%         % TIRA Call
+%         [z_low_f, z_up_f] = TIRA([t_init, t_final], real(z_low_0), real(z_up_0), p_low, p_up, 3);
+% 
+%         % Restore Globals
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+% 
+%         % 5. Reconstruct Resulting Star
+%         z_center_f = (z_low_f + z_up_f) / 2;
+%         z_rad_f    = (z_up_f  - z_low_f) / 2;
+% 
+%         % Map Center back: x_c = V * z_c
+%         x_center_f = V * z_center_f;
+% 
+%         % Map Generators: Basis = V * diag(z_radius)
+%         basis_matrix = V .* z_rad_f'; 
+% 
+%         % Create Star
+%         n_pred = size(basis_matrix, 2);
+% 
+%         % Use dummy constraints to bypass strict constructor checks
+%         C = zeros(1, n_pred); 
+%         d = 0; 
+%         pred_lb = -ones(n_pred, 1);
+%         pred_ub =  ones(n_pred, 1);
+% 
+%         S_out = Star(real(x_center_f), real(basis_matrix), C, d, pred_lb, pred_ub);
+% 
+%         % 6. Store Results
+%         reachability_results = struct();
+%         reachability_results.star_set = S_out;
+% 
+%         [lb, ub] = S_out.getRanges();
+%         succ_low_all_methods(:,1,1) = lb;
+%         succ_up_all_methods(:,1,1)  = ub;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (FPA/Spiral)
+%     % =====================================================================
+%     else
+%         % 1. Single-step methods
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+% 
+%         % 2. Boundary methods
+%         if do_boundary
+%              num_splits = 2*n_x;
+%              Initial_set_boundaries = cell(num_splits, 1);
+%              succ_low_boundary = cell(num_splits, 1);
+%              succ_up_boundary  = cell(num_splits, 1);
+% 
+%              for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%              end
+% 
+%              for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%              end
+%              reachability_results.succ_low_boundary = succ_low_boundary;
+%              reachability_results.succ_up_boundary  = succ_up_boundary;
+%              reachability_results.num_splits        = num_splits;
+%         else
+%              reachability_results.num_splits        = 0;
+%         end
+%     end
+% 
+% catch e
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+%     end
+%     fprintf('Error in NODE_RA: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Final Packaging
+% if ~exist('reachability_results', 'var') || ~isfield(reachability_results, 'intersect_low')
+%     k = 1; 
+%     intersect_low = -Inf(n_x, 1);
+%     intersect_up  =  Inf(n_x, 1);
+% 
+%     for m = 1:n_methods_single
+%         intersect_low = max(intersect_low, succ_low_all_methods(:,k,m));
+%         intersect_up  = min(intersect_up,  succ_up_all_methods(:,k,m));
+%     end
+% 
+%     if do_boundary && isfield(reachability_results, 'succ_low_boundary')
+%         for m = 1:n_methods_single
+%             Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+%             for i = 1:num_splits
+%                 Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%                 Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%             end
+%             intersect_low = max(intersect_low, min(Ls,[],2));
+%             intersect_up  = min(intersect_up,  max(Us,[],2));
+%         end
+%     end
+% 
+%     reachability_results.intersect_low = intersect_low;
+%     reachability_results.intersect_up  = intersect_up;
+% end
+% 
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% 
+% % Debug Print
+% max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing %s', field);
+%     end
+% end
+
+%------------- END CODE V1.5 CTMM only --------------
+
+
+
+
+%% 09-01-2026 Experiments
+
+%------------- BEGIN CODE V1.6 (Option A for MNIST) -------------- 
+
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % Option A: for MNIST (system_choice == 16), DISABLE boundary decomposition
+% % and only use single-step RA with OA method 3 = CT Mixed-Monotonicity
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% %% Read params
+% global system_choice
+% system_choice = get_from_params(params, 'system_choice');
+% 
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% timeStep       = get_from_params(params, 'timeStep'); 
+% 
+% % Ensure column vectors
+% x0 = x0(:);
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% 
+% % Dimensions
+% n_x = length(x_low);
+% 
+% % === IMPORTANT FOR MNIST ===
+% % MNIST ODE is autonomous: we do NOT want a fake "input" of dimension 676.
+% % Setting n_p = 0 reduces memory and avoids unnecessary Jacobian/Sensitivity work.
+% if system_choice == 16
+%     % p_low = [];   % n_p = 0
+%     % p_up  = [];
+%     p_low = zeros(n_x,1);   % n_p = 0
+%     p_up  = zeros(n_x,1);
+% else
+%     % Keep your previous convention for other toy systems
+%     p_low = zeros(n_x,1);
+%     p_up  = zeros(n_x,1);
+% end
+% 
+% n_p = length(p_low);
+% 
+% % === Define methods ===
+% % methods = [3, 4];            % 3 = CT Mixed-Monotonicity, 4 = SD Mixed-Monotonicity
+% % n_methods_single = length(methods);
+% 
+% if system_choice == 16
+%     % MNIST example only
+%     methods = 3;                 % 3 = CT Mixed-Monotonicity
+% else
+%     % Other Systems 
+%     methods = [3, 4];            % 3 = CT Mixed-Monotonicity, 4 = SD Mixed-Monotonicity
+% end
+% 
+% n_methods_single = length(methods);
+% 
+% % === Option A: disable boundary methods for MNIST only ===
+% do_boundary = (system_choice ~= 16);
+% 
+% if ~do_boundary
+%     fprintf('[NODE_RA] MNIST mode: boundary decomposition disabled (n_x=%d).\n', n_x);
+% end
+% 
+% % Preallocate single-step results
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% % Boundary containers
+% if do_boundary
+%     num_splits = 2*n_x;
+%     Initial_set_boundaries = cell(num_splits, 1);
+%     succ_low_boundary = cell(num_splits, 1);
+%     succ_up_boundary  = cell(num_splits, 1);
+% 
+%     % Define boundary sets
+%     for i = 1:n_x
+%         % Fix i-th dimension to upper bound (low-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%         Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+% 
+%         % Fix i-th dimension to lower bound (up-boundary face)
+%         tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%         Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%     end
+% else
+%     num_splits = 0;
+%     Initial_set_boundaries = {};
+%     succ_low_boundary = {};
+%     succ_up_boundary  = {};
+% end
+% 
+% %% Main reachability computation
+% try
+%     % 1) Single-step methods
+%     for m = 1:n_methods_single
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2) Boundary methods (SKIPPED for MNIST)
+%     if do_boundary
+%         for i = 1:num_splits
+%             succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%             succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+% 
+%             for m = 1:n_methods_single
+%                 [succ_low, succ_up] = TIRA([t_init, t_final], ...
+%                     Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                     p_low, p_up, methods(m));
+% 
+%                 succ_low_boundary{i}(:, 1, m) = succ_low;
+%                 succ_up_boundary{i}(:, 1, m)  = succ_up;
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% reachability_results.succ_low_boundary    = succ_low_boundary;
+% reachability_results.succ_up_boundary     = succ_up_boundary;
+% reachability_results.num_splits           = num_splits;
+% 
+% %% Compute intersection (robust check object used by Verifier_FINAL)
+% k = 1;  % final time index (your code stores only final)
+% 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% % Intersection of single-step OAs
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% % If boundary is enabled, intersect with the union-bounds of boundary faces
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits);
+%         Us = -Inf(n_x, num_splits);
+% 
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+% 
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% % Check bounds magnitude before returning
+% max_val = max(abs([intersect_low; intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+
+%------------- END CODE V1.6 --------------
+
+%%
+% %------------- BEGIN CODE V1.7 (Fixing Wrapping Effect) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V1.7 Update: Adds Time-Stepping for MNIST to fix wrapping effect explosion.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read params
+% system_choice = get_from_params(params, 'system_choice');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% % timeStep       = get_from_params(params, 'timeStep'); 
+% 
+% % Ensure column vectors
+% x0 = x0(:);
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % === Input (Disturbance) Setup ===
+% if system_choice == 16
+%     p_low = zeros(n_x,1);   % MNIST: No external input p
+%     p_up  = zeros(n_x,1);
+% else
+%     p_low = zeros(n_x,1);
+%     p_up  = zeros(n_x,1);
+% end
+% 
+% % === Method Selection ===
+% if system_choice == 16
+%     methods = 3;  % MNIST: CT Mixed-Monotonicity only
+% else
+%     methods = [3, 4]; 
+% end
+% n_methods_single = length(methods);
+% 
+% % === Boundary Decomposition ===
+% % Disable for MNIST to save time (n_x=365 is too high for boundary splits)
+% do_boundary = (system_choice ~= 16); 
+% 
+% if ~do_boundary
+%     fprintf('[NODE_RA] MNIST mode: Boundary decomp disabled. Using Time-Stepping.\n');
+% end
+% 
+% % Preallocate results containers
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% %% ------------------------------------------------------------------------
+% %  MAIN COMPUTATION
+% % ------------------------------------------------------------------------
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> USE TIME STEPPING
+%     % =====================================================================
+%     if system_choice == 16
+% 
+%         % 1. Define Step Size
+%         % Smaller steps = Tighter bounds but slower computation.
+%         % Try 10 steps for t_final=1.0 (dt = 0.1)
+%         num_steps = 10; 
+%         dt = (t_final - t_init) / num_steps;
+% 
+%         % 2. Initialize Current Set
+%         curr_low = x_low;
+%         curr_up  = x_up;
+% 
+%         fprintf('[NODE_RA] Starting Time-Stepping (Steps=%d, dt=%.3f)...\n', num_steps, dt);
+% 
+%         for s = 1:num_steps
+%             t_start = t_init + (s-1)*dt;
+%             t_end   = t_init + s*dt;
+% 
+%             % A. Re-compute Jacobian Bounds locally for the CURRENT set
+%             % This is the key fix for the wrapping effect!
+%             % Note: You must ensure 'Jacob_bounds_element_wise' handles sys 16
+%             [J_lb, J_ub] = Jacob_bounds_element_wise(curr_low, curr_up, system_choice);
+% 
+%             % Update Globals for TIRA
+%             Jacobian_x_low = J_lb; 
+%             Jacobian_x_up  = J_ub;
+% 
+%             % B. Call TIRA for this small step
+%             % Method 3 (CT MM) uses the globals we just updated
+%             [next_low, next_up] = TIRA([t_start, t_end], curr_low, curr_up, p_low, p_up, 3);
+% 
+%             % C. Update for next step
+%             curr_low = next_low;
+%             curr_up  = next_up;
+% 
+%             % Safety Check: Stop if exploded
+%             if max(abs(curr_up)) > 1e5
+%                 warning('Intermediate bound explosion at step %d!', s);
+%                 break;
+%             end
+%         end
+% 
+%         % Store Final Result
+%         succ_low_all_methods(:, 1, 1) = curr_low;
+%         succ_up_all_methods(:, 1, 1)  = curr_up;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (Spiral/FPA) -> STANDARD SINGLE SHOT
+%     % =====================================================================
+%     else
+%         % 1. Single-step methods
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+% 
+%         % 2. Boundary methods (Only for low-dim)
+%         if do_boundary
+%             % (Your existing boundary code here...)
+%             % Define boundary sets...
+%             num_splits = 2*n_x;
+%             Initial_set_boundaries = cell(num_splits, 1);
+%             succ_low_boundary = cell(num_splits, 1);
+%             succ_up_boundary  = cell(num_splits, 1);
+% 
+%             for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%             end
+% 
+%             for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% if do_boundary
+%     reachability_results.succ_low_boundary    = succ_low_boundary;
+%     reachability_results.succ_up_boundary     = succ_up_boundary;
+%     reachability_results.num_splits           = num_splits;
+% else
+%     reachability_results.num_splits           = 0;
+% end
+% 
+% %% Compute intersection
+% k = 1; 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% % Merge boundary results if they exist
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits);
+%         Us = -Inf(n_x, num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% % Check bounds magnitude
+% max_val = max(abs([intersect_low; intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END CODE V1.7 --------------
+
+% %------------- BEGIN CODE V1.7.2 (Fixing Wrapping Effect) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V1.7 Update: Adds Time-Stepping for MNIST to fix wrapping effect explosion.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read params
+% system_choice = get_from_params(params, 'system_choice');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% % timeStep       = get_from_params(params, 'timeStep'); 
+% 
+% % Ensure column vectors
+% x0 = x0(:);
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % === Input (Disturbance) Setup ===
+% if system_choice == 16
+%     p_low = zeros(n_x,1);   % MNIST: No external input p
+%     p_up  = zeros(n_x,1);
+% else
+%     p_low = zeros(n_x,1);
+%     p_up  = zeros(n_x,1);
+% end
+% 
+% % === Method Selection ===
+% if system_choice == 16
+%     methods = 3;  % MNIST: CT Mixed-Monotonicity only
+% else
+%     methods = [3, 4]; 
+% end
+% n_methods_single = length(methods);
+% 
+% % === Boundary Decomposition ===
+% % Disable for MNIST to save time (n_x=365 is too high for boundary splits)
+% do_boundary = (system_choice ~= 16); 
+% 
+% if ~do_boundary
+%     fprintf('[NODE_RA] MNIST mode: Boundary decomp disabled. Using Time-Stepping.\n');
+% end
+% 
+% % Preallocate results containers
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% %% ------------------------------------------------------------------------
+% %  MAIN COMPUTATION
+% % ------------------------------------------------------------------------
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> USE TIME STEPPING
+%     % =====================================================================
+%     if system_choice == 16
+% 
+%         % 1. Define Step Size
+%         % Smaller steps = Tighter bounds but slower computation.
+%         % Try 10 steps for t_final=1.0 (dt = 0.1)
+%         num_steps = 10; 
+%         dt = (t_final - t_init) / num_steps;
+% 
+%         % 2. Initialize Current Set
+%         curr_low = x_low;
+%         curr_up  = x_up;
+% 
+%         % A. Jacobian is constant for Linear ODE, so calculateonly  
+%         [J_lb, J_ub] = Jacob_bounds_element_wise(curr_low, curr_up, system_choice);
+% 
+%         % Update Globals for TIRA
+%         Jacobian_x_low = J_lb; 
+%         Jacobian_x_up  = J_ub;
+% 
+%         fprintf('[NODE_RA] Starting Time-Stepping (Steps=%d, dt=%.3f)...\n', num_steps, dt);
+% 
+%         for s = 1:num_steps
+%             t_start = t_init + (s-1)*dt;
+%             t_end   = t_init + s*dt;
+% 
+%             % % A. Re-compute Jacobian Bounds locally for the CURRENT set
+%             % % This is the key fix for the wrapping effect!
+%             % % Note: You must ensure 'Jacob_bounds_element_wise' handles sys 16
+%             % [J_lb, J_ub] = Jacob_bounds_element_wise(curr_low, curr_up, system_choice);
+%             % 
+%             % % Update Globals for TIRA
+%             % Jacobian_x_low = J_lb; 
+%             % Jacobian_x_up  = J_ub;
+% 
+%             % B. Call TIRA for this small step
+%             % Method 3 (CT MM) uses the globals that we just updated
+%             [next_low, next_up] = TIRA([t_start, t_end], curr_low, curr_up, p_low, p_up, 3);
+% 
+%             % C. Update for next step
+%             curr_low = next_low;
+%             curr_up  = next_up;
+% 
+%             % Safety Check: Stop if exploded
+%             if max(abs(curr_up)) > 1e5
+%                 warning('Intermediate bound explosion at step %d!', s);
+%                 break;
+%             end
+%         end
+% 
+%         % Store Final Result
+%         succ_low_all_methods(:, 1, 1) = curr_low;
+%         succ_up_all_methods(:, 1, 1)  = curr_up;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (Spiral/FPA) -> STANDARD SINGLE SHOT
+%     % =====================================================================
+%     else
+%         % 1. Single-step methods
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+% 
+%         % 2. Boundary methods (Only for low-dim)
+%         if do_boundary
+%             % (Your existing boundary code here...)
+%             % Define boundary sets...
+%             num_splits = 2*n_x;
+%             Initial_set_boundaries = cell(num_splits, 1);
+%             succ_low_boundary = cell(num_splits, 1);
+%             succ_up_boundary  = cell(num_splits, 1);
+% 
+%             for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%             end
+% 
+%             for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% if do_boundary
+%     reachability_results.succ_low_boundary    = succ_low_boundary;
+%     reachability_results.succ_up_boundary     = succ_up_boundary;
+%     reachability_results.num_splits           = num_splits;
+% else
+%     reachability_results.num_splits           = 0;
+% end
+% 
+% %% Compute intersection
+% k = 1; 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% % Merge boundary results if they exist
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits);
+%         Us = -Inf(n_x, num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% % Check bounds magnitude
+% max_val = max(abs([intersect_low; intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END CODE V1.7.2 --------------
+
+% %------------- BEGIN CODE V1.7.3 (Exact Star Propagation) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE.
+% % V1.8: Adds support for Exact Star Propagation for Linear ODEs (MNIST).
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% % Check if we are doing Exact Star Reachability (MNIST)
+% if isfield(params, 'input_star') && params.system_choice == 16
+%     reachability_results = NODE_RA_Linear_Star(params);
+%     return;
+% end
+% 
+% % --- ORIGINAL TIRA LOGIC FOR FPA/SPIRAL BELOW ---
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% system_choice = get_from_params(params, 'system_choice');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% 
+% x0 = x0(:); Initial_radius = Initial_radius(:);
+% x_low = x0 - Initial_radius; x_up  = x0 + Initial_radius;
+% t_init = 0; n_x = length(x_low);
+% 
+% % (Standard TIRA setup for FPA/Spiral...)
+% p_low = zeros(n_x,1); p_up = zeros(n_x,1);
+% methods = [3, 4]; n_methods_single = length(methods);
+% do_boundary = true;
+% 
+% % Preallocate
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     % 1. Single-step methods
+%     for m = 1:n_methods_single
+%         [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%         succ_low_all_methods(:, 1, m) = succ_low;
+%         succ_up_all_methods(:, 1, m)  = succ_up;
+%     end
+% 
+%     % 2. Boundary methods
+%     if do_boundary
+%         num_splits = 2*n_x;
+%         Initial_set_boundaries = cell(num_splits, 1);
+%         succ_low_boundary = cell(num_splits, 1);
+%         succ_up_boundary  = cell(num_splits, 1);
+% 
+%         for i = 1:n_x
+%             tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%             Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%             tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%             Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%         end
+% 
+%         for i = 1:num_splits
+%             succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%             succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%             for m = 1:n_methods_single
+%                 [sl, su] = TIRA([t_init, t_final], ...
+%                     Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                     p_low, p_up, methods(m));
+%                 succ_low_boundary{i}(:, 1, m) = sl;
+%                 succ_up_boundary{i}(:, 1, m)  = su;
+%             end
+%         end
+%     end
+% 
+% catch e
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% % Compute intersection (Standard Box)
+% k = 1; intersect_low = -Inf(n_x, 1); intersect_up = Inf(n_x, 1);
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  succ_up_all_methods(:,k,m));
+% end
+% 
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = succ_up_boundary{i}(:,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% end
+% 
+% %% ========================================================================
+% %  Exact Star Reachability for Linear ODE (MNIST)
+% % =========================================================================
+% function res = NODE_RA_Linear_Star(params)
+%     % Unpack inputs
+%     S_in = params.input_star; % The Star object from NNV
+%     t_f  = params.t_final;
+% 
+%     global Aout_global Bout_global
+%     if isempty(Aout_global)
+%         error('Aout_global not defined. Run reach_cnn_tiny_NODE_RA first.');
+%     end
+% 
+%     % Dynamics: dx/dt = A*x + B
+%     % Solution: x(t) = expm(A*t)*x(0) + integral(expm(A(t-tau))*B)
+%     % Augmented trick: [x; 1]' = [A B; 0 0] * [x; 1]
+% 
+%     n = size(Aout_global, 1);
+% 
+%     % 1. Construct Augmented Matrix for affine term handling
+%     A_aug = [Aout_global, Bout_global; zeros(1, n), 0];
+% 
+%     % 2. Compute Matrix Exponential
+%     Phi_aug = expm(A_aug * t_f);
+% 
+%     % 3. Extract parts
+%     Phi = Phi_aug(1:n, 1:n);      % Linear mapping part
+%     beta = Phi_aug(1:n, n+1);     % Bias shift part
+% 
+%     % 4. Apply Linear Transformation to Star Set
+%     % S_out = Phi * S_in + beta
+%     S_out = S_in.affineMap(Phi, beta);
+% 
+%     % 5. Package results
+%     res = struct();
+%     res.star_set = S_out; 
+% 
+%     % Also return bounds just in case old code needs them
+%     [lb, ub] = S_out.getRanges();
+%     res.intersect_low = lb;
+%     res.intersect_up  = ub;
+% 
+%     fprintf('[NODE_RA] Exact Star Reachability computed using Matrix Exponential.\n');
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END CODE V1.7.3 --------------
+
+
+% %------------- BEGIN CODE V1.7.4 (Diagonalized TIRA) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V1.9: Uses Eigen-decomposition to mitigate wrapping effect for Linear MNIST.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% 
+% % Globals for TIRA communication
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% %% Read params
+% system_choice  = get_from_params(params, 'system_choice');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% x0             = get_from_params(params, 'x0');
+% t_final        = get_from_params(params, 't_final');
+% 
+% % Ensure column vectors
+% x0 = x0(:);
+% Initial_radius = Initial_radius(:);
+% 
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% 
+% % === Setup Inputs ===
+% p_low = zeros(n_x,1);
+% p_up  = zeros(n_x,1);
+% 
+% % === Method Selection ===
+% if system_choice == 16
+%     methods = 3; % MNIST
+%     do_boundary = false;
+% else
+%     methods = [3, 4]; 
+%     do_boundary = true;
+% end
+% n_methods_single = length(methods);
+% 
+% % Preallocate
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% %% ------------------------------------------------------------------------
+% %  MAIN COMPUTATION
+% % ------------------------------------------------------------------------
+% try
+%     % =====================================================================
+%     % CASE 1: MNIST (System 16) -> DIAGONALIZED TIRA
+%     % =====================================================================
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global)
+%             error('Aout_global not defined. Run reach_cnn_tiny_NODE_RA first.');
+%         end
+% 
+%         fprintf('[NODE_RA] Diagonalizing system to eliminate wrapping effect...\n');
+% 
+%         % 1. Eigen-Decomposition: A = V * D * inv(V)
+%         [V, D] = eig(Aout_global);
+%         V_inv = inv(V);
+% 
+%         % Check if complex (common in rotation matrices)
+%         if ~isreal(D)
+%             warning('System has complex eigenvalues. Using conservative Real Jordan form approximation might be better, but proceeding with real projection for now.');
+%             % For simplicity in this demo, we take the real part or magnitude bounds
+%             % Ideally, you handle complex intervals, but TIRA expects reals.
+%             % We will map to real-valued diagonal block space if possible, 
+%             % but here we stick to direct mapping for demonstration.
+%         end
+% 
+%         % 2. Transform Initial Box [x_low, x_up] into Z-space
+%         % Box(x) -> Parallelepiped(z). We must bound it by a Box(z).
+%         % z = V_inv * x
+%         % Interval arithmetic: z_rad = |V_inv| * x_rad
+%         x_center = (x_low + x_up)/2;
+%         x_rad    = (x_up  - x_low)/2;
+% 
+%         z_center = V_inv * x_center;
+%         z_rad    = abs(V_inv) * x_rad; % Robust interval mapping
+% 
+%         z_low = z_center - z_rad;
+%         z_up  = z_center + z_rad;
+% 
+%         % 3. Transform Dynamics
+%         % dx/dt = A x + B  =>  V dz/dt = A V z + B  => dz/dt = (V_inv A V) z + V_inv B
+%         % dz/dt = D z + B_tilde
+%         diag_A  = diag(D); % Vector of eigenvalues
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System (dz/dt = D*z + B_tilde)
+%         % For a diagonal linear system, Jacobian is just D.
+%         % We essentially run TIRA on 676 decoupled 1D ODEs.
+% 
+%         % Setup Diagonal Jacobian for TIRA
+%         % Since TIRA expects a full matrix output from Jacob_bounds, 
+%         % we hack the globals to "trick" TIRA into using our Diagonal D
+%         Jacobian_x_low = real(D); % Using real part for bounds
+%         Jacobian_x_up  = real(D); 
+% 
+%         % Note: TIRA (Method 3) computes: 
+%         % dx/dt >= min(J)*x... this works perfectly for diagonal J.
+% 
+%         % We also need to account for B_tilde (Constant input).
+%         % TIRA usually handles x_dot = f(x,p). We can treat B_tilde as 'p'.
+%         % But since we can't easily change the ODE function inside TIRA,
+%         % we will rely on the fact that your Jacob_bounds function is called.
+% 
+%         % WAIT: TIRA calls the ODE solver. The ODE solver uses "System_description".
+%         % "System_description" uses Aout_global.
+%         % We must TEMPORARILY swap the globals so the ODE solver sees the Z-system.
+% 
+%         A_orig = Aout_global;
+%         B_orig = Bout_global;
+% 
+%         Aout_global = D;       % Swap to Diagonal Matrix
+%         Bout_global = B_tilde; % Swap to Transformed Bias
+% 
+%         % Run TIRA (Single large step is fine for Diagonal systems!)
+%         % But we keep small steps to be safe if you want.
+%         [z_final_low, z_final_up] = TIRA([t_init, t_final], real(z_low), real(z_up), p_low, p_up, 3);
+% 
+%         % Restore Globals
+%         Aout_global = A_orig;
+%         Bout_global = B_orig;
+% 
+%         % 5. Transform Result back to X-space
+%         % x = V * z
+%         z_final_center = (z_final_low + z_final_up)/2;
+%         z_final_rad    = (z_final_up  - z_final_low)/2;
+% 
+%         x_final_center = V * z_final_center;
+%         x_final_rad    = abs(V) * z_final_rad; % Robust mapping back
+% 
+%         res_low = real(x_final_center - x_final_rad);
+%         res_up  = real(x_final_center + x_final_rad);
+% 
+%         % Store Results
+%         succ_low_all_methods(:, 1, 1) = res_low;
+%         succ_up_all_methods(:, 1, 1)  = res_up;
+% 
+%     % =====================================================================
+%     % CASE 2: Low-Dim Systems (Normal Logic)
+%     % =====================================================================
+%     else
+%         % (Keep your existing FPA/Spiral code exactly as is...)
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+%         % (Boundary code...)
+%         if do_boundary
+%              num_splits = 2*n_x;
+%              Initial_set_boundaries = cell(num_splits, 1);
+%              succ_low_boundary = cell(num_splits, 1);
+%              succ_up_boundary  = cell(num_splits, 1);
+%              for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%              end
+%              for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%              end
+%         end
+%     end
+% 
+% catch e
+%     % Restore globals if error occurs, otherwise other scripts might fail
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig;
+%         Bout_global = B_orig;
+%     end
+%     fprintf('Error during TIRA computation in NODE_RA.m\n');
+%     rethrow(e);
+% end
+% 
+% %% Package results
+% reachability_results = struct();
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods  = succ_up_all_methods;
+% if do_boundary
+%     reachability_results.succ_low_boundary    = succ_low_boundary;
+%     reachability_results.succ_up_boundary     = succ_up_boundary;
+%     reachability_results.num_splits           = num_splits;
+% else
+%     reachability_results.num_splits           = 0;
+% end
+% 
+% %% Compute intersection
+% k = 1; 
+% intersect_low = -Inf(n_x, 1);
+% intersect_up  =  Inf(n_x, 1);
+% 
+% for m = 1:n_methods_single
+%     intersect_low = max(intersect_low, reachability_results.succ_low_all_methods(:,k,m));
+%     intersect_up  = min(intersect_up,  reachability_results.succ_up_all_methods(:,k,m));
+% end
+% 
+% if do_boundary
+%     for m = 1:n_methods_single
+%         Ls = Inf(n_x, num_splits); Us = -Inf(n_x, num_splits);
+%         for i = 1:num_splits
+%             Ls(:,i) = reachability_results.succ_low_boundary{i}(:,k,m);
+%             Us(:,i) = reachability_results.succ_up_boundary{i}(:,k,m);
+%         end
+%         intersect_low = max(intersect_low, min(Ls,[],2));
+%         intersect_up  = min(intersect_up,  max(Us,[],2));
+%     end
+% end
+% 
+% reachability_results.intersect_low = intersect_low;
+% reachability_results.intersect_up  = intersect_up;
+% 
+% % Check bounds magnitude
+% max_val = max(abs([intersect_low; intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% % === Helper ===
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing required parameter "%s".', field);
+%     end
+% end
+% 
+% %------------- END CODE V1.7.4 --------------
+
+
+% %------------- BEGIN CODE V1.7.8 (Hybrid Star-TIRA) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V2.0: Returns a STAR SET constructed from TIRA's Diagonal Analysis.
+% % This preserves the "skewed" shape of the reachable set, fixing robustness.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% system_choice  = get_from_params(params, 'system_choice');
+% x0             = get_from_params(params, 'x0');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% t_final        = get_from_params(params, 't_final');
+% 
+% x0 = x0(:); Initial_radius = Initial_radius(:);
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% p_low = zeros(n_x,1); p_up  = zeros(n_x,1);
+% 
+% % === Method Selection ===
+% if system_choice == 16
+%     methods = 3; 
+%     do_boundary = false;
+% else
+%     methods = [3, 4]; 
+%     do_boundary = true;
+% end
+% n_methods_single = length(methods);
+% 
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global), error('Aout_global not defined.'); end
+% 
+%         fprintf('[NODE_RA] V2.0: Running Diagonal TIRA + Star Reconstruction...\n');
+% 
+%         % 1. Eigen-Decomposition
+%         [V, D] = eig(Aout_global);
+%         V_inv = inv(V);
+% 
+%         % 2. Transform Initial Box to Z-space Box
+%         % z_center = V_inv * x0
+%         % z_rad = |V_inv| * r0
+%         z_center_0 = V_inv * x0;
+%         z_rad_0    = abs(V_inv) * Initial_radius;
+% 
+%         z_low_0 = z_center_0 - z_rad_0;
+%         z_up_0  = z_center_0 + z_rad_0;
+% 
+%         % 3. Transform Dynamics (Diagonal)
+%         diag_A  = diag(D);
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System
+%         % Trick globals to use Diagonal J
+%         A_orig = Aout_global; Bout_orig = Bout_global;
+%         Aout_global = D; Bout_global = B_tilde;
+%         Jacobian_x_low = real(D); Jacobian_x_up = real(D);
+% 
+%         [z_low_f, z_up_f] = TIRA([t_init, t_final], real(z_low_0), real(z_up_0), p_low, p_up, 3);
+% 
+%         % Restore Globals
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+% 
+%         % 5. CONSTRUCT STAR SET RESULT (Critical Step!)
+%         % Instead of converting z_final back to a Box(x), we keep the geometry.
+%         % The set in Z-space is a Box [z_low_f, z_up_f].
+%         % This corresponds to a Star in X-space:
+%         % Center: c_z = (z_low + z_up)/2
+%         % Generators: Basis vectors of the Z-box, mapped by V.
+% 
+%         z_center_f = (z_low_f + z_up_f) / 2;
+%         z_rad_f    = (z_up_f  - z_low_f) / 2;
+% 
+%         % Map Center back to X
+%         x_center_f = V * z_center_f;
+% 
+%         % Construct Generators in X-space
+%         % The Z-box is defined by: z = z_c + diag(z_r) * alpha, |alpha| <= 1
+%         % x = V * z = V(z_c + diag(z_r)*alpha) = V*z_c + (V * diag(z_r)) * alpha
+%         % So the new Basis Matrix is V * diag(z_r).
+% 
+%         basis_matrix = V .* z_rad_f'; % Efficient V * diag(z_rad_f)
+% 
+%         % Create Star object
+%         % Since TIRA output is real bounds, we take real part of V/x if complex
+%         S_out = Star(real(x_center_f), real(basis_matrix), [], []);
+% 
+%         % 6. Store Results
+%         % We also compute the box bounds just to satisfy the struct fields
+%         [lb, ub] = S_out.getRanges();
+%         succ_low_all_methods(:,1,1) = lb;
+%         succ_up_all_methods(:,1,1)  = ub;
+% 
+%         % Save Star to struct so reach_cnn_tiny can use it
+%         reachability_results = struct();
+%         reachability_results.star_set = S_out; 
+% 
+%     else
+%         % (Existing FPA/Spiral logic...)
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+%         % (Boundary logic omitted for brevity, keep your previous code here if needed)
+%     end
+% 
+% catch e
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+%     end
+%     fprintf('Error in NODE_RA: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Finish Packaging
+% if ~exist('reachability_results', 'var')
+%     reachability_results = struct();
+% end
+% reachability_results.intersect_low = succ_low_all_methods(:,1,1);
+% reachability_results.intersect_up  = succ_up_all_methods(:,1,1);
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods = succ_up_all_methods;
+% 
+% % Check magnitude
+% max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing %s', field);
+%     end
+% end
+% %------------- END CODE V1.7.8 --------------
+
+
+% %------------- BEGIN CODE V1.7.9 (Fixed Star Constructor) -------------- 
+% 
+% function reachability_results = NODE_RA(params)
+% % NODE_RA - Reachability analysis for neural ODE using TIRA.
+% % V2.1 Fix: Uses correct 6-arg Star constructor for NNV compatibility.
+% 
+% %% Initialization
+% addpath('../OA_methods')
+% addpath('../Utilities')
+% 
+% global g_sensitivity_bounds_method
+% g_sensitivity_bounds_method = nan;
+% global Jacobian_x_low Jacobian_x_up system_choice
+% 
+% system_choice  = get_from_params(params, 'system_choice');
+% x0             = get_from_params(params, 'x0');
+% Initial_radius = get_from_params(params, 'Initial_radius');
+% t_final        = get_from_params(params, 't_final');
+% 
+% x0 = x0(:); Initial_radius = Initial_radius(:);
+% x_low = x0 - Initial_radius;
+% x_up  = x0 + Initial_radius;
+% 
+% t_init = 0;
+% n_x = length(x_low);
+% p_low = zeros(n_x,1); p_up  = zeros(n_x,1);
+% 
+% % === Method Selection ===
+% if system_choice == 16
+%     methods = 3; 
+%     do_boundary = false;
+% else
+%     methods = [3, 4]; 
+%     do_boundary = true;
+% end
+% n_methods_single = length(methods);
+% 
+% succ_low_all_methods = NaN(n_x, 1, n_methods_single);
+% succ_up_all_methods  = NaN(n_x, 1, n_methods_single);
+% 
+% try
+%     if system_choice == 16
+%         global Aout_global Bout_global
+%         if isempty(Aout_global), error('Aout_global not defined.'); end
+% 
+%         fprintf('[NODE_RA] V2.1: Running Diagonal TIRA + Star Reconstruction...\n');
+% 
+%         % 1. Eigen-Decomposition
+%         [V, D] = eig(Aout_global);
+%         V_inv = inv(V);
+% 
+%         % 2. Transform Initial Box to Z-space Box
+%         % z_center = V_inv * x0
+%         % z_rad = |V_inv| * r0
+%         z_center_0 = V_inv * x0;
+%         z_rad_0    = abs(V_inv) * Initial_radius;
+% 
+%         z_low_0 = z_center_0 - z_rad_0;
+%         z_up_0  = z_center_0 + z_rad_0;
+% 
+%         % 3. Transform Dynamics (Diagonal)
+%         diag_A  = diag(D);
+%         B_tilde = V_inv * Bout_global;
+% 
+%         % 4. Run TIRA on Diagonal System
+%         % Trick globals to use Diagonal J
+%         A_orig = Aout_global; Bout_orig = Bout_global;
+%         Aout_global = D; Bout_global = B_tilde;
+%         Jacobian_x_low = real(D); Jacobian_x_up = real(D);
+% 
+%         [z_low_f, z_up_f] = TIRA([t_init, t_final], real(z_low_0), real(z_up_0), p_low, p_up, 3);
+% 
+%         % Restore Globals
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+% 
+%         % 5. CONSTRUCT STAR SET RESULT
+%         % Instead of converting z_final back to a Box(x), we keep the geometry.
+%         % The set in Z-space is a Box [z_low_f, z_up_f].
+% 
+%         z_center_f = (z_low_f + z_up_f) / 2;
+%         z_rad_f    = (z_up_f  - z_low_f) / 2;
+% 
+%         % Map Center back to X
+%         x_center_f = V * z_center_f;
+% 
+%         % Construct Generators in X-space
+%         % The new Basis Matrix is V * diag(z_r).
+%         basis_matrix = V .* z_rad_f'; % Efficient V * diag(z_rad_f)
+% 
+%         % --- FIX: Define Predicate Bounds for 6-arg Constructor ---
+%         n_pred = size(basis_matrix, 2);
+%         pred_lb = -ones(n_pred, 1);
+%         pred_ub =  ones(n_pred, 1);
+% 
+%         % Create Star object: Star(Center, Basis, C, d, PredLB, PredUB)
+%         S_out = Star(real(x_center_f), real(basis_matrix), [], [], pred_lb, pred_ub);
+% 
+%         % 6. Store Results
+%         % We also compute the box bounds just to satisfy the struct fields
+%         [lb, ub] = S_out.getRanges();
+%         succ_low_all_methods(:,1,1) = lb;
+%         succ_up_all_methods(:,1,1)  = ub;
+% 
+%         % Save Star to struct so reach_cnn_tiny can use it
+%         reachability_results = struct();
+%         reachability_results.star_set = S_out; 
+% 
+%     else
+%         % (Existing FPA/Spiral logic...)
+%         for m = 1:n_methods_single
+%             [succ_low, succ_up] = TIRA([t_init, t_final], x_low, x_up, p_low, p_up, methods(m));
+%             succ_low_all_methods(:, 1, m) = succ_low;
+%             succ_up_all_methods(:, 1, m)  = succ_up;
+%         end
+%         if do_boundary
+%              num_splits = 2*n_x;
+%              Initial_set_boundaries = cell(num_splits, 1);
+%              succ_low_boundary = cell(num_splits, 1);
+%              succ_up_boundary  = cell(num_splits, 1);
+%              for i = 1:n_x
+%                 tmp_low = x_low; tmp_up = x_up; tmp_low(i) = x_up(i);
+%                 Initial_set_boundaries{2*i-1} = interval(tmp_low(:), tmp_up(:));
+%                 tmp_low = x_low; tmp_up = x_up; tmp_up(i) = x_low(i);
+%                 Initial_set_boundaries{2*i} = interval(tmp_low(:), tmp_up(:));
+%              end
+%              for i = 1:num_splits
+%                 succ_low_boundary{i} = NaN(n_x, 1, n_methods_single);
+%                 succ_up_boundary{i}  = NaN(n_x, 1, n_methods_single);
+%                 for m = 1:n_methods_single
+%                     [sl, su] = TIRA([t_init, t_final], ...
+%                         Initial_set_boundaries{i}.inf, Initial_set_boundaries{i}.sup, ...
+%                         p_low, p_up, methods(m));
+%                     succ_low_boundary{i}(:, 1, m) = sl;
+%                     succ_up_boundary{i}(:, 1, m)  = su;
+%                 end
+%              end
+%         end
+%     end
+% 
+% catch e
+%     if system_choice == 16 && exist('A_orig','var')
+%         Aout_global = A_orig; Bout_global = Bout_orig;
+%     end
+%     fprintf('Error in NODE_RA: %s\n', e.message);
+%     rethrow(e);
+% end
+% 
+% % Finish Packaging
+% if ~exist('reachability_results', 'var')
+%     reachability_results = struct();
+% end
+% reachability_results.intersect_low = succ_low_all_methods(:,1,1);
+% reachability_results.intersect_up  = succ_up_all_methods(:,1,1);
+% reachability_results.succ_low_all_methods = succ_low_all_methods;
+% reachability_results.succ_up_all_methods = succ_up_all_methods;
+% 
+% % Check magnitude
+% max_val = max(abs([reachability_results.intersect_low; reachability_results.intersect_up]), [], 'all');
+% fprintf('NODE_RA Output Max Bound Magnitude: %.2e\n', max_val);
+% 
+% end
+% 
+% function val = get_from_params(params, field)
+%     if isfield(params, field) && ~isempty(params.(field))
+%         val = params.(field);
+%     else
+%         error('NODE_RA: Missing %s', field);
+%     end
+% end
+% %------------- END CODE V1.7.9 --------------

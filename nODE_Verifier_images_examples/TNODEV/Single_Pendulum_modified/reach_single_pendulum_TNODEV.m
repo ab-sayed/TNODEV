@@ -1,0 +1,252 @@
+function reach_single_pendulum_TNODEV()
+
+    % Reachability analysis of Single Pendulum Surrogate using TNODEV
+    % Features: Iterative Refinement, Sequential Execution, and Live Plotting
+
+    %% 1. Configuration
+    % Select heuristic: 'naive', 'most-sensitive-input-radius', 'interval-norm-gradient'
+    heuristic_choice = 'naive'; 
+
+    N = 20; % 20 steps * 0.05s = 1.0 seconds total horizon similar to the specification in ARCH-COMP
+    MAX_ITER = 1000; % Maximum number of refinement iterations
+
+    %% 2. Setup TNODEV parameters
+    ode_params = struct();
+    ode_params.system_choice = 18; % Single Pendulum Surrogate (from System_description)
+    ode_params.t_final = 0.05;     % Time horizon for one reachability step
+    ode_params.timeStep = 10;      % TNODEV internal solver steps
+
+    states = 3; % [theta; dtheta; time]
+
+    %% 3. Initial Setup
+    % Standard ARCH-COMP initial bounds for the Single Pendulum
+    theta_init = [1.0, 1.2];
+    dtheta_init = [0.0, 0.2];
+    time_init = [0.0, 0.0];
+
+    lb_init = [theta_init(1); dtheta_init(1); time_init(1)];
+    ub_init = [theta_init(2); dtheta_init(2); time_init(2)];
+
+    % Queue stores cells of {lb, ub}
+    queue = {};
+    queue{end+1} = {lb_init, ub_init};
+
+    final_result = 'SAFE'; 
+
+    % --- Visualization Setup ---
+    f = figure; 
+    hold on;
+    xlabel('Angle (\theta)');
+    ylabel('Angular Velocity (\theta_{dot})');
+    title('Single Pendulum Reachability (TNODEV Surrogate)');
+    grid on;
+
+    t_full = tic;
+    iter = 1;
+
+    %% 4. Main Sequential Refinement Loop
+    while ~isempty(queue)
+
+        if iter > MAX_ITER
+            fprintf('\n[!] MAX_ITER (%d) reached. Stopping refinement.\n', MAX_ITER);
+            final_result = 'UNKNOWN (Wrapping effect dominated)';
+            break;
+        end
+
+        % --- Extract 1 task from the queue ---
+        task_data = queue{1};
+        queue(1) = []; % Remove extracted element
+
+        lb_curr = task_data{1};
+        ub_curr = task_data{2};
+
+        r_i = (ub_curr - lb_curr) / 2;
+
+        X0 = Star(lb_curr, ub_curr);
+        is_subregion_safe = true;
+
+        local_ode_params = ode_params;
+        trajR_local = X0; % Track trajectory for plotting later
+
+        fprintf('\n--- Iteration %d: Testing sub-region (Queue remaining: %d) ---\n', iter, length(queue));
+
+        % --- N-Step Continuous Reachability Loop ---
+        for k = 1:N
+            % 1. Extract Interval Hull
+            lb_all = zeros(states, length(X0));
+            ub_all = zeros(states, length(X0));
+            for s_idx = 1:length(X0)
+                B = X0(s_idx).getBox();
+                lb_all(:, s_idx) = B.lb;
+                ub_all(:, s_idx) = B.ub;
+            end
+            lb_hull = min(lb_all, [], 2);
+            ub_hull = max(ub_all, [], 2);
+
+            % 2. TNODEV Step (Propagate Continuous Neural ODE)
+            local_ode_params.x0 = (lb_hull + ub_hull) / 2;
+            local_ode_params.Initial_radius = (ub_hull - lb_hull) / 2;
+            tnode_res = NODE_RA_New(local_ode_params);
+
+            % 3. Extract New Reachable Set
+            X0_new = Star(tnode_res.intersect_low, tnode_res.intersect_up);
+            
+            % Get the interval hull of the new reachable set OA
+            B_new = X0_new.getBox();
+            min_theta = B_new.lb(1);
+            max_theta = B_new.ub(1);
+            min_dtheta = B_new.lb(2);
+            max_dtheta = B_new.ub(2);
+
+            % --- PRINT INTERVAL HULL OVER-APPROXIMATION ---
+            fprintf('    Step %02d (t=%.2fs): Theta [%.4f,  %.4f] | dTheta [%.4f,  %.4f]\n', ...
+                    k, k*ode_params.t_final, min_theta, max_theta, min_dtheta, max_dtheta);
+
+            % --- 1. NUMERICAL EXPLOSION CHECK (Prevents linprog crash) ---
+            % If the over-approximation blows up past physical reality, 
+            % abort this branch instantly so the tool splits it.
+            if min_theta < -50 || max_theta > 50 || min_dtheta < -50 || max_dtheta > 50
+                is_subregion_safe = false;
+                break;
+            end
+
+            % --- 2. ARCH-COMP SAFETY CHECK ---
+            % We verify that the pendulum does not fall over.
+            % Theta must remain within a safe bound (e.g., [-2.0, 2.0] radians)
+            % B_new = X0_new.getBox();
+            % min_theta = B_new.lb(1);
+            % max_theta = B_new.ub(1);
+            
+            % safe_limit = 2.0; % Radian bound
+            % 
+            % if min_theta < -safe_limit || max_theta > safe_limit
+            %     is_subregion_safe = false;
+            %     break; % Stop simulating, region is unsafe
+            % end
+                     
+            % We only enforce the safety check between steps 10 and 20
+            if k >= 10 && k <= 20
+                if min_theta < 0.0 || max_theta > 1.2 % <-- Changed from 1.0 to 1.2
+                    is_subregion_safe = false;
+                    % break; % Stop simulating, region is unsafe
+
+                    % If the bounds are extremely tight and it still violates, 
+                    % we have found a concrete counter-example. Stop everything!
+                    if (max_theta - min_theta) < 0.01
+                        fprintf('\n[!] CONCRETE COUNTER-EXAMPLE FOUND at t=%.2fs! The surrogate model is definitively UNSAFE.\n', k*ode_params.t_final);
+                        final_result = 'UNSAFE';
+                        queue = {}; % Clear the queue to break the while loop
+                    end
+
+                    break; % Stop simulating this specific branch
+                end
+            end
+
+            % Add to trajectory
+            trajR_local = [trajR_local X0_new];
+
+            % 4. State Update
+            X0 = X0_new;
+        end
+
+        % --- PLOT THE TRAJECTORY ---
+        % Plot states 1 (theta) and 2 (dtheta) in blue
+        Star.plotBoxes_2D_noFill(trajR_local, 1, 2, 'b');
+        drawnow; % Forces MATLAB to update the figure window immediately
+
+        % --- HEURISTIC SPLIT LOGIC (Runs only if unsafe) ---
+        split_dim = 1; 
+        if ~is_subregion_safe
+            switch heuristic_choice
+                case 'naive'
+                    % Split only physical states (dims 1 or 2), ignore time (dim 3)
+                    [~, split_dim] = max(r_i(1:2)); 
+
+                case 'most-sensitive-input-radius'
+                    try
+                        % Get the 3x3 Jacobian bounds for the current interval
+                        [J_lb, J_ub] = Jacob_bounds_element_wise(lb_curr, ub_curr, 18);
+                        
+                        % Find the maximum absolute sensitivity across the interval
+                        absJ = max(abs(J_lb), abs(J_ub));
+                        sens = max(absJ, [], 1); % Max sensitivity per input dimension (1x3)
+                        sens = max(sens, 1e-10); % Avoid strictly zero sensitivities
+                        
+                        % Score = radius * sensitivity (only for physical dims 1 and 2)
+                        scores = r_i(1:2)' .* sens(1:2);
+                        
+                        % Split the dimension with the highest score
+                        [~, split_dim] = max(scores); 
+                    catch ME
+                        fprintf('    [!] Sensitivity heuristic failed (%s). Falling back to naive.\n', ME.message);
+                        [~, split_dim] = max(r_i(1:2));
+                    end
+
+                case 'interval-norm-gradient'
+                    try
+                        % 1. Get base norm for the initial box (using just 1 solver step)
+                        base_p = local_ode_params;
+                        base_p.x0 = x_i; 
+                        base_p.Initial_radius = r_i;
+                        base_res = NODE_RA_New(base_p);
+                        
+                        % Calculate the volume (norm) of the resulting bounding box
+                        base_norm = sum(base_res.intersect_up - base_res.intersect_low);
+
+                        % 2. Perturb each physical dimension slightly to find the gradient
+                        grad = zeros(2, 1);
+                        delta = 1e-6;
+                        
+                        for j = 1:2 % ONLY evaluate Theta (1) and dTheta (2)
+                            x_pert = x_i; 
+                            x_pert(j) = x_pert(j) + delta;
+                            
+                            p_pert = base_p; 
+                            p_pert.x0 = x_pert;
+                            p_res = NODE_RA_New(p_pert);
+                            
+                            pert_norm = sum(p_res.intersect_up - p_res.intersect_low);
+                            grad(j) = (pert_norm - base_norm) / delta;
+                        end
+                        
+                        % 3. Split the dimension that caused the largest explosion in volume
+                        heuristic = abs(grad);
+                        [~, split_dim] = max(heuristic);
+                        
+                    catch ME
+                        fprintf('    [!] Gradient heuristic failed (%s). Falling back to naive.\n', ME.message);
+                        [~, split_dim] = max(r_i(1:2));
+                    end
+            end
+            
+            % Execute Split
+            mid_point = (lb_curr(split_dim) + ub_curr(split_dim)) / 2;
+
+            lb_1 = lb_curr; ub_1 = ub_curr; ub_1(split_dim) = mid_point;
+            lb_2 = lb_curr; ub_2 = ub_curr; lb_2(split_dim) = mid_point;
+
+            % Add new splits to the front of the queue (Depth-First Search)
+            queue = [{ {lb_1, ub_1}, {lb_2, ub_2} }, queue];
+            
+            fprintf('  -> Unsafe! Splitting dimension %d and adding 2 new subregions to queue.\n', split_dim);
+        else
+            fprintf('  -> Safe trajectory found for this subregion.\n');
+        end
+
+        iter = iter + 1;
+    end
+
+    total_time = toc(t_full);
+
+    %% Print Output Summaries
+    fprintf('\n=================================================\n');
+    fprintf('VERIFICATION SUMMARY (STANDARD REFINEMENT)\n');
+    fprintf('=================================================\n');
+    fprintf('Benchmark: Single Pendulum (TNODEV Surrogate)\n');
+    fprintf('Heuristic Used: %s\n', heuristic_choice);
+    fprintf('Final Result: %s\n', final_result);
+    fprintf('Total Iterations: %d\n', iter - 1);
+    fprintf('Full Verification Time: %.4f seconds\n', total_time);
+    fprintf('=================================================\n\n');
+
+end

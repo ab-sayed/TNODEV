@@ -1,0 +1,1079 @@
+%% V 1.0
+
+% function run_mnist_pure_tira()
+% % run_mnist_pure_tira
+% % A completely STANDALONE verification script for MNIST.
+% % Dependencies: NODE_RA.m, SimpleLayer_IA.m
+% % NO dependency on NNV.
+% 
+%     %% 1. Configuration
+%     pix  = 2;             % Pixels to attack
+%     numT = 2;             % Images to check
+%     noise = 0.5/255;      % Noise
+%     t_final = 1.0;
+% 
+%     addpath(genpath('/home/ibrahima/Documents/nODE_Verifier/TNODEV'));
+% 
+%     %% 2. Load Data and Weights
+%     fprintf('Loading Data and Weights...\n');
+%     load('odecnn_mnist_tiny.mat'); % Wb
+% 
+%     % Load MNIST (Assuming helper functions exist, otherwise load raw)
+%     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+%     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+%     XTest = single(extractdata(Xall(:,:,:,1:numT)));
+%     YTest = single(Yall(1:numT));
+% 
+%     %% 3. Pre-compute ODE Matrices (Optimization)
+%     % Extract ODE Weights
+%     w1_ode = Wb{9}; b1_ode = Wb{10}';
+%     w2_ode = Wb{11}; b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;
+%     Bout = w2_ode * b1_ode + b2_ode;
+% 
+%     % Pre-compute Diagonalization (Pure TIRA optimization)
+%     [V, D] = eig(Aout);
+%     [V_real, D_real] = cdf2rdf(V, D);
+%     V_inv = inv(V_real);
+%     B_tilde = V_inv * Bout;
+% 
+%     % Setup Template Params for NODE_RA
+%     % Note: We don't use 'input_star' here because we are Pure Interval.
+%     % We pass V_real/V_inv so NODE_RA can map the Box bounds correctly.
+%     node_template.system_choice = 16;
+%     node_template.t_final = t_final;
+%     node_template.V_real = V_real;
+%     node_template.V_inv = V_inv;
+%     node_template.D_real = D_real;
+%     node_template.B_tilde = B_tilde;
+% 
+%     %% 4. Main Verification Loop
+%     robust_count = 0;
+% 
+%     for i = 1:numT
+%         fprintf('\nVerifying Image %d (Pure TIRA)...\n', i);
+% 
+%         % --- A. Define Input Interval (Box) ---
+%         img = XTest(:,:,:,i);
+% 
+%         % Bounds [0, 1]
+%         x_c = img; 
+%         x_r = zeros(size(img));
+% 
+%         % Apply Noise
+%         pixels_attack = randperm(784, pix);
+%         for p = pixels_attack
+%             x_r(p) = noise; % Radius is the noise magnitude
+%         end
+%         % Clip to valid range [0,1] is implied in logic, but hard to enforce 
+%         % strictly on center/radius without converting to lb/ub. 
+%         % For small noise, we assume valid.
+% 
+%         % --- B. Propagate Layers 1-7 (CNN) ---
+%         % Layer 1: Conv
+%         % NNV weights are permuted. We must ensure dimensions match SimpleLayer_IA.
+%         % Wb{1} is 3x3x1x4.
+%         [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, Wb{1}, Wb{2}, 1, 0); 
+% 
+%         % Layer 2: BN
+%         [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001); % Eps=1e-4 usually
+% 
+%         % Layer 3: ReLU
+%         [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%         % Layer 4: Conv (Stride 2)
+%         [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, Wb{5}, Wb{6}, 2, 0); % Check padding logic if needed
+% 
+%         % Layer 5: BN
+%         [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+% 
+%         % Layer 6: ReLU
+%         [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%         % Layer 7: Flatten
+%         [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+% 
+%         % --- C. Propagate Layer 8 (NODE_RA) ---
+%         % Current state is a Box defined by x_c (Center) and x_r (Radius).
+%         % NODE_RA (V2.8) accepts this via 'x0' and 'Initial_radius'.
+% 
+%         params = node_template;
+%         params.x0 = x_c;
+%         params.Initial_radius = x_r;
+% 
+%         % Call NODE_RA
+%         % Note: Since we don't pass 'input_star', NODE_RA V2.8 will rely on 
+%         % V_inv * Box, which is slightly looser than V_inv * Star, 
+%         % but this is unavoidable in Pure Interval mode.
+%         res = NODE_RA(params);
+% 
+%         % Extract Result (Box)
+%         % NODE_RA returns a Star, but we only need its bounding box for the next steps.
+%         [lb_ode, ub_ode] = res.star_set.getRanges();
+% 
+%         x_c = 0.5 * (lb_ode + ub_ode);
+%         x_r = 0.5 * (ub_ode - lb_ode);
+% 
+%         % --- D. Propagate Layer 9 (Output FC) ---
+%         [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+% 
+%         % --- E. Final Robustness Check (Interval Logic) ---
+%         % Bounds of final scores
+%         lb_final = x_c - x_r;
+%         ub_final = x_c + x_r;
+% 
+%         correct_label = YTest(i); % e.g., 7
+%         % Adjust for 1-based index if labels are 0-9
+%         % Usually NNV labels are 1-10 or 0-9. Assuming 1-10 here if labels match MATLAB index.
+%         % If YTest is 0-9, add 1.
+%         if min(Yall) == 0, correct_idx = correct_label + 1; else, correct_idx = correct_label; end
+% 
+%         % Robust Condition: Lower Bound of Correct Class > Upper Bound of ALL other classes
+%         lb_correct = lb_final(correct_idx);
+% 
+%         % Get max upper bound of all OTHER classes
+%         other_indices = [1:correct_idx-1, correct_idx+1:10];
+%         max_ub_others = max(ub_final(other_indices));
+% 
+%         if lb_correct > max_ub_others
+%             fprintf('  Result: ROBUST\n');
+%             robust_count = robust_count + 1;
+%         else
+%             fprintf('  Result: Not Robust (Gap: %.4f)\n', lb_correct - max_ub_others);
+%         end
+%     end
+% 
+%     fprintf('\nTotal Robust Images: %d / %d\n', robust_count, numT);
+% 
+% end
+
+
+%%  V1.1 : without iterative refinement
+% function run_mnist_pure_tira()
+% % run_mnist_pure_tira
+% % A completely STANDALONE verification script for MNIST.
+% % Dependencies: NODE_RA.m, SimpleLayer_IA.m
+% % NO dependency on NNV.
+% 
+%     %% 1. Configuration
+%     pix  = 2;             % Pixels to attack
+%     numT = 2;             % Images to check
+%     noise = 0.5/255;      % Noise
+%     t_final = 1.0;
+% 
+%     % Adjust path to where your files are
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 2. Load Data and Weights
+%     fprintf('Loading Data and Weights...\n');
+%     load('odecnn_mnist_tiny.mat'); % Wb
+% 
+%     % Load MNIST
+%     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+%     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+%     XTest = single(extractdata(Xall(:,:,:,1:numT)));
+%     YTest = single(Yall(1:numT));
+% 
+%     %% 3. Pre-compute ODE Matrices
+%     w1_ode = Wb{9}; b1_ode = Wb{10}';
+%     w2_ode = Wb{11}; b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;
+%     Bout = w2_ode * b1_ode + b2_ode;
+% 
+%     % --- FIX: Set Globals for NODE_RA.m ---
+%     global Aout_global Bout_global system_choice
+%     Aout_global = Aout;
+%     Bout_global = Bout;
+%     system_choice = 16;
+%     % ------------------------------------
+% 
+%     % Pre-compute Diagonalization
+%     [V, D] = eig(Aout);
+%     [V_real, D_real] = cdf2rdf(V, D);
+%     V_inv = inv(V_real);
+%     B_tilde = V_inv * Bout;
+% 
+%     % Setup Template Params for NODE_RA
+%     node_template.system_choice = 16;
+%     node_template.t_final = t_final;
+%     node_template.V_real = V_real;
+%     node_template.V_inv = V_inv;
+%     node_template.D_real = D_real;
+%     node_template.B_tilde = B_tilde;
+% 
+%     %% 4. Main Verification Loop
+%     robust_count = 0;
+% 
+%     for i = 1:numT
+%         fprintf('\nVerifying Image %d (Pure TIRA)...\n', i);
+% 
+%         % --- A. Define Input Interval (Box) ---
+%         img = XTest(:,:,:,i);
+%         x_c = img; 
+%         x_r = zeros(size(img));
+% 
+%         % Apply Noise
+%         pixels_attack = randperm(784, pix);
+%         for p = pixels_attack
+%             x_r(p) = noise; 
+%         end
+% 
+%         % --- B. Propagate Layers 1-7 (CNN) ---
+% 
+%         % Layer 1: Conv  (Stride 1, Pad 0)
+%         % Permute weights [4 3 2 1] to get [H, W, In, Out]
+%         % Padding = 0 (NNV: [0,0,0,0])
+%         W1 = permute(Wb{1}, [4 3 2 1]); 
+%         [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W1, Wb{2}, 1, 0); 
+% 
+%         % Layer 2: BN
+%         [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001); 
+% 
+%         % Layer 3: ReLU
+%         [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%         % Layer 4: Conv (Stride 2)
+%         % FIX: Padding = 1 (NNV: [1,1,1,1]) --> This produce a 13x13 output (676 total)
+%         W4 = permute(Wb{5}, [4 3 2 1]);
+%         [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W4, Wb{6}, 2, 1); 
+% 
+%         % Layer 5: BN
+%         [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+% 
+%         % Layer 6: ReLU
+%         [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%         % Layer 7: Flatten
+%         [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+% 
+%         % --- C. Propagate Layer 8 (NODE_RA) ---
+%         params = node_template;
+%         params.x0 = x_c;
+%         params.Initial_radius = x_r;
+% 
+%         % Call NODE_RA (V2.8)
+%         res = NODE_RA(params);
+% 
+%         % Extract Result (Box)
+%         [lb_ode, ub_ode] = res.star_set.getRanges();
+% 
+%         x_c = 0.5 * (lb_ode + ub_ode);
+%         x_r = 0.5 * (ub_ode - lb_ode);
+% 
+%         % --- D. Propagate Layer 9 (Output FC) ---
+%         [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+% 
+%         % --- E. Final Robustness Check ---
+%         lb_final = x_c - x_r;
+%         ub_final = x_c + x_r;
+% 
+%         correct_label = YTest(i); 
+%         % if min(Yall) == 0, correct_idx = correct_label + 1; else, correct_idx = correct_label; end
+% 
+%         % Standard MNIST offset (0->1, 1->2,...)
+%         correct_idx = correct_label + 1;
+% 
+%         lb_correct = lb_final(correct_idx);
+% 
+%         other_indices = [1:correct_idx-1, correct_idx+1:10];
+% 
+%         max_ub_others = max(ub_final(other_indices));
+% 
+%         if lb_correct > max_ub_others
+%             fprintf('  Result: ROBUST\n');
+%             robust_count = robust_count + 1;
+%         else
+%             fprintf('  Result: Not Robust (Gap: %.4f)\n', lb_correct - max_ub_others);
+%         end
+%     end
+% 
+%     fprintf('\nTotal Robust Images: %d / %d\n', robust_count, numT);
+% end
+
+%%  V1.2 : with iterative refinement
+% function run_mnist_pure_tira()
+% % run_mnist_pure_tira
+% % A completely STANDALONE verification script for MNIST.
+% % Dependencies: NODE_RA.m, SimpleLayer_IA.m
+% % NO dependency on NNV.
+% 
+%     %% 1. Configuration
+%     pix  = 80;             % Pixels to attack
+%     numT = 6;             % Images to check
+%     noise = 0.5/255;      % Noise
+%     t_final = 1.0;
+%     MAX_ITER = 100; % Maximum refinements (i.e. Timeout criteria currently till i add this or a specific time that the iterations stops at)
+% 
+%     % Adjust path to where your files are
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 2. Load Data and Weights
+%     fprintf('Loading Data and Weights...\n');
+%     load('odecnn_mnist_tiny.mat'); % Wb
+% 
+%     % Load MNIST
+%     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+%     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+%     XTest = single(extractdata(Xall(:,:,:,1:numT)));
+%     YTest = single(Yall(1:numT));
+% 
+%     % try
+%     %     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+%     %     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+%     % catch
+%     %     error('Could not load MNIST files.');
+%     % end
+%     % 
+%     % XTest = single(extractdata(Xall(:,:,:,1:numT)));
+%     % YTest = single(extractdata(Yall(1:numT)));
+% 
+% 
+%     %% 3. Pre-compute ODE Matrices
+%     w1_ode = Wb{9}; b1_ode = Wb{10}';
+%     w2_ode = Wb{11}; b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;
+%     Bout = w2_ode * b1_ode + b2_ode;
+% 
+%     % --- Set Globals for NODE_RA.m ---
+%     global Aout_global Bout_global system_choice
+%     Aout_global = Aout;
+%     Bout_global = Bout;
+%     system_choice = 16;
+%     % ------------------------------------
+% 
+%     % Pre-compute Diagonalization
+%     [V, D] = eig(Aout);
+%     [V_real, D_real] = cdf2rdf(V, D);
+%     V_inv = inv(V_real);
+%     B_tilde = V_inv * Bout;
+% 
+%     % Setup Template Params for NODE_RA.m
+%     node_template.system_choice = 16;
+%     node_template.t_final = t_final;
+%     node_template.V_real = V_real;
+%     node_template.V_inv = V_inv;
+%     node_template.D_real = D_real;
+%     node_template.B_tilde = B_tilde;
+% 
+%     %% 4. Main Verification Loop
+%     % results = struct('Robust images', 0, 'Unknown images', 0, 'Not Robust images', 0);
+%     results = struct('robust', 0, 'unknown', 0, 'not_robust', 0);
+%     total_time = 0;
+% 
+%     for i = 1:numT
+%         fprintf('\nVerifying Image %d \n', i);
+%         t_start = tic;
+% 
+%         % --- A. Setup Initial Attack ---
+%         img = XTest(:,:,:,i);
+%         pixels_attack = randperm(784, pix);
+% 
+%         % Initial Center and Radius
+%         x_c_init = img;
+%         x_r_init = zeros(size(img));
+% 
+%         % Apply Noise
+%         for p = pixels_attack
+%             x_r_init(p) = noise; 
+%         end
+% 
+%         % Initialize Queue: {Center, Radius}
+%         queue = {{x_c_init, x_r_init}};
+% 
+%         iter = 0;
+%         is_falsified = false;
+% 
+%         % --- B. Refinement Loop ---
+%         while ~isempty(queue) && iter < MAX_ITER
+%             iter = iter + 1;
+% 
+%             % Pop next sub-problem
+%             current_box = queue{1};
+%             queue(1) = [];
+% 
+%             x_c = current_box{1};
+%             x_r = current_box{2};
+% 
+%             % 1. Propagate (Layers 1-9)
+%             [lb_final, ub_final] = propagate_pure_tira(x_c, x_r, Wb, node_template);
+% 
+%             % 2. Check Robustness Condition
+%             correct_label = YTest(i); 
+%             correct_idx = correct_label + 1; % 0-9 to 1-10
+% 
+%             lb_correct = lb_final(correct_idx);
+% 
+%             other_indices = [1:correct_idx-1, correct_idx+1:10];
+%             max_ub_others = max(ub_final(other_indices));
+% 
+%             gap = lb_correct - max_ub_others;
+% 
+%             if gap > 0
+%                 % SAFE: This sub-region is verified. Discard it.
+%                 % fprintf('  Iter %d: Safe branch (Gap: %.2f)\n', iter, gap);
+%                 continue; 
+%             else
+%                 % UNSAFE / UNKNOWN
+% 
+%                 % 3. Try to Falsify (Check Center Point)
+%                 % Propagate center with 0 radius
+%                 [lb_pt, ~] = propagate_pure_tira(x_c, zeros(size(x_c)), Wb, node_template);
+% 
+%                 center_score_correct = lb_pt(correct_idx);
+%                 center_score_others = max(lb_pt(other_indices));
+% 
+%                 if center_score_correct < center_score_others
+%                     % FALSIFIED! Center point is misclassified.
+%                     fprintf('  Iter %d: FALSIFIED (Center point misclassified)\n', iter);
+%                     is_falsified = true;
+%                     break; % Exit loop
+%                 end
+% 
+%                 % 4. Split (Refine)
+%                 % Find max radius in ATTACKED pixels
+%                 flat_r = x_r(:);
+%                 [max_r, split_idx] = max(flat_r);
+% 
+%                 if max_r < 1e-8
+%                     continue; % Cannot split further
+%                 end
+% 
+%                 % Create 2 children
+%                 x_c1 = x_c; x_r1 = x_r;
+%                 x_c2 = x_c; x_r2 = x_r;
+% 
+%                 new_r = max_r / 2;
+% 
+%                 % Child 1 (Lower half)
+%                 x_r1(split_idx) = new_r;
+%                 x_c1(split_idx) = x_c(split_idx) - new_r;
+% 
+%                 % Child 2 (Upper half)
+%                 x_r2(split_idx) = new_r;
+%                 x_c2(split_idx) = x_c(split_idx) + new_r;
+% 
+%                 queue{end+1} = {x_c1, x_r1};
+%                 queue{end+1} = {x_c2, x_r2};
+% 
+%                 fprintf('  Iter %d: Splitting pixel %d (Radius: %.1e, Gap: %.1e)\n', iter, split_idx, max_r, gap);
+%             end
+%         end
+% 
+%         t_elapsed = toc(t_start);
+%         total_time = total_time + t_elapsed;
+% 
+%         % --- C. Final Verdict for Image ---
+%         if is_falsified
+%             fprintf('Result: Not robust images: 1\n');
+%             results.not_robust = results.not_robust + 1;
+%         elseif isempty(queue)
+%             fprintf('Result: Robust images: 1\n');
+%             results.robust = results.robust + 1;
+%         else
+%             fprintf('Result: Unknown images: 1 (Timeout)\n');
+%             results.unknown = results.unknown + 1;
+%         end
+%         fprintf('Time: %.4f s\n', t_elapsed);
+%     end
+% 
+%     % --- D. Summary ---
+%     fprintf('\n=== FINAL SUMMARY ===\n');
+%     fprintf('Robust images: %d\n', results.robust);
+%     fprintf('Unknown images: %d\n', results.unknown);
+%     fprintf('Not robust images: %d\n', results.not_robust);
+%     fprintf('Total time = %.4f s\n', total_time);
+% end
+% 
+% % =========================================================================
+% % HELPER: Propagation Logic (Box in -> Box out)
+% % =========================================================================
+% function [lb_final, ub_final] = propagate_pure_tira(x_c, x_r, Wb, node_template)
+% 
+%     % Layer 1: Conv
+%     W1 = permute(Wb{1}, [4 3 2 1]); 
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W1, Wb{2}, 1, 0); 
+% 
+%     % Layer 2: BN
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001); 
+% 
+%     % Layer 3: ReLU
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % Layer 4: Conv
+%     W4 = permute(Wb{5}, [4 3 2 1]);
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W4, Wb{6}, 2, 1); 
+% 
+%     % Layer 5: BN
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+% 
+%     % Layer 6: ReLU
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % Layer 7: Flatten
+%     [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+% 
+%     % Layer 8: NODE_RA
+%     params = node_template;
+%     params.x0 = x_c;
+%     params.Initial_radius = x_r;
+%     res = NODE_RA(params);
+% 
+%     [lb_ode, ub_ode] = res.star_set.getRanges();
+%     x_c = 0.5 * (lb_ode + ub_ode);
+%     x_r = 0.5 * (ub_ode - lb_ode);
+% 
+%     % Layer 9: FC
+%     [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+% 
+%     lb_final = x_c - x_r;
+%     ub_final = x_c + x_r;
+% end        
+
+
+%%  V1.2.1 : with iterative refinement
+function run_mnist_pure_tira()
+% run_mnist_pure_tira
+% A completely STANDALONE verification script for MNIST.
+% Dependencies: NODE_RA.m, SimpleLayer_IA.m
+% FIX: Date normalization [0,1] instead of [0,255]
+
+    %% 1. Configuration
+    pix  = 80;             % Pixels to attack
+    numT = 5;             % Images to check
+    noise = 0.5/255;      % Noise
+    t_final = 1.0;
+    MAX_ITER = 100; % Maximum refinements (i.e. Timeout criteria currently till i add this or a specific time that the iterations stops at)
+
+    % Adjust path to where your files are
+    verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+    addpath(genpath(verifier_root));
+
+    %% 2. Load Data and Weights
+    fprintf('Loading Data and Weights...\n');
+    load('odecnn_mnist_tiny.mat'); % Wb
+
+    % Load MNIST
+    Xall = processMNISTimages('t10k-images.idx3-ubyte');
+    Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+
+    % Extract Data
+    XTest = single(extractdata(Xall(:,:,:,1:numT)));
+    YTest = single(Yall(1:numT));
+
+    % --- CRITICAL FIX: Normalize to [0, 1] ---
+    if max(XTest, [], 'all') > 1.0
+    fprintf('Normalizing images from [0, 255] to [0, 1]...\n');
+    XTest = XTest / 255.0;
+    end
+    % -----------------------------------------
+
+    % try
+    %     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+    %     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+    % catch
+    %     error('Could not load MNIST files.');
+    % end
+    % 
+    % XTest = single(extractdata(Xall(:,:,:,1:numT)));
+    % YTest = single(extractdata(Yall(1:numT)));
+
+
+    %% 3. Pre-compute ODE Matrices
+    w1_ode = Wb{9}; b1_ode = Wb{10}';
+    w2_ode = Wb{11}; b2_ode = Wb{12}';
+    Aout = w2_ode * w1_ode;
+    Bout = w2_ode * b1_ode + b2_ode;
+
+    % --- Set Globals for NODE_RA.m ---
+    global Aout_global Bout_global system_choice
+    Aout_global = Aout;
+    Bout_global = Bout;
+    system_choice = 16;
+    % ------------------------------------
+
+    % Pre-compute Diagonalization
+    [V, D] = eig(Aout);
+    [V_real, D_real] = cdf2rdf(V, D);
+    V_inv = inv(V_real);
+    B_tilde = V_inv * Bout;
+
+    % Setup Template Params for NODE_RA.m
+    node_template.system_choice = 16;
+    node_template.t_final = t_final;
+    node_template.V_real = V_real;
+    node_template.V_inv = V_inv;
+    node_template.D_real = D_real;
+    node_template.B_tilde = B_tilde;
+
+    %% 4. Main Verification Loop
+    % results = struct('Robust images', 0, 'Unknown images', 0, 'Not Robust images', 0);
+    results = struct('robust', 0, 'unknown', 0, 'not_robust', 0);
+    total_time = 0;
+
+    for i = 1:numT
+        fprintf('\nVerifying Image %d \n', i);
+        t_start = tic;
+
+        % --- A. Setup Initial Attack ---
+        img = XTest(:,:,:,i);
+        pixels_attack = randperm(784, pix);
+
+        % Initial Center and Radius
+        x_c_init = img;
+        x_r_init = zeros(size(img));
+
+        % Apply Noise
+        for p = pixels_attack
+            x_r_init(p) = noise; 
+        end
+
+        % Initialize Queue: {Center, Radius}
+        queue = {{x_c_init, x_r_init}};
+
+        iter = 0;
+        is_falsified = false;
+
+        % --- B. Refinement Loop ---
+        while ~isempty(queue) && iter < MAX_ITER
+            iter = iter + 1;
+
+            % Pop next sub-problem
+            current_box = queue{1};
+            queue(1) = [];
+
+            x_c = current_box{1};
+            x_r = current_box{2};
+
+            % 1. Propagate (Layers 1-9)
+            [lb_final, ub_final] = propagate_pure_tira(x_c, x_r, Wb, node_template);
+
+            % 2. Check Robustness Condition
+            correct_label = YTest(i); 
+            correct_idx = correct_label + 1; % 0-9 to 1-10
+
+            lb_correct = lb_final(correct_idx);
+
+            other_indices = [1:correct_idx-1, correct_idx+1:10];
+            max_ub_others = max(ub_final(other_indices));
+
+            gap = lb_correct - max_ub_others;
+
+            if gap > 0
+                % SAFE: This sub-region is verified. Discard it.
+                % fprintf('  Iter %d: Safe branch (Gap: %.2f)\n', iter, gap);
+                continue; 
+            else
+                % UNSAFE / UNKNOWN
+
+                % 3. Try to Falsify (Check Center Point)
+                % Propagate center with 0 radius
+                [lb_pt, ~] = propagate_pure_tira(x_c, zeros(size(x_c)), Wb, node_template);
+
+                center_score_correct = lb_pt(correct_idx);
+                center_score_others = max(lb_pt(other_indices));
+
+                if center_score_correct < center_score_others
+                    % FALSIFIED! Center point is misclassified.
+                    fprintf('  Iter %d: FALSIFIED (Center point misclassified)\n', iter);
+                    is_falsified = true;
+                    break; % Exit loop
+                end
+
+                % 4. Split (Refine)
+                % Find max radius in ATTACKED pixels
+                flat_r = x_r(:);
+                [max_r, split_idx] = max(flat_r);
+
+                if max_r < 1e-8
+                    continue; % Cannot split further
+                end
+
+                % Create 2 children
+                x_c1 = x_c; x_r1 = x_r;
+                x_c2 = x_c; x_r2 = x_r;
+
+                new_r = max_r / 2;
+
+                % Child 1 (Lower half)
+                x_r1(split_idx) = new_r;
+                x_c1(split_idx) = x_c(split_idx) - new_r;
+
+                % Child 2 (Upper half)
+                x_r2(split_idx) = new_r;
+                x_c2(split_idx) = x_c(split_idx) + new_r;
+
+                queue{end+1} = {x_c1, x_r1};
+                queue{end+1} = {x_c2, x_r2};
+
+                fprintf('  Iter %d: Splitting pixel %d (Radius: %.1e, Gap: %.1e)\n', iter, split_idx, max_r, gap);
+            end
+        end
+
+        t_elapsed = toc(t_start);
+        total_time = total_time + t_elapsed;
+
+        % --- C. Final Verdict for Image ---
+        if is_falsified
+            fprintf('Result: Not robust images: 1\n');
+            results.not_robust = results.not_robust + 1;
+        elseif isempty(queue)
+            fprintf('Result: Robust images: 1\n');
+            results.robust = results.robust + 1;
+        else
+            fprintf('Result: Unknown images: 1 (Timeout)\n');
+            results.unknown = results.unknown + 1;
+        end
+        fprintf('Time: %.4f s\n', t_elapsed);
+    end
+
+    % --- D. Summary ---
+    fprintf('\n=== FINAL SUMMARY ===\n');
+    fprintf('Robust images: %d\n', results.robust);
+    fprintf('Unknown images: %d\n', results.unknown);
+    fprintf('Not robust images: %d\n', results.not_robust);
+    fprintf('Total time = %.4f s\n', total_time);
+end
+
+% =========================================================================
+% HELPER: Propagation Logic (Box in -> Box out)
+% =========================================================================
+function [lb_final, ub_final] = propagate_pure_tira(x_c, x_r, Wb, node_template)
+
+    % Layer 1: Conv
+    W1 = permute(Wb{1}, [4 3 2 1]); 
+    [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W1, Wb{2}, 1, 0); 
+
+    % Layer 2: BN
+    [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001); 
+
+    % Layer 3: ReLU
+    [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+
+    % Layer 4: Conv
+    W4 = permute(Wb{5}, [4 3 2 1]);
+    [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W4, Wb{6}, 2, 1); 
+
+    % Layer 5: BN
+    [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+
+    % Layer 6: ReLU
+    [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+
+    % Layer 7: Flatten
+    [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+
+    % Layer 8: NODE_RA
+    params = node_template;
+    params.x0 = x_c;
+    params.Initial_radius = x_r;
+    res = NODE_RA(params);
+
+    [lb_ode, ub_ode] = res.star_set.getRanges();
+    x_c = 0.5 * (lb_ode + ub_ode);
+    x_r = 0.5 * (ub_ode - lb_ode);
+
+    % Layer 9: FC
+    [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+
+    lb_final = x_c - x_r;
+    ub_final = x_c + x_r;
+end        
+
+
+
+%%  V1.3 : with iterative refinement + 2 modes fro verification --> Not Working 
+% function run_mnist_pure_tira()
+% % run_mnist_pure_tira
+% % A completely STANDALONE verification script for MNIST.
+% % Dependencies: `NODE_RA.m`, `SimpleLayer_IA.m`
+% % Supports two modes:
+% %   1. 'full_network'  :
+% %   2. 'layer_by_layer': Manual propagation layer by layer
+% 
+%     %% 1. Configuration
+% 
+%     % =====================================================================
+%     mode = 'full_netrwork'; % Options: 'full_network' or 'layer_by_layer'
+%     % =====================================================================
+% 
+%     pix  = 80;             % Pixels to attack
+%     numT = 5;             % Images to check
+%     noise = 0.5/255;      % Noise
+%     t_final = 1.0;
+%     MAX_ITER = 100; % Maximum refinements (i.e. Timeout criteria currently till i add this or a specific time that the iterations stops at)
+% 
+%     % Adjust path to where your files are
+%     verifier_root = '/home/ibrahima/Documents/nODE_Verifier/TNODEV';
+%     addpath(genpath(verifier_root));
+% 
+%     %% 2. Load Data and Weights
+%     fprintf('Loading Data and Weights...\n');
+%     load('odecnn_mnist_tiny.mat'); % Wb
+% 
+%     % Load MNIST
+%     Xall = processMNISTimages('t10k-images.idx3-ubyte');
+%     Yall = processMNISTlabels('t10k-labels.idx1-ubyte');
+%     XTest = single(extractdata(Xall(:,:,:,1:numT)));
+%     YTest = single(Yall(1:numT));
+% 
+%     %% 3. Pre-compute ODE Matrices
+%     w1_ode = Wb{9}; b1_ode = Wb{10}';
+%     w2_ode = Wb{11}; b2_ode = Wb{12}';
+%     Aout = w2_ode * w1_ode;
+%     Bout = w2_ode * b1_ode + b2_ode;
+% 
+%     % --- Set Globals for NODE_RA.m ---
+%     global Aout_global Bout_global system_choice
+%     Aout_global = Aout;
+%     Bout_global = Bout;
+%     system_choice = 16;
+%     % ------------------------------------
+% 
+%     % Pre-compute Diagonalization
+%     [V, D] = eig(Aout);
+%     [V_real, D_real] = cdf2rdf(V, D);
+%     V_inv = inv(V_real);
+%     B_tilde = V_inv * Bout;
+% 
+%     % Setup Template Params for NODE_RA.m
+%     node_template.system_choice = 16;
+%     node_template.t_final = t_final;
+%     node_template.V_real = V_real;
+%     node_template.V_inv = V_inv;
+%     node_template.D_real = D_real;
+%     node_template.B_tilde = B_tilde;
+% 
+%     %% 4. Main Verification Loop
+%     % results = struct('Robust images', 0, 'Unknown images', 0, 'Not Robust images', 0);
+%     results = struct('robust', 0, 'unknown', 0, 'not_robust', 0);
+%     total_time = 0;
+% 
+%     fprintf('STARTING VERIFICATION (Mode: %s)...\n', mode);
+% 
+%     for i = 1:numT
+%         fprintf('\nVerifying Image %d \n', i);
+%         t_start = tic;
+% 
+%         % --- A. Setup Initial Attack ---
+%         img = XTest(:,:,:,i);
+%         pixels_attack = randperm(784, pix);
+% 
+%         % Initial Center and Radius
+%         x_c_init = img;
+%         x_r_init = zeros(size(img));
+% 
+%         % Apply Noise
+%         for p = pixels_attack
+%             x_r_init(p) = noise; 
+%         end
+% 
+%         % Initialize Queue: {Center, Radius}
+%         queue = {{x_c_init, x_r_init}};
+% 
+%         iter = 0;
+%         is_falsified = false;
+% 
+%         % --- B. Refinement Loop ---
+%         while ~isempty(queue) && iter < MAX_ITER
+%             iter = iter + 1;
+% 
+%             % Pop next sub-problem
+%             current_box = queue{1};
+%             queue(1) = [];
+% 
+%             x_c = current_box{1};
+%             x_r = current_box{2};
+% 
+%             % % 1. Propagate (Layers 1-9)
+%             % [lb_final, ub_final] = propagate_pure_tira(x_c, x_r, Wb, node_template);
+% 
+%             % ============================================================
+%             % 1. Propagate LAYERS (Based on Mode)
+%             % ============================================================
+%             if strcmp(mode, 'full_network')
+%             [lb_final, ub_final] = propagate_full_network(x_c, x_r, Wb, node_template);
+%             else
+%             % Layer-by-Layer 
+%             if iter == 1, fprintf(' (Debug: Executing Layer_by_Layer trace...)\n'); end
+%             [lb_final, ub_final] = propagate_layer_by_layer(x_c, x_r, Wb, node_template);
+%             end
+%             % ============================================================
+% 
+%             % 2. Check Robustness Condition
+%             correct_label = YTest(i); 
+%             correct_idx = correct_label + 1; % 0-9 to 1-10
+% 
+%             lb_correct = lb_final(correct_idx);
+% 
+%             other_indices = [1:correct_idx-1, correct_idx+1:10];
+%             max_ub_others = max(ub_final(other_indices));
+% 
+%             gap = lb_correct - max_ub_others;
+% 
+%             if gap > 0
+%                 % SAFE: This sub-region is verified. Discard it.
+%                 % fprintf('  Iter %d: Safe branch (Gap: %.2f)\n', iter, gap);
+%                 continue; 
+%             else
+%                 % UNSAFE / UNKNOWN
+% 
+%                 % 3. Try to Falsify (Check Center Point)
+%                 % Propagate center with 0 radius
+%                 [lb_pt, ~] = propagate_pure_tira(x_c, zeros(size(x_c)), Wb, node_template);
+% 
+%                 center_score_correct = lb_pt(correct_idx);
+%                 center_score_others = max(lb_pt(other_indices));
+% 
+%                 if center_score_correct < center_score_others
+%                     % FALSIFIED! Center point is misclassified.
+%                     fprintf('  Iter %d: FALSIFIED (Center point misclassified)\n', iter);
+%                     is_falsified = true;
+%                     break; % Exit loop
+%                 end
+% 
+%                 % 4. Split (Refine)
+%                 % Find max radius in ATTACKED pixels
+%                 flat_r = x_r(:);
+%                 [max_r, split_idx] = max(flat_r);
+% 
+%                 if max_r < 1e-8
+%                     continue; % Cannot split further
+%                 end
+% 
+%                 % Create 2 children
+%                 x_c1 = x_c; x_r1 = x_r;
+%                 x_c2 = x_c; x_r2 = x_r;
+% 
+%                 new_r = max_r / 2;
+% 
+%                 % Child 1 (Lower half)
+%                 x_r1(split_idx) = new_r;
+%                 x_c1(split_idx) = x_c(split_idx) - new_r;
+% 
+%                 % Child 2 (Upper half)
+%                 x_r2(split_idx) = new_r;
+%                 x_c2(split_idx) = x_c(split_idx) + new_r;
+% 
+%                 queue{end+1} = {x_c1, x_r1};
+%                 queue{end+1} = {x_c2, x_r2};
+% 
+%                 fprintf('  Iter %d: Splitting pixel %d (Radius: %.1e, Gap: %.1e)\n', iter, split_idx, max_r, gap);
+%             end
+%         end
+% 
+%         t_elapsed = toc(t_start);
+%         total_time = total_time + t_elapsed;
+% 
+%         % --- C. Final Verdict for Image ---
+%         if is_falsified
+%             fprintf('Result: Not robust images: 1\n');
+%             results.not_robust = results.not_robust + 1;
+%         elseif isempty(queue)
+%             fprintf('Result: Robust images: 1\n');
+%             results.robust = results.robust + 1;
+%         else
+%             fprintf('Result: Unknown images: 1 (Timeout)\n');
+%             results.unknown = results.unknown + 1;
+%         end
+%         fprintf('Time: %.4f s\n', t_elapsed);
+%     end
+% 
+%     % --- D. Summary ---
+%     fprintf('\n=== FINAL SUMMARY ===\n');
+%     fprintf('Robust images: %d\n', results.robust);
+%     fprintf('Unknown images: %d\n', results.unknown);
+%     fprintf('Not robust images: %d\n', results.not_robust);
+%     fprintf('Total time = %.4f s\n', total_time);
+% end
+% 
+% % =========================================================================
+% % HELPER 1: Full Network Propagation (Silent)
+% % =========================================================================
+% function [lb_final, ub_final] = propagate_full_network(x_c, x_r, Wb, node_template)
+%     % Runs the entire chain in one go without prints
+% 
+%     % Layer 1: Conv (Stride 1, Pad 0)
+%     W1 = permute(Wb{1}, [4 3 2 1]);
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W1, Wb{2}, 1, 0);
+% 
+%     % Layer 2: BN
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001);
+% 
+%     % Layer 3: ReLU
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % Layer 4: Conv (Stride 2, Pad 1)
+%     W4 = permute(Wb{5}, [4 3 2 1]);
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W4, Wb{6}, 2, 1);
+% 
+%     % Layer 5: BN
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+% 
+%     % Layer 6: ReLU
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % Layer 7: Flatten
+%     [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+% 
+%     % Layer 8: NODE_RA
+%     params = node_template;
+%     params.x0 = x_c;
+%     params.Initial_radius = x_r;
+%     res = NODE_RA(params);
+%     [lb_ode, ub_ode] = res.star_set.getRanges();
+%     x_c = 0.5 * (lb_ode + ub_ode);
+%     x_r = 0.5 * (ub_ode - lb_ode);
+% 
+%     % Layer 9: FC
+%     [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+% 
+%     lb_final = x_c - x_r;
+%     ub_final = x_c + x_r;
+% end
+% 
+% % =========================================================================
+% % HELPER 2: Layer-by-Layer Propagation (Verbose)
+% % =========================================================================
+% function [lb_final, ub_final] = propagate_layer_by_layer(x_c, x_r, Wb, node_template)
+%     % Runs the chain explicitly with logging
+% 
+%     % fprintf(' [L1] Conv2D...\n');
+%     W1 = permute(Wb{1}, [4 3 2 1]);
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W1, Wb{2}, 1, 0);
+% 
+%     % fprintf(' [L2] BatchNorm...\n');
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{4}, Wb{3}, Wb{15}, Wb{16}, 0.0001);
+% 
+%     % fprintf(' [L3] ReLU...\n');
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % fprintf(' [L4] Conv2D (Stride 2)...\n');
+%     W4 = permute(Wb{5}, [4 3 2 1]);
+%     [x_c, x_r] = SimpleLayer_IA.Conv2D(x_c, x_r, W4, Wb{6}, 2, 1);
+% 
+%     % fprintf(' [L5] BatchNorm...\n');
+%     [x_c, x_r] = SimpleLayer_IA.BatchNorm(x_c, x_r, Wb{8}, Wb{7}, Wb{18}, Wb{19}, 0.0001);
+% 
+%     % fprintf(' [L6] ReLU...\n');
+%     [x_c, x_r] = SimpleLayer_IA.ReLU(x_c, x_r);
+% 
+%     % fprintf(' [L7] Flatten...\n');
+%     [x_c, x_r] = SimpleLayer_IA.Flatten(x_c, x_r);
+% 
+%     % fprintf(' [L8] NODE_RA (TIRA)...\n');
+%     params = node_template;
+%     params.x0 = x_c;
+%     params.Initial_radius = x_r;
+%     res = NODE_RA(params);
+%     [lb_ode, ub_ode] = res.star_set.getRanges();
+%     x_c = 0.5 * (lb_ode + ub_ode);
+%     x_r = 0.5 * (ub_ode - lb_ode);
+% 
+%     % fprintf(' [L9] FullyConnected...\n');
+%     [x_c, x_r] = SimpleLayer_IA.FullyConnected(x_c, x_r, Wb{13}, Wb{14}');
+% 
+%     lb_final = x_c - x_r;
+%     ub_final = x_c + x_r;
+% end
